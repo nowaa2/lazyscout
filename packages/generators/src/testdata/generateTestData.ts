@@ -3,17 +3,12 @@ import { makeTestDataId } from '@lazyscout/core'
 import { assignModules } from '../moduleNames.js'
 import { labelOf, sampleValueFor } from '../testcases/targets.js'
 
-/** ชนิดของ field ที่แสดงในคอลัมน์ Input_Type */
 function inputTypeOf(field: UIElement): string {
   if (field.kind === 'select') return 'select'
   if (field.kind === 'textarea') return 'textarea'
   return field.inputType || 'text'
 }
 
-/**
- * ค่าที่ "ควรถูกปฏิเสธ" สำหรับแต่ละชนิด field
- * เป็นข้อเสนอตามชนิดของ input เท่านั้น ไม่ใช่กฎจริงของระบบ — Tester ต้องตรวจกับ spec
- */
 function invalidValueFor(field: UIElement): { value: string; note: string } {
   const type = inputTypeOf(field)
 
@@ -52,10 +47,6 @@ function validValueFor(field: UIElement): string {
   return sampleValueFor(field)
 }
 
-/**
- * สร้างตาราง Test Data จาก field ทุกช่องที่ Explorer พบ
- * หนึ่งแถวต่อหนึ่ง field (ตัดชื่อซ้ำภายใน module เดียวกันออก)
- */
 export function generateTestData(pages: PageInfo[]): TestDataRow[] {
   const moduleByUrl = assignModules(pages)
   const rows: TestDataRow[] = []

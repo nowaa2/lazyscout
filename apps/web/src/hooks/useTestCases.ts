@@ -2,10 +2,6 @@ import { useEffect, useState } from 'react'
 import { createEmptyTestCase, makeTestCaseId } from '@lazyscout/core'
 import type { TestCase } from '../types'
 
-/**
- * เก็บ test case ที่ผู้ใช้แก้ไขได้ (แหล่งความจริงของตาราง)
- * เมื่อ analyze ใหม่ รายการจะถูกแทนที่ด้วยผลลัพธ์ล่าสุด
- */
 export function useTestCases(generated: TestCase[] | undefined) {
   const [testCases, setTestCases] = useState<TestCase[]>([])
   const [selectedIds, setSelectedIds] = useState<string[]>([])
@@ -15,7 +11,6 @@ export function useTestCases(generated: TestCase[] | undefined) {
     setSelectedIds([])
   }, [generated])
 
-  /** originalId แยกจาก updated.id เพราะผู้ใช้แก้ TC ID เองได้ */
   function updateTestCase(originalId: string, updated: TestCase) {
     setTestCases((current) => current.map((item) => (item.id === originalId ? updated : item)))
     setSelectedIds((current) => current.map((id) => (id === originalId ? updated.id : id)))
@@ -31,15 +26,34 @@ export function useTestCases(generated: TestCase[] | undefined) {
     setSelectedIds([])
   }
 
-  /** สร้าง test case เปล่าให้ Tester เขียนเอง โดยหา ID ที่ยังไม่ถูกใช้ */
-  function addTestCase(sourceUrl: string): TestCase {
+  function reorderTestCases(draggedId: string, targetId: string) {
+    if (draggedId === targetId) return
+    setTestCases((current) => {
+      const from = current.findIndex((item) => item.id === draggedId)
+      const to = current.findIndex((item) => item.id === targetId)
+      if (from < 0 || to < 0) return current
+      const next = [...current]
+      const [moved] = next.splice(from, 1)
+      next.splice(to, 0, moved)
+      return next
+    })
+  }
+
+  function createTestCaseDraft(sourceUrl: string): TestCase {
     const used = new Set(testCases.map((item) => item.id))
     let sequence = testCases.filter((item) => item.module === 'MANUAL').length + 1
     while (used.has(makeTestCaseId('MANUAL', sequence))) sequence++
 
-    const created = createEmptyTestCase('MANUAL', makeTestCaseId('MANUAL', sequence), sourceUrl)
+    return createEmptyTestCase('MANUAL', makeTestCaseId('MANUAL', sequence), sourceUrl)
+  }
+
+  function addTestCase(created: TestCase) {
     setTestCases((current) => [created, ...current])
     return created
+  }
+
+  function addImportedTestCases(imported: TestCase[]) {
+    setTestCases((current) => [...imported, ...current])
   }
 
   function toggleSelected(id: string) {
@@ -58,7 +72,10 @@ export function useTestCases(generated: TestCase[] | undefined) {
     updateTestCase,
     deleteTestCase,
     deleteSelected,
+    reorderTestCases,
+    createTestCaseDraft,
     addTestCase,
+    addImportedTestCases,
     toggleSelected,
     setSelection
   }

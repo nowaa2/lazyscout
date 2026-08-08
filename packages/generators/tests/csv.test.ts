@@ -34,7 +34,7 @@ describe('exportTestCasesToCsv', () => {
 
   it('escape double quote และเก็บ comma / newline ไว้ในเซลล์เดียว', () => {
     expect(csv).toContain('"ตรวจสอบหน้า Login, ปุ่ม และ ""ลิงก์"""')
-    // newline อยู่ในเซลล์เดียวกัน และ " ภายในเซลล์ถูก escape เป็น ""
+
     expect(csv).toContain('"1. Navigate to http://localhost:5173/login\n2. Click button ""Login"""')
   })
 

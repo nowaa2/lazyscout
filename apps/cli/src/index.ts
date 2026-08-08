@@ -39,7 +39,7 @@ async function main(): Promise<void> {
       'max-pages': { type: 'string' },
       'max-depth': { type: 'string' },
       port: { type: 'string' },
-      // parseArgs ของ Node ไม่แปลง --no-open ให้เอง ต้องประกาศเป็น option แยก
+
       'no-open': { type: 'boolean', default: false }
     }
   })
@@ -86,7 +86,7 @@ async function main(): Promise<void> {
 }
 
 main().catch((error: unknown) => {
-  // ข้อความ error ต้องอ่านรู้เรื่อง ไม่โยน stack trace ใส่หน้าผู้ใช้
+
   const message = error instanceof Error ? error.message : String(error)
   const hint = error && typeof error === 'object' && 'hint' in error ? String(error.hint) : undefined
 

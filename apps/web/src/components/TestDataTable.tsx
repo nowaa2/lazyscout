@@ -6,14 +6,9 @@ type Props = {
   onDelete: (id: string) => void
 }
 
-/**
- * ตาราง Test Data — แก้ไขในช่องได้ทันที (inline edit)
- * คอลัมน์ที่มาจากการตรวจจับจริง (Field, Type, Required) ปล่อยให้แก้ได้เช่นกัน
- * เพราะ Tester อาจเพิ่มแถวเองหรือแก้ชื่อ field ให้ตรงกับเอกสาร
- */
 export function TestDataTable({ rows, onUpdate, onDelete }: Props) {
   if (rows.length === 0) {
-    return <p className="p-6 text-center text-sm text-slate-500">ไม่มี test data ที่ตรงกับเงื่อนไข</p>
+    return <p className="p-6 text-center text-sm text-slate-500">No Test Data matches the current filters.</p>
   }
 
   return (
@@ -42,7 +37,7 @@ export function TestDataTable({ rows, onUpdate, onDelete }: Props) {
                   className="field px-2 py-1"
                   value={row.field}
                   onChange={(event) => onUpdate(row.id, { ...row, field: event.target.value })}
-                  aria-label={`Field ของ ${row.id}`}
+                  aria-label={`Field for ${row.id}`}
                 />
               </td>
               <td className="table-cell font-mono text-xs text-slate-500">{row.inputType}</td>
@@ -51,7 +46,7 @@ export function TestDataTable({ rows, onUpdate, onDelete }: Props) {
                   type="checkbox"
                   checked={row.required}
                   onChange={(event) => onUpdate(row.id, { ...row, required: event.target.checked })}
-                  aria-label={`Required ของ ${row.id}`}
+                  aria-label={`Required for ${row.id}`}
                 />
               </td>
               <td className="table-cell">
@@ -59,7 +54,7 @@ export function TestDataTable({ rows, onUpdate, onDelete }: Props) {
                   className="field px-2 py-1"
                   value={row.validValue}
                   onChange={(event) => onUpdate(row.id, { ...row, validValue: event.target.value })}
-                  aria-label={`Valid value ของ ${row.id}`}
+                  aria-label={`Valid value for ${row.id}`}
                 />
               </td>
               <td className="table-cell">
@@ -67,7 +62,7 @@ export function TestDataTable({ rows, onUpdate, onDelete }: Props) {
                   className="field px-2 py-1"
                   value={row.invalidValue}
                   onChange={(event) => onUpdate(row.id, { ...row, invalidValue: event.target.value })}
-                  aria-label={`Invalid value ของ ${row.id}`}
+                  aria-label={`Invalid value for ${row.id}`}
                 />
               </td>
               <td className="table-cell">
@@ -75,7 +70,7 @@ export function TestDataTable({ rows, onUpdate, onDelete }: Props) {
                   className="field px-2 py-1"
                   value={row.note ?? ''}
                   onChange={(event) => onUpdate(row.id, { ...row, note: event.target.value })}
-                  aria-label={`Note ของ ${row.id}`}
+                  aria-label={`Note for ${row.id}`}
                 />
               </td>
               <td className="table-cell">

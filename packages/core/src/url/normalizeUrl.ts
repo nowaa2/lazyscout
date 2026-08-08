@@ -1,15 +1,9 @@
-/** นามสกุลไฟล์ที่ไม่ใช่หน้าเว็บ — ข้ามไปเลยตอน crawl */
+
 const NON_PAGE_EXTENSIONS = [
   '.pdf', '.zip', '.rar', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp', '.ico',
   '.mp4', '.mp3', '.avi', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.csv', '.exe', '.dmg'
 ]
 
-/**
- * ทำให้ URL อยู่ในรูปมาตรฐานเพื่อใช้เป็น key กัน crawl ซ้ำ (duplicate pages)
- * - ตัด hash (#section ไม่ใช่หน้าใหม่)
- * - เรียง query parameter ให้คงที่
- * - ตัด trailing slash ยกเว้น root
- */
 export function normalizeUrl(rawUrl: string): string {
   const url = new URL(rawUrl)
   url.hash = ''
@@ -30,7 +24,6 @@ export function isSameOrigin(candidate: string, origin: string): boolean {
   }
 }
 
-/** URL นี้น่าจะเป็นหน้าเว็บที่ crawl ต่อได้หรือไม่ */
 export function isCrawlableUrl(rawUrl: string): boolean {
   try {
     const url = new URL(rawUrl)
@@ -42,7 +35,6 @@ export function isCrawlableUrl(rawUrl: string): boolean {
   }
 }
 
-/** ใช้ตั้งชื่อ module ของ test case เช่น http://x/login -> "LOGIN", "/" -> "HOME" */
 export function moduleNameFromUrl(rawUrl: string): string {
   try {
     const { pathname } = new URL(rawUrl)
@@ -51,7 +43,7 @@ export function moduleNameFromUrl(rawUrl: string): string {
 
     const name = segments
       .join('-')
-      .replace(/\.[a-z0-9]+$/i, '') // ตัด .html
+      .replace(/\.[a-z0-9]+$/i, '')
       .replace(/[^a-zA-Z0-9ก-๙-]/g, '-')
       .replace(/-+/g, '-')
       .replace(/^-|-$/g, '')

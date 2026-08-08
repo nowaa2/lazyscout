@@ -9,10 +9,9 @@ export type ServeOptions = {
 }
 
 const DEFAULT_PORT = 4321
-/** หน้าเว็บที่ build แล้วถูกคัดลอกมาไว้ข้าง ๆ ไฟล์ที่รันอยู่ (ดู build.mjs) */
+
 const WEB_DIR = join(dirname(fileURLToPath(import.meta.url)), 'web')
 
-/** เปิด API + หน้าเว็บในเครื่องผู้ใช้ แล้วเด้งเบราว์เซอร์ให้ */
 export async function runServe(options: ServeOptions): Promise<void> {
   const app = buildApp({ staticDir: WEB_DIR, logLevel: 'warn' })
   const port = await listenOnFreePort(app, options.port ?? DEFAULT_PORT)
@@ -24,10 +23,6 @@ export async function runServe(options: ServeOptions): Promise<void> {
   if (options.open) await openInBrowser(url)
 }
 
-/**
- * ลองพอร์ตถัดไปเรื่อย ๆ เมื่อพอร์ตที่ต้องการไม่ว่าง
- * (ผู้ใช้ไม่ควรต้องมานั่งหาว่าพอร์ตไหนว่าง)
- */
 async function listenOnFreePort(app: ReturnType<typeof buildApp>, startPort: number): Promise<number> {
   for (let port = startPort; port < startPort + 20; port++) {
     try {

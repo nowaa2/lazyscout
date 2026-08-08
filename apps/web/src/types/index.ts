@@ -1,12 +1,14 @@
-/**
- * Type ที่ฝั่งเว็บใช้
- * - re-export type กลางจาก @lazyscout/core เพื่อให้ import จากที่เดียว
- * - บวก type ที่เป็นเรื่องของ UI ล้วน ๆ
- */
+
+
 export type {
   AnalyzeRequest,
   AnalyzeResponse,
   ApiErrorResponse,
+  AutomationRunResponse,
+  ApiCheck,
+  ApiCheckRunResponse,
+  ApiCheckRunRequest,
+  ProjectSecrets,
   AutomationStatus,
   ExploreIssue,
   ExploreStats,
@@ -18,13 +20,13 @@ export type {
   TestCaseType,
   TestDataRow,
   TestStep,
-  UIElement
+  RunEvent,
+  UIElement,
+  TestCaseLanguage
 } from '@lazyscout/core'
 
-/** แท็บของตารางผลลัพธ์ */
-export type ResultTab = 'testcases' | 'testdata'
+export type ResultTab = 'testcases' | 'testdata' | 'apichecks'
 
-/** เงื่อนไขการกรองตารางบนหน้าจอ */
 export type TestCaseFilters = {
   search: string
   module: string

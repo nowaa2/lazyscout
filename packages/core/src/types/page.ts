@@ -1,23 +1,16 @@
-/**
- * Normalized Page Model
- * โครงสร้างกลางที่อธิบาย "หน้าเว็บหนึ่งหน้า" หลังจาก Explorer สำรวจเสร็จ
- * ไฟล์นี้ต้องไม่ import อะไรจาก Playwright เพื่อให้ layer อื่นใช้ต่อได้อิสระ
- */
 
-/** กลุ่มของ element ตามการใช้งานจริงของ Tester */
+
 export type UIElementKind = 'link' | 'button' | 'input' | 'textarea' | 'select'
+export type UIInteractionKind = 'dialog' | 'tab' | 'accordion' | 'dropdown'
+export type UIInteraction = { kind: UIInteractionKind; name: string; role: string; cssSelector: string; expanded?: boolean; visible: boolean }
 
-/**
- * ข้อมูล element หนึ่งชิ้นที่เพียงพอต่อการสร้าง automation ภายหลัง
- * ลำดับความสำคัญของ locator: accessibleName (role+name) > name/id > cssSelector
- */
 export type UIElement = {
   kind: UIElementKind
-  /** ARIA role เช่น 'button' | 'link' | 'textbox' | 'combobox' | 'checkbox' */
+
   role: string
-  /** ชื่อที่ screen reader อ่านได้ — ใช้เป็น locator หลัก (getByRole(role, { name })) */
+
   accessibleName: string
-  /** ข้อความที่มองเห็นภายใน element */
+
   text?: string
   tagName: string
   inputType?: string
@@ -25,13 +18,13 @@ export type UIElement = {
   name?: string
   id?: string
   href?: string
-  /** ตัวเลือกทั้งหมดของ <select> */
+
   options?: string[]
   required: boolean
   disabled: boolean
-  /** ใช้เมื่อไม่มี accessible name ที่เชื่อถือได้ */
+
   cssSelector: string
-  /** true = ตรงกับ safety keyword (เช่น Delete, Pay) → Explorer ห้ามคลิก */
+
   destructive: boolean
 }
 
@@ -46,12 +39,12 @@ export type FormInfo = {
 }
 
 export type PageInfo = {
-  /** URL ที่ Explorer ร้องขอ (normalize แล้ว) */
+
   url: string
-  /** URL จริงหลัง redirect */
+
   finalUrl: string
   title: string
-  /** ระยะห่างจากหน้าเริ่มต้น (0 = หน้าแรก) */
+
   depth: number
   statusCode?: number
   headings: string[]
@@ -61,6 +54,29 @@ export type PageInfo = {
   textareas: UIElement[]
   selects: UIElement[]
   forms: FormInfo[]
+  apiRequests: ApiObservation[]
+
+  state?: PageState
+}
+
+export type ApiObservation = { id: string; method: string; url: string; status?: number; durationMs?: number; resourceType: 'xhr' | 'fetch'; sourceUrl: string; contentType?: string }
+
+export type ExplorerActionType = 'navigate' | 'click' | 'openModal' | 'closeDialog' | 'selectTab' | 'expandAccordion' | 'openDropdown'
+export type ExplorerAction = { type: ExplorerActionType; target?: string; selector?: string; safe: boolean; reason?: string }
+export type StateEdge = { fromStateId: string; toStateId?: string; action: ExplorerAction; status: 'visited' | 'discovered' | 'blocked' | 'failed' }
+export type ActionGraph = { states: PageState[]; edges: StateEdge[]; visitedStateIds: string[]; visitedActionKeys: string[]; failedActionKeys: string[]; blockedActionKeys: string[] }
+export type RunEvent = { timestamp: string; eventType: 'run-started' | 'page-discovered' | 'state-discovered' | 'action-discovered' | 'action-blocked' | 'run-completed' | 'error'; currentUrl?: string; currentStateId?: string; action?: ExplorerAction; result: 'running' | 'passed' | 'warning' | 'failed' | 'blocked'; error?: string; durationMs?: number; message: string }
+
+export type PageState = {
+  id: string
+  url: string
+  title: string
+  fingerprint: string
+  visibleDialogs: string[]
+  headings: string[]
+  controls: UIElement[]
+  interactions: UIInteraction[]
+  stateContent: string[]
 }
 
 export type ExploreIssueCode =
@@ -74,9 +90,10 @@ export type ExploreIssueCode =
   | 'http-error'
   | 'navigation-failed'
   | 'browser-error'
+  | 'cloudflare'
+  | 'challenge-blocked'
   | 'unknown'
 
-/** ปัญหาที่เกิดระหว่างสำรวจ — บันทึกไว้แต่ไม่ทำให้ทั้ง job ล้ม */
 export type ExploreIssue = {
   url: string
   code: ExploreIssueCode
@@ -86,17 +103,18 @@ export type ExploreIssue = {
 export type ExploreOptions = {
   maxPages: number
   maxDepth: number
-  /** timeout ต่อหนึ่งหน้า (ms) */
+
   pageTimeoutMs: number
-  /** timeout รวมของทั้ง job (ms) */
+
   totalTimeoutMs: number
+  waitAfterNavigationMs: number
 }
 
 export type ExploreStats = {
-  /** เบราว์เซอร์ที่ใช้จริง เช่น "Google Chrome" — ช่วยตอนหาสาเหตุปัญหา */
+
   browser?: string
   pagesVisited: number
-  /** จำนวน URL ที่ถูกตัดออกเพราะเกิน limit หรือ origin ไม่ตรง */
+
   urlsSkipped: number
   durationMs: number
   limitReached: 'max-pages' | 'max-depth' | 'total-timeout' | 'none'
@@ -108,4 +126,5 @@ export type ExploreResult = {
   pages: PageInfo[]
   issues: ExploreIssue[]
   stats: ExploreStats
+  actionGraph: ActionGraph
 }

@@ -1,10 +1,6 @@
 import type { ApiErrorResponse } from '@lazyscout/core'
 import { ExplorerError } from '@lazyscout/explorer'
 
-/**
- * แปลง error ภายในเป็น response ที่ user อ่านเข้าใจ
- * ห้ามส่ง stack trace หรือข้อความดิบของ Playwright ออกไป
- */
 export function toApiError(error: unknown): { status: number; body: ApiErrorResponse } {
   if (error instanceof ExplorerError) {
     const status = error.code === 'invalid-url' || error.code === 'blocked-url' ? 400 : 502

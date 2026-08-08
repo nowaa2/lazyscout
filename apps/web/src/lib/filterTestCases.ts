@@ -1,12 +1,11 @@
 import { describeSteps } from '@lazyscout/core'
 import type { TestCase, TestCaseFilters, TestDataRow } from '../types'
 
-/** กรองตารางตาม search + module + type + priority (ทำงานฝั่ง client ทั้งหมด) */
 export function filterTestCases(testCases: TestCase[], filters: TestCaseFilters): TestCase[] {
   const keyword = filters.search.trim().toLowerCase()
 
   return testCases.filter((testCase) => {
-    if (filters.module !== 'all' && testCase.module !== filters.module) return false
+    if (filters.module !== 'all' && !testCase.module.toLowerCase().includes(filters.module.toLowerCase())) return false
     if (filters.type !== 'all' && testCase.type !== filters.type) return false
     if (filters.priority !== 'all' && testCase.priority !== filters.priority) return false
     if (!keyword) return true
@@ -30,7 +29,6 @@ export function uniqueModules(items: { module: string }[]): string[] {
   return [...new Set(items.map((item) => item.module))].sort()
 }
 
-/** กรองตาราง Test Data (ใช้แค่ search + module — type/priority ไม่เกี่ยวกับ test data) */
 export function filterTestData(rows: TestDataRow[], search: string, module: string): TestDataRow[] {
   const keyword = search.trim().toLowerCase()
 

@@ -1,9 +1,5 @@
-import type { UIElementKind } from '@lazyscout/core'
+import type { UIElementKind, UIInteraction } from '@lazyscout/core'
 
-/**
- * ข้อมูลดิบที่เก็บมาจาก DOM ภายใน browser
- * ยังไม่ผ่านการตรวจ safety — จะถูกแปลงเป็น UIElement ในฝั่ง Node
- */
 export type RawElement = {
   kind: UIElementKind
   role: string
@@ -40,4 +36,7 @@ export type RawPageData = {
   textareas: RawElement[]
   selects: RawElement[]
   forms: RawForm[]
+  visibleDialogs: string[]
+  interactions: UIInteraction[]
+  stateContent: string[]
 }

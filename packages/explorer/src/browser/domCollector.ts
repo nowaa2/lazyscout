@@ -1,12 +1,5 @@
 import type { RawElement, RawForm, RawPageData } from '../types/raw.js'
 
-/**
- * ฟังก์ชันนี้ถูกส่งไปรันใน browser ผ่าน page.evaluate()
- * ข้อจำกัด: ห้ามอ้างถึงตัวแปรนอกฟังก์ชัน และต้อง return ค่าที่ JSON serialize ได้เท่านั้น
- *
- * หลักการเก็บข้อมูล: ใช้ accessibility information (aria-label, <label>, text) ก่อน
- * แล้วค่อย fallback เป็น css selector
- */
 export function collectPageData(): RawPageData {
   const MAX_PER_GROUP = 80
 
@@ -19,7 +12,6 @@ export function collectPageData(): RawPageData {
     return value && value.trim() ? value.trim() : undefined
   }
 
-  /** คำนวณชื่อที่ screen reader จะอ่าน (ลำดับเดียวกับ accessible name computation แบบย่อ) */
   function accessibleName(el: Element): string {
     const ariaLabel = cleanText(el.getAttribute('aria-label'))
     if (ariaLabel) return ariaLabel
@@ -66,7 +58,6 @@ export function collectPageData(): RawPageData {
     return cleanText(el.getAttribute('title')) || cleanText(el.getAttribute('value'))
   }
 
-  /** selector สำรอง ใช้เมื่อไม่มี accessible name ที่ใช้อ้างอิงได้ */
   function cssSelector(el: Element): string {
     if (el.id) return `#${CSS.escape(el.id)}`
 
@@ -151,7 +142,6 @@ export function collectPageData(): RawPageData {
     }
   }
 
-  /** ข้าม element ที่ถูกซ่อนจาก assistive technology */
   function isCollectable(el: Element): boolean {
     if (el.closest('[aria-hidden="true"]')) return false
     if (el instanceof HTMLInputElement && el.type === 'hidden') return false
@@ -193,7 +183,7 @@ export function collectPageData(): RawPageData {
         name: attr(form, 'name'),
         action: form.getAttribute('action') || undefined,
         method: (form.getAttribute('method') || 'get').toLowerCase(),
-        // ใช้ aria-label / name / id เท่านั้น เพราะ textContent ของ form คือทั้งฟอร์ม
+
         accessibleName: attr(form, 'aria-label') || attr(form, 'name') || form.id || undefined,
         fields,
         submitButtons
@@ -211,6 +201,14 @@ export function collectPageData(): RawPageData {
     inputs: collect(INPUT_SELECTOR, 'input', 'textbox'),
     textareas: collect('textarea', 'textarea', 'textbox'),
     selects: collect('select', 'select', 'combobox'),
-    forms
+    forms,
+    visibleDialogs: Array.from(document.querySelectorAll('[role="dialog"], dialog[open], [aria-modal="true"]')).filter(isCollectable).map((element) => accessibleName(element) || cleanText(element.textContent).slice(0, 120)).filter(Boolean).slice(0, 20),
+    interactions: Array.from(document.querySelectorAll('[role="tab"], [role="tablist"] [aria-controls], [aria-expanded], select')).filter(isCollectable).map((element) => {
+      const role = attr(element, 'role') || (element instanceof HTMLSelectElement ? 'combobox' : 'button')
+      const expanded = element.getAttribute('aria-expanded')
+      const kind: 'dialog' | 'tab' | 'accordion' | 'dropdown' = role === 'tab' ? 'tab' : element instanceof HTMLSelectElement ? 'dropdown' : element.matches('[aria-expanded]') ? 'accordion' : 'dialog'
+      return { kind, name: accessibleName(element), role, cssSelector: cssSelector(element), expanded: expanded === null ? undefined : expanded === 'true', visible: true }
+    }).filter((item) => item.name).slice(0, 40),
+    stateContent: Array.from(document.querySelectorAll('[aria-live], [data-state], [data-testid*="state" i]')).filter(isCollectable).map((element) => cleanText(element.textContent)).filter(Boolean).slice(0, 30)
   }
 }

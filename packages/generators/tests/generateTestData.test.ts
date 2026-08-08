@@ -24,7 +24,7 @@ const page: PageInfo = {
   inputs: [
     element({ kind: 'input', role: 'textbox', accessibleName: 'Email', inputType: 'email', required: true }),
     element({ kind: 'input', role: 'textbox', accessibleName: 'Password', inputType: 'password', required: true }),
-    // ชื่อซ้ำกับช่องแรก — ต้องถูกตัดออก
+
     element({ kind: 'input', role: 'textbox', accessibleName: 'Email', inputType: 'email' })
   ],
   textareas: [element({ kind: 'textarea', role: 'textbox', accessibleName: 'Note', tagName: 'textarea' })],

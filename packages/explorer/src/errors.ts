@@ -1,6 +1,5 @@
 import type { ExploreIssue, ExploreIssueCode } from '@lazyscout/core'
 
-/** ข้อความ error ของ Playwright/Chromium → code + ข้อความที่มนุษย์เข้าใจ (ไม่มี stack trace) */
 export function toExploreIssue(url: string, error: unknown): ExploreIssue {
   const raw = error instanceof Error ? error.message : String(error)
   const text = raw.toLowerCase()

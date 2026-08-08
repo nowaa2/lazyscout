@@ -11,7 +11,6 @@ export type ScanOptions = {
   maxDepth?: number
 }
 
-/** โหมด CLI ล้วน: สแกนแล้วเขียนผลลงไฟล์ เหมาะกับการรันใน CI */
 export async function runScan(options: ScanOptions): Promise<void> {
   console.log(`กำลังสำรวจ ${options.url} ...`)
 

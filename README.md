@@ -12,6 +12,10 @@
 เครื่องมือช่วย Software Tester วิเคราะห์เว็บไซต์ด้วย Playwright แล้วสร้าง **Draft Test Case** อัตโนมัติ
 ตรวจ/แก้ไขบนหน้าเว็บ แล้ว export เป็น CSV
 
+เวอร์ชันปัจจุบันยังแสดง Website UI State Explorer (fingerprint + action graph), structured Run Viewer,
+Draft Test Cases และสร้างโค้ด Playwright/Cypress จาก structured test steps ได้ โดย destructive actions
+จะถูกค้นพบและ mark เป็น blocked แต่ไม่ถูก execute
+
 ```
 URL → Analyze → Playwright สำรวจเว็บไซต์ → Pages/Buttons/Inputs/Links/Forms
     → Draft Test Cases + Test Data → ตารางให้ Edit/Delete/Add → Export CSV
@@ -35,12 +39,15 @@ npm run build:packages            # build packages/core, explorer, generators
 ## รัน (เปิด 2 terminal)
 
 ```bash
-# terminal 1 — API (Fastify)
+# terminal 1 — API (Fastify + nodemon auto-reload)
 npm run dev:server      # http://127.0.0.1:4000
 
 # terminal 2 — Web UI (Vite)
 npm run dev:web         # http://localhost:5173
 ```
+
+`dev:server` ใช้ nodemon เฝ้าดู `apps/server/src` และ restart server อัตโนมัติเมื่อแก้ไฟล์
+จึงไม่ต้องหยุด/เปิด server ใหม่เอง หลังย้ายเครื่องให้รัน `npm install` ครั้งเดียว
 
 เปิด <http://localhost:5173> → ใส่ Target URL → กด **Analyze Website**
 

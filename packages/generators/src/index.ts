@@ -12,6 +12,5 @@ export {
   UTF8_BOM
 } from './csv/exportTestCasesToCsv.js'
 
-// จุดต่อขยายในอนาคต (ยังไม่ implement ใน V0.1):
-// - ./playwright/  : TestCase[] -> .spec.ts
-// - ./cypress/     : TestCase[] -> .cy.ts
+export { generatePlaywrightTest } from './playwright/generatePlaywrightTest.js'
+export { generateCypressTest } from './cypress/generateCypressTest.js'

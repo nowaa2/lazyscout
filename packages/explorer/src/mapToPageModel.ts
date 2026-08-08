@@ -1,8 +1,7 @@
-import type { FormInfo, PageInfo, UIElement } from '@lazyscout/core'
+import { fingerprintState, stateId, type FormInfo, type PageInfo, type UIElement } from '@lazyscout/core'
 import type { RawElement, RawForm, RawPageData } from './types/raw.js'
 import { isDestructiveLabel } from './safety.js'
 
-/** เติมผลการตรวจ safety ให้ element ดิบ (ทำฝั่ง Node เพื่อให้ keyword อยู่ที่เดียว) */
 function toUIElement(raw: RawElement): UIElement {
   return {
     ...raw,
@@ -22,11 +21,18 @@ function toFormInfo(raw: RawForm): FormInfo {
   }
 }
 
-/** RawPageData (จาก DOM) → PageInfo (Normalized Page Model) */
 export function mapToPageModel(
   raw: RawPageData,
-  meta: { url: string; finalUrl: string; depth: number; statusCode?: number }
+  meta: { url: string; finalUrl: string; depth: number; statusCode?: number; apiRequests?: PageInfo['apiRequests'] }
 ): PageInfo {
+  const links = raw.links.map(toUIElement)
+  const buttons = raw.buttons.map(toUIElement)
+  const inputs = raw.inputs.map(toUIElement)
+  const textareas = raw.textareas.map(toUIElement)
+  const selects = raw.selects.map(toUIElement)
+  const controls = [...links, ...buttons, ...inputs, ...textareas, ...selects]
+  const stateInput = { url: meta.finalUrl, title: raw.title, visibleDialogs: raw.visibleDialogs, headings: raw.headings, controls, interactions: raw.interactions, stateContent: raw.stateContent }
+  const fingerprint = fingerprintState(stateInput)
   return {
     url: meta.url,
     finalUrl: meta.finalUrl,
@@ -34,11 +40,7 @@ export function mapToPageModel(
     depth: meta.depth,
     statusCode: meta.statusCode,
     headings: raw.headings,
-    links: raw.links.map(toUIElement),
-    buttons: raw.buttons.map(toUIElement),
-    inputs: raw.inputs.map(toUIElement),
-    textareas: raw.textareas.map(toUIElement),
-    selects: raw.selects.map(toUIElement),
-    forms: raw.forms.map(toFormInfo)
+    links, buttons, inputs, textareas, selects, forms: raw.forms.map(toFormInfo), apiRequests: meta.apiRequests ?? [],
+    state: { id: stateId(meta.finalUrl, fingerprint), ...stateInput, fingerprint }
   }
 }

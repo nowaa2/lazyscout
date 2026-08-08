@@ -1,27 +1,22 @@
 import type { Browser, Page } from 'playwright-core'
-import type { ExploreIssue, ExploreOptions, ExploreResult, PageInfo, UrlPolicy } from '@lazyscout/core'
+import type { ActionGraph, ApiObservation, ExploreIssue, ExploreOptions, ExploreResult, PageInfo, StateEdge, UrlPolicy } from '@lazyscout/core'
 import { LOCAL_QA_POLICY, checkTargetUrl, isCrawlableUrl, isSameOrigin, normalizeUrl } from '@lazyscout/core'
 import { collectPageData } from './browser/domCollector.js'
 import { mapToPageModel } from './mapToPageModel.js'
 import { ExplorerError, toExploreIssue } from './errors.js'
 import { launchBrowser } from './launchBrowser.js'
-import { canFollowLink } from './safety.js'
+import { canFollowLink, isDestructiveLabel } from './safety.js'
 
 export const DEFAULT_EXPLORE_OPTIONS: ExploreOptions = {
   maxPages: 20,
   maxDepth: 3,
   pageTimeoutMs: 20_000,
-  totalTimeoutMs: 120_000
+  totalTimeoutMs: 120_000,
+  waitAfterNavigationMs: 750
 }
 
 type QueueItem = { url: string; depth: number }
 
-/**
- * สำรวจเว็บไซต์แบบ BFS ภายใน origin เดียวกัน
- *
- * ความปลอดภัย (MVP): เดินทางด้วย link href เท่านั้น — ไม่คลิกปุ่ม ไม่ submit form
- * จึงไม่มีทางไปกระตุ้น action ที่เปลี่ยนข้อมูลของระบบที่กำลังทดสอบ
- */
 export async function exploreWebsite(
   startUrl: string,
   options: Partial<ExploreOptions> = {},
@@ -43,7 +38,6 @@ export async function exploreWebsite(
   let urlsSkipped = 0
   let limitReached: ExploreResult['stats']['limitReached'] = 'none'
 
-  // หาเบราว์เซอร์ที่ใช้ได้ในเครื่อง — โยน ExplorerError พร้อมวิธีแก้ถ้าไม่เจอสักตัว
   const { browser, label: browserLabel }: { browser: Browser; label: string } = await launchBrowser()
 
   try {
@@ -67,14 +61,13 @@ export async function exploreWebsite(
       if (visited.has(item.url)) continue
       visited.add(item.url)
 
-      const result = await visitPage(page, item, config)
+    const result = await visitPage(page, item, config)
 
       if (result.kind === 'issue') {
         issues.push(result.issue)
         continue
       }
 
-      // ถ้าถูก redirect ไปหน้าที่เก็บไปแล้ว ให้ถือเป็นหน้าซ้ำ
       const finalKey = normalizeUrl(result.page.finalUrl)
       if (finalKey !== item.url && visited.has(finalKey)) {
         urlsSkipped++
@@ -83,7 +76,6 @@ export async function exploreWebsite(
       visited.add(finalKey)
       pages.push(result.page)
 
-      // เก็บ link ที่ปลอดภัยและอยู่ origin เดียวกันเข้าคิวถัดไป
       if (item.depth >= config.maxDepth) {
         if (result.page.links.length > 0) limitReached = limitReached === 'none' ? 'max-depth' : limitReached
         continue
@@ -115,15 +107,53 @@ export async function exploreWebsite(
       urlsSkipped,
       durationMs: Date.now() - startedAt,
       limitReached
+    },
+    actionGraph: buildActionGraph(pages)
+  }
+}
+
+function buildActionGraph(pages: PageInfo[]): ActionGraph {
+  const states = pages.flatMap((page) => page.state ? [page.state] : [])
+  const edges: StateEdge[] = []
+  const visitedActionKeys: string[] = []
+  const failedActionKeys: string[] = []
+  const blockedActionKeys: string[] = []
+
+  for (const page of pages) {
+    const state = page.state
+    if (!state) continue
+    const fromStateId = state.id
+    for (const link of page.links) {
+      if (!link.href || !link.accessibleName) continue
+      const targetPage = pages.find((candidate) => candidate.url === link.href || candidate.finalUrl === link.href)
+      const action: StateEdge['action'] = { type: 'navigate', target: link.accessibleName, selector: link.cssSelector, safe: canFollowLink(link.href, link.accessibleName) }
+      const key = `${fromStateId}|navigate|${link.cssSelector}`
+      const status = action.safe ? targetPage ? 'visited' : 'discovered' : 'blocked'
+      edges.push({ fromStateId, toStateId: targetPage?.state?.id, action, status })
+      if (status === 'visited') visitedActionKeys.push(key)
+      if (status === 'blocked') blockedActionKeys.push(key)
+    }
+    for (const interaction of state.interactions) {
+      const destructive = isDestructiveLabel(interaction.name)
+      const type = interaction.kind === 'tab' ? 'selectTab' : interaction.kind === 'accordion' ? 'expandAccordion' : interaction.kind === 'dropdown' ? 'openDropdown' : interaction.expanded ? 'closeDialog' : 'openModal'
+      const key = `${fromStateId}|${type}|${interaction.cssSelector}`
+      const action: StateEdge['action'] = { type, target: interaction.name, selector: interaction.cssSelector, safe: !destructive, reason: destructive ? 'Destructive action was discovered but not executed' : undefined }
+      edges.push({ fromStateId, action, status: destructive ? 'blocked' : 'discovered' })
+      if (destructive) blockedActionKeys.push(key)
     }
   }
+  return { states, edges, visitedStateIds: states.map((state) => state.id), visitedActionKeys, failedActionKeys, blockedActionKeys }
 }
 
 type VisitResult = { kind: 'page'; page: PageInfo } | { kind: 'issue'; issue: ExploreIssue }
 
-/** เปิดหนึ่งหน้าและดึงข้อมูลออกมา — error ของหน้าเดียวต้องไม่ทำให้ทั้ง job ล้ม */
 async function visitPage(page: Page, item: QueueItem, config: ExploreOptions): Promise<VisitResult> {
   try {
+    const apiRequests: ApiObservation[] = []
+    const requestStarted = new Map<string, number>()
+    const onRequest = (request: import('playwright-core').Request) => { if (request.resourceType() === 'xhr' || request.resourceType() === 'fetch') requestStarted.set(request.url(), Date.now()) }
+    const onResponse = (response: import('playwright-core').Response) => { const request = response.request(); if (request.resourceType() !== 'xhr' && request.resourceType() !== 'fetch') return; apiRequests.push({ id: `api-${apiRequests.length + 1}`, method: request.method(), url: request.url(), status: response.status(), durationMs: Date.now() - (requestStarted.get(request.url()) ?? Date.now()), resourceType: request.resourceType() as 'xhr' | 'fetch', sourceUrl: item.url, contentType: response.headers()['content-type'] }) }
+    page.on('request', onRequest); page.on('response', onResponse)
     const response = await page.goto(item.url, {
       waitUntil: 'domcontentloaded',
       timeout: config.pageTimeoutMs
@@ -137,11 +167,16 @@ async function visitPage(page: Page, item: QueueItem, config: ExploreOptions): P
       }
     }
 
-    // รอ JS ที่ render เนื้อหาเพิ่ม แต่ไม่ต้องรอจนครบถ้าเว็บมี polling
-    await page.waitForLoadState('networkidle', { timeout: 3_000 }).catch(() => undefined)
+    await page.waitForLoadState('networkidle', { timeout: Math.min(config.pageTimeoutMs, 5_000) }).catch(() => undefined)
+    await page.waitForTimeout(config.waitAfterNavigationMs)
+    const challengeText = `${await page.title()} ${await page.locator('body').innerText().catch(() => '')}`.toLowerCase()
+    if (challengeText.includes('cloudflare') || challengeText.includes('checking your browser') || challengeText.includes('verify you are human') || challengeText.includes('just a moment')) {
+      return { kind: 'issue', issue: { url: item.url, code: 'cloudflare', message: 'พบ Cloudflare/browser challenge — หยุดที่หน้านี้และต้องให้ Tester ตรวจสอบด้วยตนเอง' } }
+    }
 
     const finalUrl = page.url()
     const raw = await page.evaluate(collectPageData)
+    page.off('request', onRequest); page.off('response', onResponse)
 
     return {
       kind: 'page',
@@ -149,7 +184,8 @@ async function visitPage(page: Page, item: QueueItem, config: ExploreOptions): P
         url: item.url,
         finalUrl,
         depth: item.depth,
-        statusCode: status
+        statusCode: status,
+        apiRequests
       })
     }
   } catch (error) {

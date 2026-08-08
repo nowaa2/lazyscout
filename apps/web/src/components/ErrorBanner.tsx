@@ -3,7 +3,6 @@ type Props = {
   hint?: string
 }
 
-/** แสดง error ที่มนุษย์อ่านเข้าใจ (server ไม่เคยส่ง stack trace มาให้) */
 export function ErrorBanner({ message, hint }: Props) {
   return (
     <div className="rounded-lg border border-red-200 bg-red-50 p-4">

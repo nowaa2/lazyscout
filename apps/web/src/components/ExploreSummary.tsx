@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import type { AnalyzeResponse, PageInfo, UIElement } from '../types'
 
-/** รายการ element แบบสั้น ๆ ต่อหนึ่งกลุ่ม (Inputs / Buttons / Links) */
 function ElementList({ title, elements }: { title: string; elements: UIElement[] }) {
   if (elements.length === 0) return null
 
@@ -75,7 +74,6 @@ function PageCard({ page }: { page: PageInfo }) {
   )
 }
 
-/** สรุปผลการสำรวจ: สถิติ, หน้าที่พบ, และปัญหาที่เกิดระหว่างทาง */
 export function ExploreSummary({ result }: { result: AnalyzeResponse }) {
   return (
     <div className="card">

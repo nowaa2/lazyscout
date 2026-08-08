@@ -1,6 +1,5 @@
 import type { TargetRef, TestStep } from '../types/testcase.js'
 
-/** แปลง TargetRef เป็นข้อความสั้น ๆ ที่มนุษย์อ่านรู้เรื่อง */
 export function describeTarget(target: TargetRef): string {
   const name = target.name || target.label || target.text || target.placeholder
   if (name && target.role) return `${target.role} "${name}"`
@@ -9,10 +8,6 @@ export function describeTarget(target: TargetRef): string {
   return 'element'
 }
 
-/**
- * แปลง structured step เป็นประโยคสำหรับแสดงใน UI และ export CSV
- * เก็บ logic ไว้ที่เดียวเพื่อให้ตารางบนเว็บกับไฟล์ CSV อ่านเหมือนกันเสมอ
- */
 export function describeStep(step: TestStep): string {
   if (step.description) return step.description
 
@@ -38,7 +33,6 @@ export function describeStep(step: TestStep): string {
   }
 }
 
-/** รวมทุก step เป็นข้อความหลายบรรทัดแบบมีลำดับ (ใช้ในคอลัมน์ Test_Steps ของ CSV) */
 export function describeSteps(steps: TestStep[]): string {
   return steps.map((step, index) => `${index + 1}. ${describeStep(step)}`).join('\n')
 }

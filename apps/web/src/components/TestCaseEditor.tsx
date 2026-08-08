@@ -8,16 +8,10 @@ type Props = {
   onCancel: () => void
 }
 
-/**
- * ฟอร์มแก้ไข test case
- * หมายเหตุ: step ยังคงเป็น structured data — การแก้ไขจะเขียนทับเฉพาะคำอธิบาย (description)
- * เพื่อไม่ให้ข้อมูล role/name ที่ใช้ generate automation ในอนาคตหายไป
- */
 export function TestCaseEditor({ testCase, onSave, onCancel }: Props) {
   const [draft, setDraft] = useState<TestCase>({ ...testCase })
   const [preconditionsText, setPreconditionsText] = useState(testCase.preconditions.join('\n'))
 
-  // ปิดด้วย Esc และล็อกไม่ให้หน้าเบื้องหลังเลื่อนตามขณะแก้ไข
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') onCancel()
@@ -53,7 +47,7 @@ export function TestCaseEditor({ testCase, onSave, onCancel }: Props) {
   function addManualStep() {
     setDraft((current) => ({
       ...current,
-      steps: [...current.steps, { type: 'manual', description: 'ขั้นตอนใหม่' }]
+      steps: [...current.steps, { type: 'manual', description: 'New step' }]
     }))
   }
 
@@ -68,19 +62,19 @@ export function TestCaseEditor({ testCase, onSave, onCancel }: Props) {
   }
 
   return (
-    // คลิกพื้นหลังเพื่อปิด — กล่องด้านในสูงไม่เกิน 90vh เพื่อให้หัวข้อและปุ่มอยู่ติดจอเสมอ
+
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
+      className="modern-modal-backdrop"
       onMouseDown={(event) => event.target === event.currentTarget && onCancel()}
     >
-      <div className="card flex max-h-[90vh] w-full max-w-3xl flex-col">
+      <div className="modern-modal flex max-h-[90vh] w-full max-w-3xl flex-col">
         <div className="card-title flex shrink-0 items-center justify-between">
-          <span>แก้ไข {draft.id}</span>
+          <span>Edit {draft.id}</span>
           <button
             type="button"
             className="btn btn-secondary px-2 py-1"
             onClick={onCancel}
-            aria-label="ปิดหน้าต่างแก้ไข"
+            aria-label="Close editor"
           >
             ✕
           </button>
@@ -175,7 +169,7 @@ export function TestCaseEditor({ testCase, onSave, onCancel }: Props) {
 
           <div>
             <label className="field-label" htmlFor="edit-preconditions">
-              Preconditions (บรรทัดละ 1 ข้อ)
+              Preconditions (one per line)
             </label>
             <textarea
               id="edit-preconditions"
@@ -189,7 +183,7 @@ export function TestCaseEditor({ testCase, onSave, onCancel }: Props) {
             <div className="mb-1 flex items-center justify-between">
               <span className="field-label mb-0">Steps</span>
               <button type="button" className="btn btn-secondary px-2 py-1" onClick={addManualStep}>
-                + เพิ่ม step
+                + Add step
               </button>
             </div>
             <div className="space-y-2">
@@ -207,11 +201,11 @@ export function TestCaseEditor({ testCase, onSave, onCancel }: Props) {
                     className="btn btn-danger px-2 py-1"
                     onClick={() => removeStep(index)}
                   >
-                    ลบ
+                    Delete
                   </button>
                 </div>
               ))}
-              {draft.steps.length === 0 && <p className="text-sm text-slate-400">ยังไม่มี step</p>}
+              {draft.steps.length === 0 && <p className="text-sm text-slate-400">No steps yet.</p>}
             </div>
           </div>
 
@@ -230,10 +224,10 @@ export function TestCaseEditor({ testCase, onSave, onCancel }: Props) {
 
         <div className="flex shrink-0 justify-end gap-2 border-t border-slate-200 bg-white p-4">
           <button type="button" className="btn btn-secondary" onClick={onCancel}>
-            ยกเลิก
+            Cancel
           </button>
           <button type="button" className="btn btn-primary" onClick={handleSave}>
-            บันทึก
+            Save
           </button>
         </div>
       </div>

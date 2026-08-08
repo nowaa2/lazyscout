@@ -1,22 +1,4 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <title>Demo Shop</title>
-  </head>
-  <body>
-    <h1>Demo Shop</h1>
-    <nav>
-      <a href="/login">Login</a>
-      <a href="/register">Register</a>
-      <a href="/products">Products</a>
-      <a href="https://example.com">External site</a>
-    </nav>
-    <h2>Search</h2>
-    <form action="/products" method="get">
-      <label for="q">Keyword</label>
-      <input id="q" name="q" type="search" placeholder="ค้นหาสินค้า" />
-      <button type="submit">Search</button>
-    </form>
-  </body>
-</html>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>LazyShop Demo</title><link rel="stylesheet" href="/app.css"><script defer src="/app.js"></script></head><body>
+<header class="topbar"><a class="brand" href="/"><span class="brand-mark">LS</span> LazyShop</a><nav class="nav"><a class="active" href="/">Home</a><a href="/products">Products</a><a href="/login">Login</a><a href="/register">Register</a></nav></header>
+<main class="container page"><section class="hero"><div><span class="eyebrow">QA demo workspace</span><h1>A small shop built for serious testing.</h1><p>ตัวอย่างเว็บไซต์ที่มีทั้ง authentication, forms, navigation และ UI state สำหรับให้ LazyScout สำรวจและสร้าง draft test cases</p><div class="btn-row"><a class="btn btn-primary" href="/login">เข้าสู่ระบบ</a><a class="btn" href="/register">สมัครสมาชิก</a></div></div><div class="card"><span class="pill">● Environment ready</span><h3>Explore the complete flow</h3><ul class="list"><li><span>Authentication</span><b>2 flows</b></li><li><span>UI states</span><b>6 types</b></li><li><span>Safe actions</span><b>enabled</b></li></ul></div></section>
+<section class="card-grid"><div class="card"><span class="eyebrow">01</span><h3>Login & Register</h3><p>Required fields, password, remember me and reset password.</p><a class="btn" href="/login">Open login →</a></div><div class="card"><span class="eyebrow">02</span><h3>Dashboard states</h3><p>Tabs, profile drawer, dropdown and accordion interactions.</p><a class="btn" href="/dashboard">Open dashboard →</a></div><div class="card"><span class="eyebrow">03</span><h3>Shop flow</h3><p>Products, cart, remove item and payment action safety.</p><a class="btn" href="/products">Browse products →</a></div></section></main></body></html>

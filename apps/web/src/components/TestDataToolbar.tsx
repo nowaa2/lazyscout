@@ -11,7 +11,6 @@ type Props = {
   onExport: () => void
 }
 
-/** แถบเครื่องมือของตาราง Test Data */
 export function TestDataToolbar({
   search,
   module,
@@ -35,7 +34,7 @@ export function TestDataToolbar({
           className="field"
           value={search}
           onChange={(event) => onSearchChange(event.target.value)}
-          placeholder="ค้นหาจาก field, ค่า, note"
+          placeholder="Search field, value or note"
         />
       </div>
 
@@ -49,7 +48,7 @@ export function TestDataToolbar({
           value={module}
           onChange={(event) => onModuleChange(event.target.value)}
         >
-          <option value="all">ทั้งหมด</option>
+          <option value="all">All</option>
           {modules.map((item) => (
             <option key={item} value={item}>
               {item}
@@ -63,13 +62,13 @@ export function TestDataToolbar({
           + Add Row
         </button>
         <button type="button" className="btn btn-primary" onClick={onExport} disabled={exporting}>
-          {exporting ? 'กำลัง export...' : 'Export CSV'}
+          {exporting ? 'Exporting…' : 'Export CSV'}
         </button>
       </div>
 
       <p className="w-full text-xs text-slate-500">
-        แสดง {visibleCount} จาก {totalCount} แถว · ค่าที่ระบบเติมให้เป็นเพียงตัวอย่าง
-        กรุณาแก้เป็น test data จริงก่อนใช้งาน · Export CSV จะได้ test case และ test data ในไฟล์เดียวกัน
+        Showing {visibleCount} of {totalCount} rows · Generated values are examples only.
+        Replace them with real test data before use · CSV export includes Test Cases and Test Data together.
       </p>
     </div>
   )

@@ -1,6 +1,5 @@
-import type { AnalyzeRequest, AnalyzeResponse, ApiErrorResponse, TestCase, TestDataRow } from '../types'
+import type { AnalyzeRequest, AnalyzeResponse, ApiCheck, ApiCheckRunResponse, ApiErrorResponse, AutomationRunResponse, ProjectSecrets, TestCase, TestDataRow } from '../types'
 
-/** error ที่พร้อมแสดงให้ user (มีข้อความภาษาคนแล้ว) */
 export class ApiError extends Error {
   readonly code: string
   readonly hint?: string
@@ -20,9 +19,9 @@ async function toApiError(response: Response): Promise<ApiError> {
       return new ApiError(body.error.code, body.error.message, body.error.hint)
     }
   } catch {
-    // response ไม่ใช่ JSON — ใช้ข้อความกลางแทน
+
   }
-  return new ApiError('unknown', `เซิร์ฟเวอร์ตอบกลับด้วยสถานะ ${response.status}`)
+  return new ApiError('unknown', `The server returned status ${response.status}.`)
 }
 
 export async function analyzeWebsite(payload: AnalyzeRequest): Promise<AnalyzeResponse> {
@@ -36,8 +35,8 @@ export async function analyzeWebsite(payload: AnalyzeRequest): Promise<AnalyzeRe
   } catch {
     throw new ApiError(
       'server-unreachable',
-      'ติดต่อ LazyScout API ไม่ได้',
-      'ตรวจสอบว่าได้รัน "npm run dev:server" แล้ว'
+      'Could not reach the LazyScout API.',
+      'Check that "npm run dev:server" is running.'
     )
   }
 
@@ -45,7 +44,6 @@ export async function analyzeWebsite(payload: AnalyzeRequest): Promise<AnalyzeRe
   return (await response.json()) as AnalyzeResponse
 }
 
-/** ขอไฟล์ CSV จาก server แล้วสั่งดาวน์โหลดในเบราว์เซอร์ (test case + test data ในไฟล์เดียว) */
 export async function downloadTestCasesCsv(testCases: TestCase[], testData: TestDataRow[] = []): Promise<void> {
   const response = await fetch('/api/export/csv', {
     method: 'POST',
@@ -65,3 +63,10 @@ export async function downloadTestCasesCsv(testCases: TestCase[], testData: Test
   link.remove()
   URL.revokeObjectURL(url)
 }
+
+export async function runAutomation(testCase: TestCase, framework: 'playwright' | 'cypress' = 'playwright', code?: string, secrets?: ProjectSecrets): Promise<AutomationRunResponse> {
+  const response = await fetch('/api/automation/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ testCase, framework, code, secrets }) })
+  if (!response.ok) throw await toApiError(response)
+  return (await response.json()) as AutomationRunResponse
+}
+export async function runApiCheck(apiCheck: ApiCheck, secrets?: ProjectSecrets): Promise<ApiCheckRunResponse> { const response = await fetch('/api/api-check/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ apiCheck, secrets }) }); if (!response.ok) throw await toApiError(response); return (await response.json()) as ApiCheckRunResponse }

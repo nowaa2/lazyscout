@@ -1,28 +1,47 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { AnalyzeForm } from './components/AnalyzeForm'
 import { ErrorBanner } from './components/ErrorBanner'
-import { ExploreSummary } from './components/ExploreSummary'
+import { ExplorerTree } from './components/ExplorerTree'
 import { TestCaseDetail } from './components/TestCaseDetail'
 import { TestCaseEditor } from './components/TestCaseEditor'
 import { TestCaseTable } from './components/TestCaseTable'
 import { TestCaseToolbar } from './components/TestCaseToolbar'
 import { TestDataTable } from './components/TestDataTable'
 import { TestDataToolbar } from './components/TestDataToolbar'
+import { GeneratedTests } from './components/GeneratedTests'
+import { RunViewer } from './components/RunViewer'
+import { ApiChecksTable } from './components/ApiChecksTable'
+import { WorkspaceNav, type WorkspaceView } from './components/WorkspaceNav'
+import { WorkspaceSidebar } from './components/WorkspaceSidebar'
+import { DashboardView } from './components/DashboardView'
+import { ExplorerModal } from './components/ExplorerModal'
+import { ProjectSettings } from './components/ProjectSettings'
+import { ScreenshotImporter } from './components/ScreenshotImporter'
+import { ScoutNotice } from './components/ScoutNotice'
 import { ApiError, downloadTestCasesCsv } from './api/client'
 import { useAnalyze } from './hooks/useAnalyze'
 import { useTestCases } from './hooks/useTestCases'
 import { useTestData } from './hooks/useTestData'
+import { useProjects } from './hooks/useProjects'
+import { useProjectSecrets } from './hooks/useProjectSecrets'
 import { filterTestCases, filterTestData, uniqueModules } from './lib/filterTestCases'
 import { EMPTY_FILTERS, type ResultTab, type TestCase, type TestCaseFilters } from './types'
 
 export default function App() {
-  const { status, result, error, analyze } = useAnalyze()
+  const { status, result: analysisResult, error, analyze, reset } = useAnalyze()
+  const { projects, activeProjectId, setActiveProjectId, saveProject, createEmptyProject, deleteProject, updateProjectResult } = useProjects()
+  const activeProject = projects.find((project) => project.id === activeProjectId)
+  const { secrets, saveSecrets, clearSecrets } = useProjectSecrets(activeProjectId)
+  const result = activeProject?.result ?? analysisResult
   const {
     testCases,
     selectedIds,
     updateTestCase,
     deleteTestCase,
     deleteSelected,
+    reorderTestCases,
+    createTestCaseDraft,
+    addImportedTestCases,
     addTestCase,
     toggleSelected,
     setSelection
@@ -37,6 +56,20 @@ export default function App() {
   const [editing, setEditing] = useState<TestCase | null>(null)
   const [exporting, setExporting] = useState(false)
   const [exportError, setExportError] = useState<string>()
+  const [workspaceView, setWorkspaceView] = useState<WorkspaceView>('overview')
+  const [explorerOpen, setExplorerOpen] = useState(false)
+  const [executionStatuses, setExecutionStatuses] = useState<Record<string, 'passed' | 'failed' | 'pending'>>({})
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [screenshotOpen, setScreenshotOpen] = useState(false)
+  const [scoutNotice, setScoutNotice] = useState<{ message: string; detail: string }>()
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('lazyscout-sidebar-collapsed') === 'true')
+
+  function toggleSidebar() {
+    setSidebarCollapsed((current) => {
+      localStorage.setItem('lazyscout-sidebar-collapsed', String(!current))
+      return !current
+    })
+  }
 
   const visibleCases = useMemo(() => filterTestCases(testCases, filters), [testCases, filters])
   const visibleData = useMemo(
@@ -46,12 +79,27 @@ export default function App() {
   const caseModules = useMemo(() => uniqueModules(testCases), [testCases])
   const dataModules = useMemo(() => uniqueModules(testData), [testData])
   const active = testCases.find((item) => item.id === activeId)
+  useEffect(() => { if (activeProjectId && result && activeProject?.result === result) updateProjectResult(activeProjectId, { ...result, testCases, testData }) }, [testCases, testData])
 
-  /** ปุ่ม Export ทั้งสองแท็บสร้างไฟล์เดียวกัน: test case + test data */
+  async function handleAnalyze(url: string, maxPages: number, maxDepth: number, language: Parameters<typeof analyze>[3], includeApiChecks: boolean, waitAfterNavigationMs: number) {
+    const analyzed = await analyze(url, maxPages, maxDepth, language, includeApiChecks, waitAfterNavigationMs)
+    if (analyzed) {
+      saveProject(url, analyzed)
+      const controls = analyzed.pages.reduce((total, page) => total + page.links.length + page.buttons.length + page.inputs.length + page.textareas.length + page.selects.length + (page.state?.interactions.length ?? 0), 0)
+      if (analyzed.testCases.length === 0 || controls === 0) {
+        const issueCodes = analyzed.issues.map((issue) => issue.code).filter((code, index, all) => all.indexOf(code) === index)
+        setScoutNotice({
+          message: 'Scout finished, but no usable Test Cases were created.',
+          detail: `Visited ${analyzed.pages.length} page${analyzed.pages.length === 1 ? '' : 's'} and found ${controls} testable control${controls === 1 ? '' : 's'}.${issueCodes.length ? ` Explorer reported: ${issueCodes.join(', ')}.` : ' The site may show a bot challenge, render content after a delay, or expose no detectable controls. Check Scout Log for details.'}`
+        })
+      } else setScoutNotice(undefined)
+    }
+  }
+
   async function handleExport() {
     const cases = selectedIds.length > 0 ? testCases.filter((item) => selectedIds.includes(item.id)) : visibleCases
     if (cases.length === 0 && visibleData.length === 0) {
-      setExportError('ไม่มีข้อมูลสำหรับ export')
+      setExportError('No data is available for export.')
       return
     }
 
@@ -60,49 +108,49 @@ export default function App() {
     try {
       await downloadTestCasesCsv(cases, visibleData)
     } catch (err) {
-      setExportError(err instanceof ApiError ? err.message : 'export CSV ไม่สำเร็จ')
+      setExportError(err instanceof ApiError ? err.message : 'Could not export CSV.')
     } finally {
       setExporting(false)
     }
   }
 
   function handleAdd() {
-    const created = addTestCase(result?.startUrl ?? '')
+    const created = createTestCaseDraft(result?.startUrl ?? '')
     setEditing(created)
     setActiveId(created.id)
   }
 
   return (
-    <div className="mx-auto max-w-[1600px] p-4 lg:p-6">
-      <header className="mb-4">
-        <h1 className="text-2xl font-bold text-slate-900">LazyScout</h1>
-        <p className="text-sm text-slate-600">
-          วิเคราะห์เว็บไซต์ด้วย Playwright แล้วสร้าง Draft Test Case และ Test Data ให้ Tester ตรวจและ export เป็น CSV
-        </p>
+    <div className="app-frame">
+      <WorkspaceSidebar projects={projects} activeProjectId={activeProjectId} result={result} collapsed={sidebarCollapsed} onToggleCollapsed={toggleSidebar} onSelect={(id) => { setActiveProjectId(id); setExecutionStatuses({}); setWorkspaceView('overview'); setActiveId(undefined) }} onNew={() => { createEmptyProject(); reset(); setExecutionStatuses({}); setWorkspaceView('overview') }} onDelete={deleteProject} onSettings={() => setSettingsOpen(true)} />
+      <div className="app-main">
+      <header className="app-header">
+        <div><div className="brand-mark"><span>LS</span><h1>LazyScout</h1></div><p>QA workspace <span>/</span> Website UI State Explorer</p></div>
+        {result && <div className="header-status"><span className="status-dot status-pass" /> Explorer ready <span className="header-divider" /> <span>{result.origin}</span></div>}
       </header>
 
       <div className="space-y-4">
-        <AnalyzeForm loading={status === 'loading'} onAnalyze={analyze} />
+        <AnalyzeForm key={activeProjectId ?? 'new-project'} initialUrl={activeProject?.targetUrl} loading={status === 'loading'} onAnalyze={handleAnalyze} />
 
         {status === 'loading' && (
           <div className="card p-6 text-center text-sm text-slate-600">
-            กำลังเปิดเว็บไซต์ด้วย Playwright และเก็บข้อมูลหน้าเว็บ... (อาจใช้เวลาหลายสิบวินาที)
+            Playwright is opening the website and collecting page data… This can take a few moments.
           </div>
         )}
 
         {error && <ErrorBanner message={error.message} hint={error.hint} />}
         {exportError && <ErrorBanner message={exportError} />}
+        {scoutNotice && <ScoutNotice {...scoutNotice} onClose={() => setScoutNotice(undefined)} />}
 
         {result && (
           <>
-            <ExploreSummary result={result} />
+            <WorkspaceNav view={workspaceView} onChange={(view) => view === 'explorer' ? setExplorerOpen(true) : setWorkspaceView(view)} counts={{ cases: testCases.length, states: result.actionGraph.states.length }} />
+            {workspaceView === 'scoutlog' ? <RunViewer result={result} /> : workspaceView === 'automation' ? <GeneratedTests testCases={testCases} projectId={activeProjectId} secrets={secrets} onRunStatus={(id, status) => setExecutionStatuses((current) => ({ ...current, [id]: status }))} /> : workspaceView === 'overview' ? <DashboardView result={result} testCases={testCases} executionStatuses={executionStatuses} /> : <div className="workspace-shell">
+            <ExplorerTree result={result} activeUrl={active?.sourceUrl} onSelect={(url) => setActiveId(testCases.find((item) => item.sourceUrl === url)?.id)} />
+            <main className="workspace-center">
+              <div className="workspace-center-head"><div><p className="eyebrow">Current Workspace</p><h2>{tab === 'testcases' ? 'Test Case Review' : 'Test Data'}</h2></div><div className="center-chips"><span className="status-badge status-badge-pass">{testCases.filter((item) => item.automationStatus === 'ready').length} ready</span><span className="status-badge status-badge-warn">{testCases.filter((item) => item.automationStatus === 'needs-review').length} review</span></div></div>
 
-            {/* จองที่ให้ panel รายละเอียดเฉพาะตอนดูตาราง test case และไม่ได้เปิดหน้าต่างแก้ไข */}
-            <div
-              className={`grid gap-4 ${
-                active && !editing && tab === 'testcases' ? 'xl:grid-cols-[minmax(0,1fr)_420px]' : ''
-              }`}
-            >
+              <div className="grid gap-4">
               <div className="card">
                 <div className="flex gap-1 border-b border-slate-200 px-4 pt-3">
                   <button
@@ -127,9 +175,16 @@ export default function App() {
                   >
                     Test Data ({testData.length})
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => setTab('apichecks')}
+                    className={`rounded-t-md border border-b-0 px-4 py-2 text-sm font-medium ${tab === 'apichecks' ? 'border-slate-200 bg-white text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+                  >
+                    Test API ({result.apiChecks?.length ?? 0})
+                  </button>
                 </div>
 
-                {tab === 'testcases' ? (
+                {tab === 'apichecks' ? <ApiChecksTable checks={result.apiChecks ?? []} secrets={secrets} /> : tab === 'testcases' ? (
                   <>
                     <TestCaseToolbar
                       filters={filters}
@@ -140,6 +195,7 @@ export default function App() {
                       exporting={exporting}
                       onFiltersChange={setFilters}
                       onAdd={handleAdd}
+                      onImportScreenshot={() => setScreenshotOpen(true)}
                       onDeleteSelected={deleteSelected}
                       onExport={handleExport}
                     />
@@ -152,6 +208,7 @@ export default function App() {
                       onOpen={(testCase) => setActiveId(testCase.id)}
                       onEdit={setEditing}
                       onDelete={deleteTestCase}
+                      onReorder={reorderTestCases}
                     />
                   </>
                 ) : (
@@ -173,14 +230,9 @@ export default function App() {
                 )}
               </div>
 
-              {active && !editing && tab === 'testcases' && (
-                <TestCaseDetail
-                  testCase={active}
-                  onEdit={() => setEditing(active)}
-                  onClose={() => setActiveId(undefined)}
-                />
-              )}
-            </div>
+              </div>
+            </main>
+            </div>}
           </>
         )}
       </div>
@@ -190,12 +242,19 @@ export default function App() {
           testCase={editing}
           onCancel={() => setEditing(null)}
           onSave={(updated) => {
-            updateTestCase(editing.id, updated)
+            if (testCases.some((item) => item.id === editing.id)) updateTestCase(editing.id, updated)
+            else addTestCase(updated)
             setActiveId(updated.id)
             setEditing(null)
           }}
         />
       )}
+      {explorerOpen && result && <ExplorerModal result={result} testCaseCount={testCases.length} onClose={() => setExplorerOpen(false)} onOpenCases={() => { setExplorerOpen(false); setWorkspaceView('testcases') }} />}
+      {active && !editing && tab === 'testcases' && <TestCaseDetail testCase={active} onEdit={() => setEditing(active)} onClose={() => setActiveId(undefined)} />}
+      {settingsOpen && activeProject && <ProjectSettings projectName={activeProject.name} secrets={secrets} onSave={saveSecrets} onClear={clearSecrets} onClose={() => setSettingsOpen(false)} />}
+      {screenshotOpen && <ScreenshotImporter sourceUrl={result?.startUrl ?? activeProject?.targetUrl ?? ''} existingCases={testCases} onImport={addImportedTestCases} onClose={() => setScreenshotOpen(false)} />}
+      {status === 'loading' && <div className="scout-lock" role="status" aria-live="polite"><div className="scout-lock-card"><span className="scout-spinner" /><b>Scouting website with Playwright</b><span>Collecting pages, controls and event logs. Please wait until it finishes.</span></div></div>}
+      </div>
     </div>
   )
 }

@@ -2,21 +2,16 @@ import type { FormInfo, PageInfo, TestCase, TestStep, UIElement } from '@lazysco
 import { normalizeUrl } from '@lazyscout/core'
 import { labelOf, sampleValueFor, toTargetRef } from './targets.js'
 
-/**
- * ข้อความมาตรฐานเมื่อระบบ "ไม่มีหลักฐาน" ว่า behavior จริงคืออะไร
- * ห้ามเดา expected result เอง — ให้ Tester เป็นคนเติม
- */
 export const UNKNOWN_BEHAVIOUR =
   'Verify that the result is displayed according to application requirements (needs review by tester).'
 
 export type RuleContext = {
   page: PageInfo
   module: string
-  /** title ของหน้าที่ Explorer เคยเข้าไปเก็บข้อมูลแล้ว (key = url ที่ normalize แล้ว) */
+
   visitedTitles: Map<string, string>
 }
 
-/** rule จะยังไม่กำหนด TC ID — orchestrator เป็นคนใส่ให้หลังตัดจำนวนแล้ว เพื่อให้เลขเรียงต่อเนื่อง */
 export type GeneratedTestCase = Omit<TestCase, 'id'>
 
 type DraftTestCase = Omit<TestCase, 'id' | 'module' | 'sourceUrl'>
@@ -49,12 +44,10 @@ function isUsable(element: UIElement): boolean {
   return !element.disabled && Boolean(element.accessibleName || element.placeholder)
 }
 
-/** checkbox/radio ต้องใช้การคลิก ไม่ใช่การพิมพ์ และไม่เข้าข่ายกฎ "ห้ามเว้นว่าง" */
 function isToggleField(element: UIElement): boolean {
   return element.inputType === 'checkbox' || element.inputType === 'radio'
 }
 
-/** สร้าง step สำหรับกรอกค่าให้ field หนึ่งช่อง ตามชนิดของ field */
 function fillFieldStep(field: UIElement): TestStep {
   if (isToggleField(field)) {
     return { type: 'click', target: toTargetRef(field), description: `Select "${labelOf(field)}"` }
@@ -66,7 +59,6 @@ function fillFieldStep(field: UIElement): TestStep {
   return { type: 'fill', target: toTargetRef(field), value: sampleValueFor(field) }
 }
 
-/** RULE 1: หน้าเว็บแสดง control ที่จำเป็นครบหรือไม่ (หลักฐาน = element ที่ตรวจพบจริง) */
 export function pageStructureRule(ctx: RuleContext): GeneratedTestCase[] {
   const { page } = ctx
   const controls = [
@@ -101,11 +93,10 @@ export function pageStructureRule(ctx: RuleContext): GeneratedTestCase[] {
   ]
 }
 
-/** RULE 2: field ว่าง → ต้องมี validation (สร้างเฉพาะฟอร์มที่มีปุ่ม submit) */
 export function requiredFieldRule(ctx: RuleContext, form: FormInfo): GeneratedTestCase[] {
   const submit = form.submitButtons.find((button) => !button.disabled)
   const fields = form.fields.filter(isUsable)
-  // กฎ "ห้ามเว้นว่าง" ใช้ได้เฉพาะช่องที่กรอกข้อความ/เลือกค่าเท่านั้น
+
   const testableFields = fields.filter((field) => !isToggleField(field)).slice(0, 5)
   if (!submit || testableFields.length === 0) return []
 
@@ -140,7 +131,6 @@ export function requiredFieldRule(ctx: RuleContext, form: FormInfo): GeneratedTe
   })
 }
 
-/** RULE 3: กรอกฟอร์มครบแล้ว submit (ต้องเตรียม test data จริงก่อน) */
 export function formSubmitRule(ctx: RuleContext, form: FormInfo): GeneratedTestCase[] {
   const submit = form.submitButtons.find((button) => !button.disabled && !button.destructive)
   const fields = form.fields.filter(isUsable)
@@ -168,7 +158,6 @@ export function formSubmitRule(ctx: RuleContext, form: FormInfo): GeneratedTestC
   ]
 }
 
-/** RULE 4: ลิงก์นำทางภายในเว็บไซต์ */
 export function navigationRule(ctx: RuleContext): GeneratedTestCase[] {
   const { page } = ctx
   const seen = new Set<string>()
@@ -215,7 +204,6 @@ export function navigationRule(ctx: RuleContext): GeneratedTestCase[] {
   return cases
 }
 
-/** RULE 5: action อันตราย — บันทึกไว้ให้ทดสอบด้วยมือ ห้าม automate อัตโนมัติ */
 export function destructiveActionRule(ctx: RuleContext): GeneratedTestCase[] {
   const { page } = ctx
   const dangerous = [...page.buttons, ...page.links]

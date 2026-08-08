@@ -1,9 +1,5 @@
 import type { TargetRef, UIElement } from '@lazyscout/core'
 
-/**
- * แปลง UIElement เป็น TargetRef โดยให้ความสำคัญกับ accessibility ก่อน
- * ถ้าไม่มี accessible name ค่อยตกไปใช้ css selector
- */
 export function toTargetRef(element: UIElement): TargetRef {
   if (element.accessibleName) {
     return { role: element.role, name: element.accessibleName }
@@ -14,12 +10,10 @@ export function toTargetRef(element: UIElement): TargetRef {
   return { role: element.role, cssSelector: element.cssSelector }
 }
 
-/** ชื่อที่ใช้เรียก element ในหัวข้อ test case */
 export function labelOf(element: UIElement): string {
   return element.accessibleName || element.placeholder || element.name || element.id || element.tagName
 }
 
-/** ค่าตัวอย่างสำหรับกรอกฟอร์ม — เป็นเพียง draft ให้ Tester แก้เป็น test data จริง */
 export function sampleValueFor(element: UIElement): string {
   const hint = `${element.inputType || ''} ${element.name || ''} ${element.accessibleName || ''}`.toLowerCase()
 

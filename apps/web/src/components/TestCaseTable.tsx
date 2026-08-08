@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { TestCase } from '../types'
 import { AutomationBadge, PriorityBadge, TypeBadge } from './Badges'
 
@@ -10,9 +11,9 @@ type Props = {
   onOpen: (testCase: TestCase) => void
   onEdit: (testCase: TestCase) => void
   onDelete: (id: string) => void
+  onReorder: (draggedId: string, targetId: string) => void
 }
 
-/** ตาราง Test Case สำหรับรีวิว — คลิกที่แถวเพื่อดูรายละเอียด */
 export function TestCaseTable({
   testCases,
   selectedIds,
@@ -21,25 +22,30 @@ export function TestCaseTable({
   onToggleAll,
   onOpen,
   onEdit,
-  onDelete
+  onDelete,
+  onReorder
 }: Props) {
+  const [draggedId, setDraggedId] = useState<string>()
+  const [dragOverId, setDragOverId] = useState<string>()
+  const [openActionId, setOpenActionId] = useState<string>()
   const allSelected = testCases.length > 0 && testCases.every((item) => selectedIds.includes(item.id))
 
   if (testCases.length === 0) {
-    return <p className="p-6 text-center text-sm text-slate-500">ไม่มี test case ที่ตรงกับเงื่อนไข</p>
+    return <p className="p-6 text-center text-sm text-slate-500">No Test Cases match the current filters.</p>
   }
 
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto border border-slate-200">
       <table className="w-full border-collapse">
         <thead className="border-b border-slate-200 bg-slate-50">
           <tr>
+            <th className="table-head w-10">Move</th>
             <th className="table-head w-10">
               <input
                 type="checkbox"
                 checked={allSelected}
                 onChange={() => onToggleAll(allSelected ? [] : testCases.map((item) => item.id))}
-                aria-label="เลือกทั้งหมด"
+                aria-label="Select all"
               />
             </th>
             <th className="table-head w-32">TC ID</th>
@@ -56,17 +62,23 @@ export function TestCaseTable({
           {testCases.map((testCase) => (
             <tr
               key={testCase.id}
+              draggable
+              onDragStart={() => setDraggedId(testCase.id)}
+              onDragOver={(event) => { event.preventDefault(); setDragOverId(testCase.id) }}
+              onDrop={(event) => { event.preventDefault(); if (draggedId) onReorder(draggedId, testCase.id); setDraggedId(undefined); setDragOverId(undefined) }}
+              onDragEnd={() => { setDraggedId(undefined); setDragOverId(undefined) }}
               onClick={() => onOpen(testCase)}
-              className={`cursor-pointer border-b border-slate-100 hover:bg-blue-50 ${
+              className={`cursor-pointer border-b border-slate-100 hover:bg-blue-50 ${dragOverId === testCase.id ? 'bg-indigo-50 ring-2 ring-inset ring-indigo-300' : ''} ${
                 activeId === testCase.id ? 'bg-blue-50' : ''
               }`}
             >
+              <td className="table-cell drag-handle" onClick={(event) => event.stopPropagation()} title="Drag to reorder">⠿</td>
               <td className="table-cell" onClick={(event) => event.stopPropagation()}>
                 <input
                   type="checkbox"
                   checked={selectedIds.includes(testCase.id)}
                   onChange={() => onToggleSelect(testCase.id)}
-                  aria-label={`เลือก ${testCase.id}`}
+                  aria-label={`Select ${testCase.id}`}
                 />
               </td>
               <td className="table-cell font-mono text-xs">{testCase.id}</td>
@@ -83,18 +95,7 @@ export function TestCaseTable({
                 <AutomationBadge value={testCase.automationStatus} />
               </td>
               <td className="table-cell" onClick={(event) => event.stopPropagation()}>
-                <div className="flex gap-1">
-                  <button type="button" className="btn btn-secondary px-2 py-1" onClick={() => onEdit(testCase)}>
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-danger px-2 py-1"
-                    onClick={() => onDelete(testCase.id)}
-                  >
-                    Delete
-                  </button>
-                </div>
+                <div className="action-menu-wrap"><button type="button" className="action-menu-trigger" aria-label={`Actions for ${testCase.id}`} aria-expanded={openActionId === testCase.id} onClick={() => setOpenActionId((current) => current === testCase.id ? undefined : testCase.id)}>⋯</button>{openActionId === testCase.id && <div className="action-menu"><button type="button" onClick={() => { onEdit(testCase); setOpenActionId(undefined) }}>Edit</button><button type="button" className="danger" onClick={() => { onDelete(testCase.id); setOpenActionId(undefined) }}>Delete</button></div>}</div>
               </td>
             </tr>
           ))}
