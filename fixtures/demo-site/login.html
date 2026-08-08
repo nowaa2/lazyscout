@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Login</title>
+  </head>
+  <body>
+    <h1>Login</h1>
+    <form action="/dashboard" method="post" aria-label="Login form">
+      <label for="email">Email</label>
+      <input id="email" name="email" type="email" required placeholder="you@example.com" />
+
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" required />
+
+      <label><input type="checkbox" name="remember" /> Remember me</label>
+
+      <button type="submit">Login</button>
+    </form>
+
+    <a href="/register">Register</a>
+    <a href="/forgot-password">Forgot Password</a>
+    <a href="/">Back to home</a>
+  </body>
+</html>

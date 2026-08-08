@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Register</title>
+  </head>
+  <body>
+    <h1>Create account</h1>
+    <form action="/dashboard" method="post" aria-label="Register form">
+      <label for="fullname">ชื่อ-นามสกุล</label>
+      <input id="fullname" name="fullname" type="text" required />
+
+      <label for="reg-email">Email</label>
+      <input id="reg-email" name="email" type="email" required />
+
+      <label for="reg-password">Password</label>
+      <input id="reg-password" name="password" type="password" required />
+
+      <label for="country">Country</label>
+      <select id="country" name="country">
+        <option value="">-- select --</option>
+        <option value="th">Thailand</option>
+        <option value="jp">Japan</option>
+      </select>
+
+      <label for="note">Note</label>
+      <textarea id="note" name="note"></textarea>
+
+      <button type="submit">Create account</button>
+    </form>
+    <a href="/login">Back to login</a>
+  </body>
+</html>

@@ -1,0 +1,28 @@
+{
+  "name": "lazyscout-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "//": "root ของ monorepo — ไม่ publish ตัวที่ขึ้น npm คือ apps/cli (ชื่อ lazyscout)",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build:packages": "tsc -b packages/core packages/explorer packages/generators",
+    "build:server": "npm run build --workspace @lazyscout/server",
+    "build:web": "npm run build --workspace @lazyscout/web",
+    "build:cli": "npm run build --workspace lazyscout",
+    "build": "npm run build:packages && npm run build:server && npm run build:web && npm run build:cli",
+    "typecheck": "npm run build:packages && npm run typecheck --workspace @lazyscout/server && npm run typecheck --workspace @lazyscout/web && npm run typecheck --workspace lazyscout",
+    "cli": "node apps/cli/dist/index.js",
+    "dev:server": "npm run dev --workspace @lazyscout/server",
+    "dev:web": "npm run dev --workspace @lazyscout/web",
+    "test": "npm run build:packages && vitest run",
+    "clean": "tsc -b --clean packages/core packages/explorer packages/generators"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}
