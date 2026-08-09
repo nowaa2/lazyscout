@@ -229,6 +229,10 @@ export async function openWorkspace(root: string): Promise<void> {
   else await execFileAsync('xdg-open', [root])
 }
 
+export async function browserProfileDirectory(root: string, projectId: string): Promise<string> {
+  return join(await ensureProject(root, projectId), 'browser-profile')
+}
+
 async function readProject(root: string, projectId: string): Promise<WorkspaceProject | undefined> {
   try {
     const directory = projectDirectory(root, projectId)
@@ -247,7 +251,7 @@ async function ensureProject(root: string, projectId: string): Promise<string> {
   await ensureWorkspace(root)
   const directory = projectDirectory(root, projectId)
   await Promise.all(
-    ['automation', 'screenshots', 'bugs', 'reports', 'logs'].map((name) =>
+    ['automation', 'screenshots', 'bugs', 'reports', 'logs', 'browser-profile'].map((name) =>
       mkdir(join(directory, name), { recursive: true })
     )
   )

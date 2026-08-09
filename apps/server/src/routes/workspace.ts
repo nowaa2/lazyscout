@@ -1,9 +1,11 @@
 import type { FastifyInstance } from 'fastify'
 import type { AutomationScreenshot } from '@lazyscout/core'
+import { launchBrowser } from '@lazyscout/explorer'
 import {
   deleteBugReport,
   deleteProject,
   deleteScreenshot,
+  browserProfileDirectory,
   listBugReports,
   listProjects,
   openWorkspace,
@@ -42,6 +44,17 @@ export function registerWorkspaceRoutes(app: FastifyInstance, root: string): voi
   app.delete<{ Params: ProjectParams }>('/api/workspace/projects/:projectId', async (request, reply) => {
     await deleteProject(root, request.params.projectId)
     return reply.send({ deleted: true })
+  })
+
+  app.post<{ Params: ProjectParams }>('/api/workspace/projects/:projectId/auth-session', async (request, reply) => {
+    const body = request.body as { url?: string }
+    if (!body?.url)
+      return reply.status(400).send({ error: { code: 'invalid-url', message: 'A login URL is required.' } })
+    const profile = await browserProfileDirectory(root, request.params.projectId)
+    const launched = await launchBrowser({ userDataDir: profile, headless: false })
+    const page = launched.context.pages()[0] ?? (await launched.context.newPage())
+    await page.goto(body.url, { waitUntil: 'domcontentloaded' })
+    return reply.send({ opened: true })
   })
 
   app.get<{ Params: ProjectParams }>('/api/workspace/projects/:projectId/screenshots', async (request) =>
