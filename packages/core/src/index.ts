@@ -2,6 +2,7 @@ export type * from './types/page.js'
 export type * from './types/testcase.js'
 export type * from './types/testdata.js'
 export type * from './types/api.js'
+export type * from './types/recorder.js'
 export type * from './types/url.js'
 export { fingerprintState, stateId } from './state/fingerprint.js'
 

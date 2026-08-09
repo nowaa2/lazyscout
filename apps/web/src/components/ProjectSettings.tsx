@@ -1,15 +1,29 @@
 import { useState } from 'react'
-import type { ProjectSecrets } from '../types'
+import type { ProjectSecrets, TestStep } from '../types'
+import { openWorkspaceAuthSession } from '../api/client'
+import { RecorderPanel } from './RecorderPanel'
 
 type Props = {
   projectName?: string
+  projectId?: string
+  targetUrl?: string
   secrets: ProjectSecrets
   onSave: (secrets: ProjectSecrets) => void
   onClear: () => void
   onClose: () => void
+  onSaveRecording?: (steps: TestStep[], title: string, sourceUrl: string) => void
 }
 
-export function ProjectSettings({ projectName, secrets, onSave, onClear, onClose }: Props) {
+export function ProjectSettings({
+  projectName,
+  projectId,
+  targetUrl,
+  secrets,
+  onSave,
+  onClear,
+  onClose,
+  onSaveRecording
+}: Props) {
   const [draft, setDraft] = useState<ProjectSecrets>(secrets)
   const update = (key: keyof ProjectSecrets, value: string) =>
     setDraft((current) => ({ ...current, [key]: value || undefined }))
@@ -88,11 +102,36 @@ export function ProjectSettings({ projectName, secrets, onSave, onClear, onClose
           Use <code>{'{{TEST_PASSWORD}}'}</code>, <code>{'{{TEST_EMAIL}}'}</code>, <code>{'{{TEST_USERNAME}}'}</code> or{' '}
           <code>{'{{API_TOKEN}}'}</code> in a Test Case. Values are passed to the runner only while it runs.
         </p>
-        <div className="modal-actions">
-          <button type="button" className="btn btn-secondary" onClick={onClear}>
+        {projectId && targetUrl && (
+          <div className="settings-notice settings-notice-stacked">
+            <b>Google / SSO session</b>
+            <span>
+              Open a separate LazyScout browser, sign in manually, then close that browser. Future Automation runs use
+              its local session.
+            </span>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => void openWorkspaceAuthSession(projectId, targetUrl)}
+            >
+              Open login browser
+            </button>
+          </div>
+        )}
+        {projectId && targetUrl && onSaveRecording && (
+          <RecorderPanel projectId={projectId} targetUrl={targetUrl} onSaveRecording={onSaveRecording} />
+        )}
+        <div className="modal-footer">
+          <button
+            type="button"
+            className="btn btn-secondary mr-auto"
+            onClick={() => {
+              onClear()
+              setDraft({})
+            }}
+          >
             Clear secrets
           </button>
-          <span className="ml-auto" />
           <button type="button" className="btn btn-secondary" onClick={onClose}>
             Cancel
           </button>

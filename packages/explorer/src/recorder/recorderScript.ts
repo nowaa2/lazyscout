@@ -1,0 +1,206 @@
+/**
+ * Runs inside the page under test, once per document, via addInitScript.
+ *
+ * It must be fully self-contained: Playwright serializes the function source
+ * and evaluates it in a fresh realm, so it cannot close over module scope.
+ *
+ * The value of a password field is never read and never leaves the page. The
+ * recorder reports `secret: true` instead and the server substitutes the
+ * {{TEST_PASSWORD}} placeholder.
+ */
+export function recorderInitScript(): void {
+  const scope = window as unknown as {
+    __lazyscoutRecord?: (event: unknown) => Promise<void>
+    __lazyscoutRecorderReady?: boolean
+  }
+  if (scope.__lazyscoutRecorderReady) return
+  scope.__lazyscoutRecorderReady = true
+
+  const CLICKABLE =
+    'a,button,input,select,textarea,[role="button"],[role="link"],[role="tab"],[role="menuitem"],[role="checkbox"],[role="radio"],[role="option"]'
+  const NON_TEXT_INPUTS = ['button', 'submit', 'reset', 'checkbox', 'radio', 'file', 'image']
+
+  const send = (event: unknown): void => {
+    try {
+      void scope.__lazyscoutRecord?.(event)
+    } catch {
+      // Recording must never break the site under test.
+    }
+  }
+
+  const clean = (value: string | null | undefined): string => (value ?? '').replace(/\s+/g, ' ').trim().slice(0, 120)
+
+  const inputType = (element: Element): string =>
+    element.tagName.toLowerCase() === 'input' ? (element as HTMLInputElement).type.toLowerCase() : ''
+
+  const roleOf = (element: Element): string | undefined => {
+    const explicit = element.getAttribute('role')
+    if (explicit) return explicit
+    const tag = element.tagName.toLowerCase()
+    if (tag === 'a') return element.hasAttribute('href') ? 'link' : undefined
+    if (tag === 'button') return 'button'
+    if (tag === 'select') return 'combobox'
+    if (tag === 'textarea') return 'textbox'
+    if (/^h[1-6]$/.test(tag)) return 'heading'
+    if (tag !== 'input') return undefined
+    const type = inputType(element)
+    if (type === 'button' || type === 'submit' || type === 'reset' || type === 'image') return 'button'
+    if (type === 'checkbox') return 'checkbox'
+    if (type === 'radio') return 'radio'
+    if (type === 'range') return 'slider'
+    if (type === 'number') return 'spinbutton'
+    if (type === 'search') return 'searchbox'
+    if (type === 'hidden') return undefined
+    return 'textbox'
+  }
+
+  const labelOf = (element: Element): string | undefined => {
+    const id = element.getAttribute('id')
+    if (id) {
+      const explicit = document.querySelector(`label[for="${CSS.escape(id)}"]`)
+      const value = clean(explicit?.textContent)
+      if (value) return value
+    }
+    const wrapping = element.closest('label')
+    return clean(wrapping?.textContent) || undefined
+  }
+
+  const accessibleName = (element: Element): string | undefined => {
+    const aria = clean(element.getAttribute('aria-label'))
+    if (aria) return aria
+
+    const labelledBy = element.getAttribute('aria-labelledby')
+    if (labelledBy) {
+      const parts = labelledBy.split(/\s+/).map((ref) => document.getElementById(ref)?.textContent ?? '')
+      const joined = clean(parts.join(' '))
+      if (joined) return joined
+    }
+
+    const label = labelOf(element)
+    if (label) return label
+
+    const title = clean(element.getAttribute('title'))
+    if (title) return title
+
+    const alt = clean(element.getAttribute('alt'))
+    if (alt) return alt
+
+    if (element.tagName.toLowerCase() === 'input') {
+      const type = inputType(element)
+      if (type === 'button' || type === 'submit' || type === 'reset') {
+        const value = clean(element.getAttribute('value'))
+        if (value) return value
+      }
+      return undefined
+    }
+
+    return clean(element.textContent) || undefined
+  }
+
+  /** Last-resort selector. Prefers attributes a developer chose over positions. */
+  const cssPath = (element: Element): string => {
+    const testId =
+      element.getAttribute('data-testid') ?? element.getAttribute('data-test-id') ?? element.getAttribute('data-test')
+    if (testId) return `[data-testid="${testId}"]`
+
+    const id = element.getAttribute('id')
+    // Ids containing long digit runs are usually generated per render.
+    if (id && !/\d{4,}/.test(id)) return `#${CSS.escape(id)}`
+
+    const name = element.getAttribute('name')
+    if (name) return `${element.tagName.toLowerCase()}[name="${CSS.escape(name)}"]`
+
+    const parts: string[] = []
+    let node: Element | null = element
+    let depth = 0
+    while (node && depth < 4) {
+      const parent: Element | null = node.parentElement
+      let part = node.tagName.toLowerCase()
+      if (parent) {
+        const tagName = node.tagName
+        const siblings = Array.from(parent.children).filter((child) => child.tagName === tagName)
+        if (siblings.length > 1) part += `:nth-of-type(${siblings.indexOf(node) + 1})`
+      }
+      parts.unshift(part)
+      node = parent
+      depth += 1
+    }
+    return parts.join(' > ')
+  }
+
+  const targetOf = (element: Element) => {
+    const role = roleOf(element)
+    return {
+      role,
+      name: accessibleName(element),
+      // Only offer text matching where there is no role to match on.
+      text: role ? undefined : clean(element.textContent) || undefined,
+      label: labelOf(element),
+      placeholder: clean(element.getAttribute('placeholder')) || undefined,
+      cssSelector: cssPath(element)
+    }
+  }
+
+  document.addEventListener(
+    'click',
+    (event) => {
+      const origin = event.target instanceof Element ? event.target : null
+      const element = origin?.closest(CLICKABLE)
+      if (!element) return
+
+      const tag = element.tagName.toLowerCase()
+      if (tag === 'select') return
+      if (tag === 'textarea') return
+      // Typing is recorded on change, so a focus click would only add noise.
+      if (tag === 'input' && !NON_TEXT_INPUTS.includes(inputType(element))) return
+
+      send({ kind: 'click', target: targetOf(element), url: location.href })
+    },
+    true
+  )
+
+  document.addEventListener(
+    'change',
+    (event) => {
+      const element = event.target instanceof Element ? event.target : null
+      if (!element) return
+      const tag = element.tagName.toLowerCase()
+
+      if (tag === 'select') {
+        const select = element as HTMLSelectElement
+        const option = select.options[select.selectedIndex]
+        send({
+          kind: 'select',
+          target: targetOf(element),
+          option: clean(option?.text) || select.value,
+          url: location.href
+        })
+        return
+      }
+
+      if (tag === 'textarea') {
+        send({
+          kind: 'fill',
+          target: targetOf(element),
+          value: (element as HTMLTextAreaElement).value.slice(0, 200),
+          url: location.href
+        })
+        return
+      }
+
+      if (tag !== 'input') return
+      const input = element as HTMLInputElement
+      const type = inputType(element)
+      if (NON_TEXT_INPUTS.includes(type)) return
+
+      if (type === 'password') {
+        // The typed value is deliberately not read.
+        send({ kind: 'fill', target: targetOf(element), value: '', secret: true, url: location.href })
+        return
+      }
+
+      send({ kind: 'fill', target: targetOf(element), value: input.value.slice(0, 200), url: location.href })
+    },
+    true
+  )
+}

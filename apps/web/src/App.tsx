@@ -33,7 +33,14 @@ import { useProjectSecrets } from './hooks/useProjectSecrets'
 import { useBugReports } from './hooks/useBugReports'
 import { useScreenshots } from './hooks/useScreenshots'
 import { filterTestCases, filterTestData, uniqueModules } from './lib/filterTestCases'
-import { EMPTY_FILTERS, type AutomationLog, type ResultTab, type TestCase, type TestCaseFilters } from './types'
+import {
+  EMPTY_FILTERS,
+  type AutomationLog,
+  type ResultTab,
+  type TestCase,
+  type TestCaseFilters,
+  type TestStep
+} from './types'
 
 const LAST_PROJECT_STORAGE_KEY = 'lazyscout-active-project-id'
 
@@ -212,6 +219,19 @@ export default function App() {
   function handleAdd() {
     const created = createTestCaseDraft(result?.startUrl ?? '')
     setEditing(created)
+    setActiveId(created.id)
+  }
+
+  function handleSaveRecording(steps: TestStep[], title: string, sourceUrl: string) {
+    const created = addTestCase({
+      ...createTestCaseDraft(sourceUrl),
+      title,
+      steps,
+      expectedResult: 'The recorded flow completes without an error.',
+      automationStatus: 'needs-review'
+    })
+    setSettingsOpen(false)
+    setTab('testcases')
     setActiveId(created.id)
   }
 
@@ -487,10 +507,13 @@ export default function App() {
         {settingsOpen && activeProject && (
           <ProjectSettings
             projectName={activeProject.name}
+            projectId={activeProject.id}
+            targetUrl={activeProject.targetUrl}
             secrets={secrets}
             onSave={saveSecrets}
             onClear={clearSecrets}
             onClose={() => setSettingsOpen(false)}
+            onSaveRecording={handleSaveRecording}
           />
         )}
         {screenshotOpen && (

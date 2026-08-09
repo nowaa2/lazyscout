@@ -7,6 +7,7 @@ import { registerApiCheckRunRoute } from './routes/apiCheckRun.js'
 import { registerLoadTestRoute } from './routes/loadTest.js'
 import { registerVersionRoutes } from './routes/versions.js'
 import { registerWorkspaceRoutes } from './routes/workspace.js'
+import { registerRecorderRoutes } from './routes/recorder.js'
 import { ensureWorkspace, resolveWorkspaceRoot } from './workspace.js'
 
 export type AppOptions = {
@@ -36,6 +37,7 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
   registerLoadTestRoute(app)
   registerVersionRoutes(app, appVersion)
   registerWorkspaceRoutes(app, workspaceRoot)
+  registerRecorderRoutes(app, workspaceRoot)
 
   if (options.staticDir) {
     app.register(fastifyStatic, { root: options.staticDir })

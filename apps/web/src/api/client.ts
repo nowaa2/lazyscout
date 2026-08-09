@@ -9,6 +9,7 @@ import type {
   LoadTestRequest,
   LoadTestResponse,
   ProjectSecrets,
+  RecorderState,
   TestCase,
   TestDataRow
 } from '../types'
@@ -158,6 +159,30 @@ export async function saveWorkspaceProject(project: WorkspaceProject): Promise<v
 
 export async function deleteWorkspaceProject(projectId: string): Promise<void> {
   await requestJson(`/api/workspace/projects/${encodeURIComponent(projectId)}`, { method: 'DELETE' })
+}
+
+export async function openWorkspaceAuthSession(projectId: string, url: string): Promise<void> {
+  await requestJson(`/api/workspace/projects/${encodeURIComponent(projectId)}/auth-session`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url })
+  })
+}
+
+export async function startRecorder(projectId: string, url: string): Promise<RecorderState> {
+  return requestJson<RecorderState>(`/api/recorder/${encodeURIComponent(projectId)}/start`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url })
+  })
+}
+
+export async function getRecorderState(projectId: string): Promise<RecorderState> {
+  return requestJson<RecorderState>(`/api/recorder/${encodeURIComponent(projectId)}`)
+}
+
+export async function stopRecorder(projectId: string): Promise<RecorderState> {
+  return requestJson<RecorderState>(`/api/recorder/${encodeURIComponent(projectId)}/stop`, { method: 'POST' })
 }
 
 export async function openWorkspaceFolder(): Promise<void> {

@@ -16,6 +16,8 @@ export type {
   ExploreStats,
   FormInfo,
   PageInfo,
+  PageState,
+  StateEdge,
   TargetRef,
   TestCase,
   TestCasePriority,
@@ -24,7 +26,9 @@ export type {
   TestStep,
   RunEvent,
   UIElement,
-  TestCaseLanguage
+  TestCaseLanguage,
+  RecorderState,
+  RecorderStatus
 } from '@lazyscout/core'
 
 export type ResultTab = 'testcases' | 'testdata' | 'apichecks' | 'bugreports' | 'screenshots'
