@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { RecorderState } from '../types'
 import { getRecorderState, startRecorder, stopRecorder } from '../api/client'
 
 const POLL_INTERVAL_MS = 1000
+/** Stop polling rather than hammering a server that is not answering. */
+const MAX_CONSECUTIVE_FAILURES = 3
 
 const idle = (projectId: string): RecorderState => ({
   projectId,
@@ -16,35 +18,67 @@ export function useRecorder(projectId?: string) {
   const [state, setState] = useState<RecorderState>(() => idle(projectId ?? ''))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
-  const cancelled = useRef(false)
+  const [dismissed, setDismissed] = useState(false)
 
+  // Reopening the panel must find a recording that is still running, otherwise
+  // Start would fail with recorder-busy and the browser would be orphaned.
   useEffect(() => {
-    setState(idle(projectId ?? ''))
+    if (!projectId) return
+    let active = true
+    setState(idle(projectId))
     setError(undefined)
+    setDismissed(false)
+    void getRecorderState(projectId)
+      .then((next) => {
+        if (active && next.status !== 'idle') setState(next)
+      })
+      .catch(() => undefined)
+    return () => {
+      active = false
+    }
   }, [projectId])
 
-  // Polling stops as soon as the browser window closes or Stop is pressed.
+  const recording = state.status === 'recording' && !dismissed
+
   useEffect(() => {
-    if (!projectId || state.status !== 'recording') return
-    cancelled.current = false
+    if (!projectId || !recording) return
+    let active = true
+    let inFlight = false
+    let failures = 0
+
     const timer = setInterval(() => {
+      // Never let a slow response stack requests on top of each other.
+      if (inFlight) return
+      inFlight = true
       void getRecorderState(projectId)
         .then((next) => {
-          if (!cancelled.current) setState(next)
+          failures = 0
+          if (active) setState(next)
         })
-        .catch(() => undefined)
+        .catch(() => {
+          failures += 1
+          if (failures >= MAX_CONSECUTIVE_FAILURES && active) {
+            setError('Lost contact with the recorder. Stop and start it again.')
+            setDismissed(true)
+          }
+        })
+        .finally(() => {
+          inFlight = false
+        })
     }, POLL_INTERVAL_MS)
+
     return () => {
-      cancelled.current = true
+      active = false
       clearInterval(timer)
     }
-  }, [projectId, state.status])
+  }, [projectId, recording])
 
   const start = useCallback(
     async (url: string) => {
       if (!projectId) return
       setBusy(true)
       setError(undefined)
+      setDismissed(false)
       try {
         setState(await startRecorder(projectId, url))
       } catch (cause) {
@@ -71,7 +105,8 @@ export function useRecorder(projectId?: string) {
   const reset = useCallback(() => {
     setState(idle(projectId ?? ''))
     setError(undefined)
+    setDismissed(false)
   }, [projectId])
 
-  return { state, busy, error, start, stop, reset }
+  return { state, recording, busy, error, start, stop, reset }
 }

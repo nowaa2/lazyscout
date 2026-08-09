@@ -7,6 +7,7 @@ dist/
 # The project's own unit tests live in packages/*/tests and are re-included below.
 **/*.test.ts
 !packages/*/tests/**/*.test.ts
+!apps/*/tests/**/*.test.ts
 
 .env
 .env.*

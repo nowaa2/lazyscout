@@ -11,10 +11,9 @@ type Props = {
 }
 
 export function RecorderPanel({ projectId, targetUrl, onSaveRecording }: Props) {
-  const { state, busy, error, start, stop, reset } = useRecorder(projectId)
+  const { state, recording, busy, error, start, stop, reset } = useRecorder(projectId)
   const [title, setTitle] = useState('Recorded login')
 
-  const recording = state.status === 'recording'
   const steps = state.steps
   const finished = state.status === 'stopped' && steps.length > 0
 

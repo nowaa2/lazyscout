@@ -58,10 +58,22 @@ export function buildStep(event: RecorderEvent): TestStep | undefined {
  * The init script re-runs on every document, so a login flow that navigates
  * across several pages keeps recording without re-attaching.
  */
-export async function attachRecorder(context: BrowserContext, startUrl: string): Promise<RecorderHandle> {
+export async function attachRecorder(
+  context: BrowserContext,
+  startUrl: string,
+  options: { onEnded?: () => void } = {}
+): Promise<RecorderHandle> {
   const steps: TestStep[] = []
   let lastUrl = ''
   let finalUrl = ''
+  let sawPage = false
+  let ended = false
+
+  const end = (): void => {
+    if (ended) return
+    ended = true
+    options.onEnded?.()
+  }
 
   const pushNavigate = (url: string): void => {
     if (!url || url === 'about:blank' || url === lastUrl) return
@@ -105,14 +117,21 @@ export async function attachRecorder(context: BrowserContext, startUrl: string):
   // Tracked separately from the step list: a trailing navigation becomes an
   // assertion rather than another navigate step.
   const watchPage = (page: Page): void => {
+    sawPage = true
     page.on('framenavigated', (frame) => {
       if (frame !== page.mainFrame()) return
       const url = frame.url()
       if (url && url !== 'about:blank') finalUrl = url
     })
+    // A persistent context stays alive after its last window is closed, so the
+    // context 'close' event alone would leave the session recording forever.
+    page.on('close', () => {
+      if (sawPage && context.pages().length === 0) end()
+    })
   }
   context.pages().forEach(watchPage)
   context.on('page', watchPage)
+  context.on('close', end)
 
   pushNavigate(startUrl)
 
