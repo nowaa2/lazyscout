@@ -71,7 +71,7 @@ TD_ID, Module, Field, Input_Type, Required, Valid_Value, Invalid_Value, Note, So
 ## GET /api/health
 
 ```json
-{ "status": "ok", "version": "0.2.0" }
+{ "status": "ok", "version": "0.3.0", "workspaceRoot": "C:\\Users\\Example\\LazyScout" }
 ```
 
 ## GET /api/versions
@@ -81,11 +81,11 @@ TD_ID, Module, Field, Input_Type, Required, Valid_Value, Invalid_Value, Note, So
 ```json
 {
   "packageName": "lazyscout",
-  "currentVersion": "0.2.0",
-  "latestVersion": "0.1.0",
+  "currentVersion": "0.3.0",
+  "latestVersion": "0.2.0",
   "updateAvailable": false,
   "registryAvailable": true,
-  "versions": [{ "version": "0.1.0", "tags": ["latest"] }]
+  "versions": [{ "version": "0.2.0", "tags": ["latest"] }]
 }
 ```
 
@@ -111,6 +111,8 @@ TD_ID, Module, Field, Input_Type, Required, Valid_Value, Invalid_Value, Note, So
 - 250 log lines
 - Cypress runner ตอบ `unsupported`; Cypress รองรับเฉพาะ code generation
 
+ถ้าส่ง `projectId` ระบบจะบันทึก log ของ run ลง `projects/<project-id>/logs/`
+
 ## POST /api/automation/stop
 
 รับ `{ "runId": "..." }` เพื่อปิด browser ของ run ที่กำลังทำงาน
@@ -122,6 +124,21 @@ TD_ID, Module, Field, Input_Type, Required, Valid_Value, Invalid_Value, Note, So
 ## POST /api/load-test/run
 
 GET load test ขนาดเล็ก ต้องส่ง `confirmed: true` จำกัด virtual users สูงสุด 20, requests ต่อ user สูงสุด 100 และ timeout ต่อ request 15 วินาที
+
+## File Workspace API
+
+CLI จะสร้าง workspace ที่ `~/LazyScout` ก่อนเปิด UI หรือใช้ path จาก `--workspace <path>`
+
+- `GET /api/workspace` คืน path และ Projects ที่โหลดจากไฟล์
+- `POST /api/workspace/open` เปิด workspace ด้วย file manager ของระบบ
+- `PUT /api/workspace/projects/:projectId` บันทึก Project พร้อม JSON และ CSV
+- `DELETE /api/workspace/projects/:projectId` ย้าย Project ไป `backups/`
+- `GET/POST/DELETE /api/workspace/projects/:projectId/screenshots` จัดการภาพที่ผู้ใช้สั่งจับ
+- `GET/PUT/DELETE /api/workspace/projects/:projectId/bugs` จัดการ Bug Report
+- `GET/PUT /api/workspace/projects/:projectId/automation` จัดการโค้ดที่แก้เอง
+- `POST /api/workspace/projects/:projectId/reports` บันทึก HTML report
+
+ชื่อ Project, ไฟล์ และ path ผ่าน validation และทุก path ต้องอยู่ภายใน workspace เท่านั้น
 
 ## รูปแบบ Error
 

@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import type { AnalyzeResponse, AutomationLog, TestCase } from '../types'
 import { exportDashboardHtml, exportDashboardPdf } from '../lib/dashboardPdf'
+import { saveWorkspaceReport } from '../api/client'
 
 type Panel = 'status' | 'priority' | 'type' | 'automation' | 'modules' | 'trend'
 type ChartKind = 'bar' | 'column' | 'donut' | 'treemap' | 'line'
@@ -11,12 +12,14 @@ export function DashboardView({
   result,
   testCases,
   executionStatuses = {},
-  runResults = {}
+  runResults = {},
+  projectId
 }: {
   result: AnalyzeResponse
   testCases: TestCase[]
   executionStatuses?: Record<string, 'passed' | 'failed' | 'pending'>
   runResults?: RunResults
+  projectId?: string
 }) {
   const [customizeOpen, setCustomizeOpen] = useState(false)
   const [visible, setVisible] = useState<Record<Panel, boolean>>({
@@ -104,6 +107,11 @@ export function DashboardView({
   }
   const toggle = (key: Panel) => setVisible((current) => ({ ...current, [key]: !current[key] }))
   const setChartType = (panel: Panel, type: ChartKind) => setChartTypes((current) => ({ ...current, [panel]: type }))
+  const saveReport = (print: boolean) => {
+    const html = print ? exportDashboardPdf(reportData) : exportDashboardHtml(reportData)
+    if (projectId)
+      void saveWorkspaceReport(projectId, print ? 'quality-report-print.html' : 'quality-report.html', html)
+  }
 
   return (
     <div className="dashboard-view">
@@ -120,10 +128,10 @@ export function DashboardView({
           <button type="button" className="btn btn-secondary" onClick={() => setCustomizeOpen((current) => !current)}>
             Customize
           </button>
-          <button type="button" className="btn btn-secondary" onClick={() => exportDashboardHtml(reportData)}>
+          <button type="button" className="btn btn-secondary" onClick={() => saveReport(false)}>
             HTML report
           </button>
-          <button type="button" className="btn btn-primary" onClick={() => exportDashboardPdf(reportData)}>
+          <button type="button" className="btn btn-primary" onClick={() => saveReport(true)}>
             Export PDF
           </button>
         </div>

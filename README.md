@@ -21,7 +21,7 @@ The main workflow is:
 
 ### Available
 
-- Local Project workspaces stored in the browser on the current device
+- File-backed local Project workspaces under `~/LazyScout`
 - Playwright website exploration with same-origin navigation, page/depth limits and timeouts
 - Page, form, control, visible dialog and UI interaction discovery
 - Draft Test Case and Test Data generation in English or Thai
@@ -31,7 +31,7 @@ The main workflow is:
 - Screenshot OCR-assisted Test Case import
 - Playwright and Cypress code generation from structured Test Steps
 - Local Playwright execution with a restricted statement whitelist, cancellation and logs
-- Run screenshots and a local Screenshot Gallery
+- Explicit Playwright screenshots and a local Screenshot Gallery
 - Optional XHR/fetch observation and safe API checks for GET, HEAD and OPTIONS
 - Bug Reports with image evidence and ZIP export
 - Dashboard charts with HTML and PDF summary export
@@ -85,6 +85,7 @@ npx lazyscout@latest scan https://example.com --max-pages 10 --csv report.csv --
 --max-pages <n>    Maximum pages to inspect; defaults to 20
 --max-depth <n>    Maximum same-origin link depth; defaults to 3
 --port <n>         UI server port; defaults to 4321
+--workspace <path> Project workspace; defaults to ~/LazyScout
 --no-open          Start the UI server without opening a browser
 ```
 
@@ -144,16 +145,35 @@ Scouting follows safe same-origin links. It discovers tabs, dropdowns, accordion
 
 LazyScout has no account service or hosted Project database in the current version.
 
-| Data or activity                              | Location                                                                 |
-| --------------------------------------------- | ------------------------------------------------------------------------ |
-| Browser execution and Playwright runs         | Local machine                                                            |
-| Projects, Test Cases, results and Bug Reports | Browser `localStorage` on the local machine                              |
-| Run screenshots                               | Browser `localStorage` on the local machine, up to the application limit |
-| Credentials entered in Project Settings       | Memory only; cleared when the page refreshes                             |
-| Environment-variable credentials              | Local server process                                                     |
-| Version checks                                | npm Registry                                                             |
+| Data or activity                              | Location                                         |
+| --------------------------------------------- | ------------------------------------------------ |
+| Browser execution and Playwright runs         | Local machine                                    |
+| Projects, Test Cases, results and Bug Reports | `~/LazyScout/projects/<project-id>/`             |
+| Explicit Playwright screenshots               | `~/LazyScout/projects/<project-id>/screenshots/` |
+| Credentials entered in Project Settings       | Memory only; cleared when the page refreshes     |
+| Environment-variable credentials              | Local server process                             |
+| Version checks                                | npm Registry                                     |
 
-Local storage is convenient, not an encrypted vault. Do not use production credentials or retain sensitive evidence longer than necessary.
+The workspace is created automatically before the UI opens. Run `npx lazyscout --workspace <path>` to use another location. Click **Local workspace** in the sidebar to open the folder. Browser `localStorage` is used only for lightweight UI preferences.
+
+```text
+LazyScout/
+├── projects/
+│   └── <project-id>/
+│       ├── project.json
+│       ├── test-cases.json
+│       ├── test-cases.csv
+│       ├── test-data.csv
+│       ├── automation/
+│       ├── screenshots/
+│       ├── bugs/
+│       ├── reports/
+│       └── logs/
+├── backups/
+└── settings.json
+```
+
+The workspace is not encrypted. Do not use production credentials or retain sensitive evidence longer than necessary.
 
 ## Usage Workflow
 
@@ -166,7 +186,7 @@ Local storage is convenient, not an encrypted vault. Do not use production crede
 7. Import an existing CSV/XLSX/JSON suite or use screenshot OCR if needed.
 8. Export Test Cases and Test Data as CSV.
 9. Generate Playwright or Cypress code.
-10. Run supported Playwright cases locally and review logs/screenshots.
+10. Run supported Playwright cases locally and review logs. Screenshots are captured only when edited code calls `page.screenshot()`.
 11. Record failures as Bug Reports and export evidence only after reviewing it.
 12. Export an HTML or PDF Test Summary for the team.
 

@@ -15,6 +15,7 @@ export function CodeEditor({ value, framework, onChange }: Props) {
             'page.getByText()',
             'page.locator()',
             'page.waitForTimeout()',
+            'await page.screenshot({ path: "evidence.png", fullPage: true })',
             'expect(page).toHaveURL()',
             'expect(locator).toBeVisible()',
             'expect(locator).toContainText()'

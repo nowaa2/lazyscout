@@ -4,28 +4,48 @@ import { runServe } from './commands/serve.js'
 import { VERSION } from './version.js'
 
 const HELP = `
-LazyScout ${VERSION} — วิเคราะห์เว็บไซต์แล้วสร้าง Draft Test Case ให้ Software Tester
+LazyScout ${VERSION} — Analyze websites and generate draft test cases for software testers.
 
-การใช้งาน
-  npx lazyscout                        เปิดหน้าเว็บสำหรับใช้งาน (แนะนำ)
-  npx lazyscout scan <url>             สแกนแล้วบันทึกผลเป็นไฟล์ ไม่ต้องเปิดเบราว์เซอร์
+Usage
+npx lazyscout
+Open the LazyScout web interface. Recommended.
 
-ตัวเลือกของ scan
-  --csv <ไฟล์>        บันทึก test case + test data เป็น CSV (ค่าเริ่มต้น: lazyscout-testcases.csv)
-  --json <ไฟล์>       บันทึกผลดิบทั้งหมดเป็น JSON
-  --max-pages <n>     จำนวนหน้าสูงสุด (ค่าเริ่มต้น 20)
-  --max-depth <n>     ความลึกสูงสุด (ค่าเริ่มต้น 3)
+npx lazyscout scan <url>
+Scan a website and save the results to files without opening the LazyScout interface.
 
-ตัวเลือกของการเปิดหน้าเว็บ
-  --port <n>          พอร์ตที่ต้องการ (ค่าเริ่มต้น 4321)
-  --no-open           ไม่ต้องเปิดเบราว์เซอร์ให้อัตโนมัติ
+Scan Options
+--csv <file>        Save test cases and test data as CSV.
+Default: lazyscout-testcases.csv
 
-ตัวอย่าง
-  npx lazyscout
-  npx lazyscout scan http://localhost:5173
-  npx lazyscout scan https://example.com --max-pages 10 --csv report.csv
+--json <file>       Save all raw scan results as JSON.
 
-Explorer สำรวจเฉพาะ origin เดียวกัน เดินด้วยลิงก์เท่านั้น ไม่คลิกปุ่มและไม่ submit form
+--max-pages <n>     Maximum number of pages to scan.
+Default: 20
+
+--max-depth <n>     Maximum crawl depth.
+Default: 3
+
+Web Interface Options
+--port <port>       Port used by the LazyScout web interface.
+Default: 4321
+
+--workspace <path>  Workspace used for projects and evidence.
+Default: ~/LazyScout
+
+--no-open           Do not open the browser automatically.
+
+Examples
+npx lazyscout
+
+npx lazyscout --workspace D:\\QA\\LazyScout
+
+npx lazyscout scan http://localhost:5173
+
+npx lazyscout scan https://example.com --max-pages 10 --csv report.csv
+
+Explorer Behavior
+LazyScout only explores URLs within the same origin.
+It currently follows links only and does not click buttons or submit forms.
 `
 
 async function main(): Promise<void> {
@@ -39,6 +59,7 @@ async function main(): Promise<void> {
       'max-pages': { type: 'string' },
       'max-depth': { type: 'string' },
       port: { type: 'string' },
+      workspace: { type: 'string' },
 
       'no-open': { type: 'boolean', default: false }
     }
@@ -59,7 +80,11 @@ async function main(): Promise<void> {
   switch (command) {
     case undefined:
     case 'serve':
-      await runServe({ port: values.port ? Number(values.port) : undefined, open: !values['no-open'] })
+      await runServe({
+        port: values.port ? Number(values.port) : undefined,
+        open: !values['no-open'],
+        workspace: values.workspace
+      })
       return
 
     case 'scan': {

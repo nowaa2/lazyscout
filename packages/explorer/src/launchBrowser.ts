@@ -31,7 +31,7 @@ export async function launchBrowser(): Promise<LaunchedBrowser> {
 
   throw new ExplorerError(
     'browser-error',
-    `เปิดเบราว์เซอร์ไม่ได้ (ลองแล้ว: ${failures.join(', ')})`,
-    'ติดตั้ง Google Chrome หรือ Microsoft Edge หรือรัน "npx playwright install chromium" แล้วลองใหม่'
+    `unable to launch a browser (tried: ${failures.join(', ')})`,
+    'Please install Google Chrome or Microsoft Edge or run "npx playwright install chromium" and try again'
   )
 }

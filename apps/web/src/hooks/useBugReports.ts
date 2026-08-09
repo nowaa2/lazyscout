@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { deleteWorkspaceBug, getWorkspaceBugs, saveWorkspaceBug } from '../api/client'
 
 export type BugAttachment = { name: string; type: string; dataUrl: string }
 export type BugReport = {
@@ -14,36 +15,39 @@ export type BugReport = {
   createdAt: string
 }
 
-function storageKey(projectId?: string) {
-  return `lazyscout.bug-reports.${projectId ?? 'temporary'}`
-}
-function readReports(projectId?: string): BugReport[] {
-  try {
-    return JSON.parse(localStorage.getItem(storageKey(projectId)) ?? '[]') as BugReport[]
-  } catch {
-    return []
-  }
-}
-
 export function useBugReports(projectId?: string) {
-  const [reports, setReports] = useState<BugReport[]>(() =>
-    typeof window === 'undefined' ? [] : readReports(projectId)
-  )
+  const [reports, setReports] = useState<BugReport[]>([])
+
   useEffect(() => {
-    setReports(readReports(projectId))
+    setReports([])
+    if (!projectId) return
+    void (async () => {
+      const stored = await getWorkspaceBugs<BugReport>(projectId)
+      const legacyKey = `lazyscout.bug-reports.${projectId}`
+      let legacy: BugReport[] = []
+      try {
+        legacy = JSON.parse(localStorage.getItem(legacyKey) ?? '[]') as BugReport[]
+      } catch {}
+      const missing = legacy.filter((report) => !stored.some((item) => item.id === report.id))
+      for (const report of missing) await saveWorkspaceBug(projectId, report)
+      if (legacy.length) localStorage.removeItem(legacyKey)
+      setReports([...missing, ...stored])
+    })().catch(() => setReports([]))
   }, [projectId])
-  useEffect(() => {
-    localStorage.setItem(storageKey(projectId), JSON.stringify(reports))
-  }, [projectId, reports])
+
   function save(report: BugReport) {
     setReports((current) =>
       current.some((item) => item.id === report.id)
         ? current.map((item) => (item.id === report.id ? report : item))
         : [report, ...current]
     )
+    if (projectId) void saveWorkspaceBug(projectId, report)
   }
+
   function remove(id: string) {
     setReports((current) => current.filter((item) => item.id !== id))
+    if (projectId) void deleteWorkspaceBug(projectId, id)
   }
+
   return { reports, save, remove }
 }

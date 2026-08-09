@@ -1,33 +1,42 @@
 import { useEffect, useState } from 'react'
+import type { AutomationScreenshot } from '../types'
+import { deleteWorkspaceScreenshot, getWorkspaceScreenshots, saveWorkspaceScreenshot } from '../api/client'
 
-export type StoredScreenshot = {
-  name: string
-  dataUrl: string
-  capturedAt: string
-  testCaseId: string
-  status: 'passed' | 'failed'
-}
-const keyFor = (projectId?: string) => `lazyscout.screenshots.${projectId ?? 'temporary'}`
+export type StoredScreenshot = AutomationScreenshot
+
 export function useScreenshots(projectId?: string) {
-  const read = () => {
-    try {
-      return JSON.parse(localStorage.getItem(keyFor(projectId)) ?? '[]') as StoredScreenshot[]
-    } catch {
-      return []
-    }
-  }
-  const [screenshots, setScreenshots] = useState<StoredScreenshot[]>(read)
+  const [screenshots, setScreenshots] = useState<StoredScreenshot[]>([])
+
   useEffect(() => {
-    setScreenshots(read())
+    setScreenshots([])
+    if (!projectId) return
+    void (async () => {
+      const stored = await getWorkspaceScreenshots(projectId)
+      const legacyKey = `lazyscout.screenshots.${projectId}`
+      let legacy: StoredScreenshot[] = []
+      try {
+        legacy = JSON.parse(localStorage.getItem(legacyKey) ?? '[]') as StoredScreenshot[]
+      } catch {}
+      const migrated: StoredScreenshot[] = []
+      for (const screenshot of legacy)
+        if (!stored.some((item) => item.name === screenshot.name))
+          migrated.push(await saveWorkspaceScreenshot(projectId, screenshot))
+      if (legacy.length) localStorage.removeItem(legacyKey)
+      setScreenshots([...migrated, ...stored])
+    })().catch(() => setScreenshots([]))
   }, [projectId])
-  useEffect(() => {
-    localStorage.setItem(keyFor(projectId), JSON.stringify(screenshots.slice(0, 50)))
-  }, [projectId, screenshots])
+
   function add(screenshot: StoredScreenshot) {
-    setScreenshots((current) => [screenshot, ...current.filter((item) => item.name !== screenshot.name)].slice(0, 50))
+    if (!projectId) return
+    void saveWorkspaceScreenshot(projectId, screenshot).then((stored) =>
+      setScreenshots((current) => [stored, ...current.filter((item) => item.name !== stored.name)].slice(0, 50))
+    )
   }
+
   function remove(name: string) {
     setScreenshots((current) => current.filter((item) => item.name !== name))
+    if (projectId) void deleteWorkspaceScreenshot(projectId, name)
   }
+
   return { screenshots, add, remove }
 }

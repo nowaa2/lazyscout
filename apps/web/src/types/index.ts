@@ -3,6 +3,7 @@ export type {
   AnalyzeResponse,
   ApiErrorResponse,
   AutomationRunResponse,
+  AutomationScreenshot,
   AutomationLog,
   ApiCheck,
   ApiCheckRunResponse,

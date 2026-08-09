@@ -2,7 +2,7 @@
 
 ## Available in 0.2
 
-- Local Project workspaces and dashboard charts
+- File-backed local Project workspaces and dashboard charts
 - Playwright same-origin Website Explorer
 - Page, form, control, visible dialog and interaction discovery
 - Rule-based Draft Test Case and Test Data generation
@@ -10,7 +10,7 @@
 - CSV/XLSX/JSON import and CSV export
 - Screenshot OCR-assisted Test Case import
 - Playwright and Cypress code generation
-- Restricted local Playwright execution, logs, cancellation and screenshots
+- Restricted local Playwright execution, logs, cancellation and explicit `page.screenshot()` evidence
 - Optional API observation and safe GET/HEAD/OPTIONS checks
 - Bug Reports and ZIP evidence export
 - HTML/PDF Test Summary export

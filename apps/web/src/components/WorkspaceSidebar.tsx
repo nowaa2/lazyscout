@@ -14,6 +14,8 @@ type Props = {
   onDelete: (id: string) => void
   onRename: (id: string, name: string) => void
   onSettings: () => void
+  workspaceRoot: string
+  onOpenWorkspace: () => void
 }
 
 export function WorkspaceSidebar({
@@ -26,7 +28,9 @@ export function WorkspaceSidebar({
   onNew,
   onDelete,
   onRename,
-  onSettings
+  onSettings,
+  workspaceRoot,
+  onOpenWorkspace
 }: Props) {
   const { language, toggleLanguage, t } = useLanguage()
   const [menuProjectId, setMenuProjectId] = useState<string>()
@@ -154,10 +158,10 @@ export function WorkspaceSidebar({
       )}
       <div className="sidebar-bottom">
         <div className="workspace-language-row">
-          <div className="workspace-copy">
+          <button type="button" className="workspace-copy" onClick={onOpenWorkspace} title={workspaceRoot}>
             <span className="status-dot status-pass" /> <b>{t('localWorkspace')}</b>
-            <small>{t('storedHere')}</small>
-          </div>
+            <small>{workspaceRoot || t('storedHere')}</small>
+          </button>
           <button
             type="button"
             className="language-circle"

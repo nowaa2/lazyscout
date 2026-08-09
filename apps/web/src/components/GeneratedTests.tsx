@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { generateCypressTest, generatePlaywrightTest } from '@lazyscout/generators'
 import type { ProjectSecrets, TestCase } from '../types'
-import { runAutomation, stopAutomation } from '../api/client'
+import { getWorkspaceAutomation, runAutomation, saveWorkspaceAutomation, stopAutomation } from '../api/client'
 import { CodeEditor } from './CodeEditor'
 
 type Framework = 'playwright' | 'cypress'
@@ -20,7 +20,7 @@ export function GeneratedTests({
   projectId?: string
   secrets?: ProjectSecrets
   onRunStatus?: (id: string, status: RunStatus) => void
-  onRunResult?: (id: string, result: Pick<RunResult, 'status' | 'logs' | 'screenshot'>) => void
+  onRunResult?: (id: string, result: Pick<RunResult, 'status' | 'logs' | 'screenshot' | 'screenshots'>) => void
 }) {
   const [framework, setFramework] = useState<Framework>('playwright')
   const preferredCase =
@@ -39,13 +39,7 @@ export function GeneratedTests({
   const [runFilter, setRunFilter] = useState('all')
   const activeRunRef = useRef<ActiveRun | undefined>(undefined)
   const stopRequestedRef = useRef(false)
-  const [overrides, setOverrides] = useState<Record<string, string>>(() => {
-    try {
-      return JSON.parse(localStorage.getItem(`lazyscout.automation.${projectId}`) ?? '{}') as Record<string, string>
-    } catch {
-      return {}
-    }
-  })
+  const [overrides, setOverrides] = useState<Record<string, string>>({})
   const selected = testCases.find((testCase) => testCase.id === selectedId) ?? testCases[0]
   const runFilterOptions = useMemo(
     () => [
@@ -75,6 +69,23 @@ export function GeneratedTests({
   useEffect(() => {
     if (!testCases.some((testCase) => testCase.id === selectedId)) setSelectedId(preferredCase?.id ?? '')
   }, [preferredCase?.id, selectedId, testCases])
+  useEffect(() => {
+    setOverrides({})
+    void (async () => {
+      const stored = await getWorkspaceAutomation(projectId)
+      const legacyKey = `lazyscout.automation.${projectId}`
+      let legacy: Record<string, string> = {}
+      try {
+        legacy = JSON.parse(localStorage.getItem(legacyKey) ?? '{}') as Record<string, string>
+      } catch {}
+      const merged = { ...legacy, ...stored }
+      if (Object.keys(legacy).length) {
+        await saveWorkspaceAutomation(projectId, merged)
+        localStorage.removeItem(legacyKey)
+      }
+      setOverrides(merged)
+    })().catch(() => setOverrides({}))
+  }, [projectId])
   useEffect(() => {
     setRunEnabled(testCases.map((testCase) => testCase.id))
   }, [testCases])
@@ -118,14 +129,14 @@ export function GeneratedTests({
   function saveEdit() {
     const next = { ...overrides, [overrideKey]: draftCode }
     setOverrides(next)
-    localStorage.setItem(`lazyscout.automation.${projectId}`, JSON.stringify(next))
+    void saveWorkspaceAutomation(projectId, next)
     setEditing(false)
   }
   function regenerate() {
     const next = { ...overrides }
     delete next[overrideKey]
     setOverrides(next)
-    localStorage.setItem(`lazyscout.automation.${projectId}`, JSON.stringify(next))
+    void saveWorkspaceAutomation(projectId, next)
     setEditing(false)
   }
   function codeFor(testCase: TestCase) {
@@ -139,7 +150,7 @@ export function GeneratedTests({
     const controller = new AbortController()
     activeRunRef.current = { runId, controller }
     try {
-      const result = await runAutomation(testCase, framework, source, secrets, runId, controller.signal)
+      const result = await runAutomation(testCase, framework, source, secrets, runId, projectId, controller.signal)
       onRunStatus?.(
         testCase.id,
         result.status === 'passed' ? 'passed' : result.status === 'failed' ? 'failed' : 'pending'

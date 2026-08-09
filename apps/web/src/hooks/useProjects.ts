@@ -1,16 +1,15 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { AnalyzeResponse } from '../types'
+import {
+  deleteWorkspaceProject,
+  getWorkspace,
+  openWorkspaceFolder,
+  saveWorkspaceProject,
+  type WorkspaceProject
+} from '../api/client'
 
-export type SavedProject = {
-  id: string
-  name: string
-  targetUrl: string
-  createdAt: string
-  updatedAt: string
-  mode?: 'scout' | 'empty'
-  result: AnalyzeResponse
-}
-const STORAGE_KEY = 'lazyscout.projects.v1'
+export type SavedProject = WorkspaceProject
+const LEGACY_STORAGE_KEY = 'lazyscout.projects.v1'
 
 function emptyResult(): AnalyzeResponse {
   return {
@@ -34,81 +33,145 @@ function emptyResult(): AnalyzeResponse {
   }
 }
 
-function readProjects(): SavedProject[] {
+function legacyProjects(): SavedProject[] {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]') as SavedProject[]
+    return JSON.parse(localStorage.getItem(LEGACY_STORAGE_KEY) ?? '[]') as SavedProject[]
   } catch {
     return []
   }
 }
 
+function removeLegacyProject(projectId: string): void {
+  const remaining = legacyProjects().filter((project) => project.id !== projectId)
+  if (remaining.length) localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify(remaining))
+  else localStorage.removeItem(LEGACY_STORAGE_KEY)
+}
+
 export function useProjects() {
-  const [projects, setProjects] = useState<SavedProject[]>(() => (typeof window === 'undefined' ? [] : readProjects()))
+  const [projects, setProjects] = useState<SavedProject[]>([])
   const [activeProjectId, setActiveProjectId] = useState<string>()
+  const [workspaceRoot, setWorkspaceRoot] = useState('~/LazyScout')
+  const [workspaceError, setWorkspaceError] = useState<string>()
+  const [loading, setLoading] = useState(true)
+  const deletingProjectIds = useRef(new Set<string>())
+  const pendingWrites = useRef(new Map<string, Promise<void>>())
+
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(projects))
-  }, [projects])
+    void (async () => {
+      try {
+        const workspace = await getWorkspace()
+        setWorkspaceRoot(workspace.root)
+        const legacy = legacyProjects()
+        const missing = legacy.filter((project) => !workspace.projects.some((stored) => stored.id === project.id))
+        for (const project of missing) await saveWorkspaceProject(project)
+        if (legacy.length) localStorage.removeItem(LEGACY_STORAGE_KEY)
+        setProjects([...missing, ...workspace.projects])
+      } catch (error) {
+        setProjects(legacyProjects())
+        setWorkspaceError(error instanceof Error ? error.message : String(error))
+      } finally {
+        setLoading(false)
+      }
+    })()
+  }, [])
+
+  function persist(project: SavedProject): Promise<void> {
+    if (deletingProjectIds.current.has(project.id)) return Promise.resolve()
+
+    const previous = pendingWrites.current.get(project.id) ?? Promise.resolve()
+    const next = previous
+      .catch(() => undefined)
+      .then(() => saveWorkspaceProject(project))
+      .catch((error) => {
+        setWorkspaceError(error instanceof Error ? error.message : String(error))
+      })
+
+    pendingWrites.current.set(project.id, next)
+    void next.finally(() => {
+      if (pendingWrites.current.get(project.id) === next) pendingWrites.current.delete(project.id)
+    })
+    return next
+  }
+
   function saveProject(targetUrl: string, result: AnalyzeResponse, name?: string, existingId?: string) {
     const now = new Date().toISOString()
-    const derivedId = `project-${btoa(targetUrl)
-      .replace(/[^a-z0-9]/gi, '')
-      .slice(0, 18)
-      .toLowerCase()}`
+    const derivedId = `project-${encodeProjectId(targetUrl)}`
     const id = existingId ?? derivedId
-    setProjects((current) => {
-      const existing = current.find((project) => project.id === id)
-      const project = {
-        id,
-        name: name ?? existing?.name ?? new URL(targetUrl).hostname,
-        targetUrl,
-        createdAt: existing?.createdAt ?? now,
-        updatedAt: now,
-        mode: existing?.mode,
-        result
-      }
-      return existing ? current.map((item) => (item.id === id ? project : item)) : [project, ...current]
-    })
+    const existing = projects.find((project) => project.id === id)
+    const project: SavedProject = {
+      id,
+      name: name ?? existing?.name ?? new URL(targetUrl).hostname,
+      targetUrl,
+      createdAt: existing?.createdAt ?? now,
+      updatedAt: now,
+      mode: existing?.mode,
+      result
+    }
+    deletingProjectIds.current.delete(id)
+    setProjects((current) =>
+      existing ? current.map((item) => (item.id === id ? project : item)) : [project, ...current]
+    )
+    persist(project)
     setActiveProjectId(id)
     return id
   }
+
   function createEmptyProject(name = 'Untitled Test Suite', mode: SavedProject['mode'] = 'empty') {
     const now = new Date().toISOString()
     const id = `project-${crypto.randomUUID()}`
-    setProjects((current) => [
-      {
-        id,
-        name: name.trim() || 'Untitled Test Suite',
-        targetUrl: '',
-        createdAt: now,
-        updatedAt: now,
-        mode,
-        result: emptyResult()
-      },
-      ...current
-    ])
+    const project: SavedProject = {
+      id,
+      name: name.trim() || 'Untitled Test Suite',
+      targetUrl: '',
+      createdAt: now,
+      updatedAt: now,
+      mode,
+      result: emptyResult()
+    }
+    deletingProjectIds.current.delete(id)
+    setProjects((current) => [project, ...current])
+    persist(project)
     setActiveProjectId(id)
     return id
   }
-  function deleteProject(id: string) {
-    setProjects((current) => current.filter((project) => project.id !== id))
-    if (activeProjectId === id) setActiveProjectId(undefined)
+
+  async function deleteProject(id: string) {
+    deletingProjectIds.current.add(id)
+    try {
+      await (pendingWrites.current.get(id) ?? Promise.resolve())
+      await deleteWorkspaceProject(id)
+      removeLegacyProject(id)
+      setProjects((current) => current.filter((project) => project.id !== id))
+      if (activeProjectId === id) setActiveProjectId(undefined)
+    } catch (error) {
+      deletingProjectIds.current.delete(id)
+      setWorkspaceError(error instanceof Error ? error.message : String(error))
+    }
   }
+
   function renameProject(id: string, name: string) {
     const nextName = name.trim()
-    if (!nextName) return
-    setProjects((current) =>
-      current.map((project) =>
-        project.id === id ? { ...project, name: nextName, updatedAt: new Date().toISOString() } : project
-      )
-    )
+    const existing = projects.find((project) => project.id === id)
+    if (!nextName || !existing) return
+    const project = { ...existing, name: nextName, updatedAt: new Date().toISOString() }
+    setProjects((current) => current.map((item) => (item.id === id ? project : item)))
+    persist(project)
   }
+
   function updateProjectResult(id: string, result: AnalyzeResponse) {
-    setProjects((current) =>
-      current.map((project) =>
-        project.id === id ? { ...project, result, updatedAt: new Date().toISOString() } : project
-      )
+    const existing = projects.find((project) => project.id === id)
+    if (!existing) return
+    const project = { ...existing, result, updatedAt: new Date().toISOString() }
+    setProjects((current) => current.map((item) => (item.id === id ? project : item)))
+    persist(project)
+  }
+
+  function openWorkspace() {
+    void openWorkspaceFolder().catch((error) =>
+      setWorkspaceError(error instanceof Error ? error.message : String(error))
     )
   }
+
   return {
     projects,
     activeProjectId,
@@ -117,6 +180,19 @@ export function useProjects() {
     createEmptyProject,
     deleteProject,
     renameProject,
-    updateProjectResult
+    updateProjectResult,
+    workspaceRoot,
+    workspaceError,
+    loading,
+    openWorkspace
   }
+}
+
+function encodeProjectId(targetUrl: string): string {
+  const bytes = new TextEncoder().encode(targetUrl)
+  const binary = Array.from(bytes, (byte) => String.fromCharCode(byte)).join('')
+  return btoa(binary)
+    .replace(/[^a-z0-9]/gi, '')
+    .slice(0, 32)
+    .toLowerCase()
 }

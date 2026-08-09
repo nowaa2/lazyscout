@@ -1,6 +1,6 @@
 # Authentication for local automation
 
-LazyScout does not save passwords or tokens in the browser, project localStorage, Test Case JSON, CSV, or generated logs.
+LazyScout does not save passwords or tokens in browser preferences, workspace Project files, Test Case JSON, CSV, or generated logs.
 
 Credentials entered in Project Settings are kept in React memory for the current browser tab and are cleared when the page refreshes. Environment variables are preferred for repeatable local runs.
 

@@ -13,7 +13,7 @@ export type ScanOptions = {
 }
 
 export async function runScan(options: ScanOptions): Promise<void> {
-  console.log(`กำลังสำรวจ ${redactUrl(options.url)} ...`)
+  console.log(`checking scan ${redactUrl(options.url)} ...`)
 
   const result = await exploreWebsite(options.url, {
     ...(options.maxPages !== undefined ? { maxPages: options.maxPages } : {}),
@@ -31,22 +31,22 @@ export async function runScan(options: ScanOptions): Promise<void> {
   }
 
   console.log(
-    `\nสรุป: ${result.pages.length} หน้า · ${testCases.length} test case · ${testData.length} test data · ${(result.stats.durationMs / 1000).toFixed(1)} วินาที · ใช้ ${result.stats.browser}`
+    `\nSummary: ${result.pages.length} pages · ${testCases.length} test cases · ${testData.length} test data · ${(result.stats.durationMs / 1000).toFixed(1)} seconds · Using ${result.stats.browser}`
   )
 
   if (result.pages.length === 0) {
-    console.error('เปิดเว็บไซต์ไม่สำเร็จ จึงไม่มีข้อมูลให้บันทึก')
+    console.error('Failed to open the website, no data to save')
     process.exitCode = 1
     return
   }
 
   const csvPath = resolve(options.csvPath ?? 'lazyscout-testcases.csv')
   await writeFile(csvPath, exportTestCasesToCsv(testCases, testData), 'utf8')
-  console.log(`บันทึก CSV: ${csvPath}`)
+  console.log(`Saved CSV: ${csvPath}`)
 
   if (options.jsonPath) {
     const jsonPath = resolve(options.jsonPath)
     await writeFile(jsonPath, JSON.stringify({ ...result, testCases, testData }, null, 2), 'utf8')
-    console.log(`บันทึก JSON: ${jsonPath}`)
+    console.log(`Saved JSON: ${jsonPath}`)
   }
 }

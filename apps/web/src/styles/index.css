@@ -859,11 +859,11 @@ body {
   .workspace-language-row {
     @apply flex items-center justify-between gap-3;
   }
-  .workspace-language-row > div:first-child {
-    @apply min-w-0;
+  .workspace-copy {
+    @apply min-w-0 cursor-pointer border-0 bg-transparent p-0 text-left text-inherit;
   }
   .workspace-language-row small {
-    @apply mt-1 block text-xs text-slate-400;
+    @apply mt-1 block max-w-[150px] truncate text-[9px] text-slate-400;
   }
   .language-circle {
     @apply flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-[10px] font-semibold shadow-sm transition hover:scale-105 hover:border-indigo-300;
@@ -1486,10 +1486,33 @@ body {
     @apply ml-auto cursor-pointer text-lg leading-none text-amber-700 hover:text-amber-950;
   }
   .test-detail-modal {
-    @apply max-h-[90vh] max-w-3xl;
+    @apply flex max-h-[calc(100dvh-2rem)] max-w-3xl flex-col;
+  }
+  .test-detail-modal .modal-header,
+  .test-detail-modal .modal-footer {
+    @apply shrink-0;
+  }
+  .test-detail-modal .modal-header {
+    @apply px-4 py-4 sm:px-6 sm:py-5;
+  }
+  .test-detail-modal .modal-footer {
+    @apply flex-wrap px-4 py-3 sm:px-6 sm:py-4;
+  }
+  .test-detail-modal .modal-header > div {
+    @apply min-w-0 flex-1 pr-4;
+  }
+  .test-detail-modal .modal-header h2,
+  .test-detail-modal .modal-header p {
+    @apply break-words;
+  }
+  .test-detail-modal .modal-header p:not(.eyebrow) {
+    @apply line-clamp-2;
+  }
+  .test-detail-modal .icon-btn {
+    @apply shrink-0;
   }
   .test-detail-body {
-    @apply max-h-[calc(90vh-150px)] space-y-5 overflow-y-auto p-6;
+    @apply min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain p-4 sm:p-6;
   }
   .test-detail-meta {
     @apply flex flex-wrap gap-2 border-b border-slate-100 pb-4;
@@ -1500,8 +1523,11 @@ body {
   .test-detail-step > span {
     @apply flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700;
   }
+  .test-detail-step > div {
+    @apply min-w-0 break-words;
+  }
   .test-detail-step small {
-    @apply ml-2 font-mono text-[10px] text-slate-400;
+    @apply ml-2 inline-block font-mono text-[10px] text-slate-400;
   }
   .traceability-meta {
     @apply grid gap-3 rounded-lg border border-slate-100 bg-slate-50 p-3;

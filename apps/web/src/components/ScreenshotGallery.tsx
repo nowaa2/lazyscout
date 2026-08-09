@@ -20,7 +20,13 @@ export function ScreenshotGallery({
         <div>
           <p className="eyebrow">Playwright evidence</p>
           <h3>Screenshots</h3>
-          <p>Images captured automatically at the end of each Playwright run. They stay in this local project.</p>
+          <p>
+            LazyScout does not capture automatically. Add{' '}
+            <code>
+              await page.screenshot({'{'} path: 'evidence.png', fullPage: true {'}'})
+            </code>{' '}
+            to edited Playwright code when evidence is needed.
+          </p>
         </div>
         <span>{screenshots.length}/50 saved</span>
       </header>
@@ -51,7 +57,7 @@ export function ScreenshotGallery({
       ) : (
         <div className="bug-empty">
           <b>No screenshots yet</b>
-          <span>Run a Playwright Test Case and the final browser state will appear here.</span>
+          <span>Add page.screenshot() to edited Playwright code, save it, then run that Test Case.</span>
         </div>
       )}
     </section>

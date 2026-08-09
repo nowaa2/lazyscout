@@ -19,25 +19,25 @@ export type DashboardPdfData = {
 }
 
 export function exportDashboardPdf(data: DashboardPdfData) {
-  openReport(data, true)
+  return openReport(data, true)
 }
 export function exportDashboardHtml(data: DashboardPdfData) {
-  openReport(data, false)
+  return openReport(data, false)
 }
 
 function openReport(data: DashboardPdfData, print: boolean) {
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>LazyScout Quality Report</title><style>${reportStyles}</style></head><body>${reportHtml(data)}</body></html>`
   const popup = window.open('', '_blank', 'width=1100,height=820')
-  if (!popup) return
+  if (!popup) return html
   popup.document.open()
-  popup.document.write(
-    `<!doctype html><html><head><meta charset="utf-8"><title>LazyScout Quality Report</title><style>${reportStyles}</style></head><body>${reportHtml(data)}</body></html>`
-  )
+  popup.document.write(html)
   popup.document.close()
   if (print)
     window.setTimeout(() => {
       popup.focus()
       popup.print()
     }, 350)
+  return html
 }
 
 function reportHtml(data: DashboardPdfData) {

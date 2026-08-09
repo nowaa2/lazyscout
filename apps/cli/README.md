@@ -34,6 +34,7 @@ npx lazyscout@latest scan https://example.com --max-pages 10 --csv report.csv --
 | `--max-pages <n>` | Maximum pages; defaults to 20                          |
 | `--max-depth <n>` | Maximum same-origin link depth; defaults to 3          |
 | `--port <n>`      | Local UI port; defaults to 4321                        |
+| `--workspace <p>` | Project workspace; defaults to `~/LazyScout`           |
 | `--no-open`       | Start without opening the browser                      |
 
 The current CLI command is `scan`; there is no `analyze` command.
@@ -47,7 +48,7 @@ The current CLI command is `scan`; there is no `analyze` command.
 - CSV/XLSX/JSON import and CSV export
 - Screenshot OCR-assisted import
 - Playwright and Cypress code generation
-- Local Playwright execution with restricted statements, logs and screenshots
+- Local Playwright execution with restricted statements, logs and explicit `page.screenshot()` evidence
 - Safe GET/HEAD/OPTIONS API checks
 - Bug Reports with ZIP evidence export
 - HTML/PDF Test Summary
@@ -57,7 +58,7 @@ Cypress is code generation only; the built-in local runner uses Playwright.
 
 ## Local-first Data
 
-Browser automation runs on your machine. Projects, Test Cases, results, Bug Reports and screenshots are stored in the local browser. Credentials entered in Project Settings stay in memory for the current tab and are cleared on refresh. Environment variables are supported for local runner credentials.
+Browser automation runs on your machine. LazyScout creates `~/LazyScout` before opening the UI and stores each Project's JSON, CSV, automation, screenshots, Bug Reports, reports and logs there. Use `--workspace <path>` to override it. Credentials entered in Project Settings stay in memory for the current tab and are cleared on refresh.
 
 Version Center contacts npm Registry to check available releases. LazyScout has no hosted account or Project database in the current version.
 

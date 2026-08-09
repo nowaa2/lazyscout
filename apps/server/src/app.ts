@@ -6,11 +6,14 @@ import { registerAutomationRunRoute } from './routes/automationRun.js'
 import { registerApiCheckRunRoute } from './routes/apiCheckRun.js'
 import { registerLoadTestRoute } from './routes/loadTest.js'
 import { registerVersionRoutes } from './routes/versions.js'
+import { registerWorkspaceRoutes } from './routes/workspace.js'
+import { ensureWorkspace, resolveWorkspaceRoot } from './workspace.js'
 
 export type AppOptions = {
   staticDir?: string
   logLevel?: string
   appVersion?: string
+  workspaceRoot?: string
 }
 
 export function buildApp(options: AppOptions = {}): FastifyInstance {
@@ -22,15 +25,17 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
   })
 
   const appVersion = options.appVersion ?? process.env.npm_package_version ?? '0.0.0-dev'
+  const workspaceRoot = resolveWorkspaceRoot(options.workspaceRoot)
 
-  app.get('/api/health', async () => ({ status: 'ok', version: appVersion }))
+  app.get('/api/health', async () => ({ status: 'ok', version: appVersion, workspaceRoot }))
 
   registerAnalyzeRoute(app)
   registerExportCsvRoute(app)
-  registerAutomationRunRoute(app)
+  registerAutomationRunRoute(app, workspaceRoot)
   registerApiCheckRunRoute(app)
   registerLoadTestRoute(app)
   registerVersionRoutes(app, appVersion)
+  registerWorkspaceRoutes(app, workspaceRoot)
 
   if (options.staticDir) {
     app.register(fastifyStatic, { root: options.staticDir })
@@ -49,3 +54,5 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
 
   return app
 }
+
+export { ensureWorkspace, resolveWorkspaceRoot }

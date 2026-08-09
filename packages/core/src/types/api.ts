@@ -56,6 +56,7 @@ export type AutomationRunRequest = {
   code?: string
   secrets?: ProjectSecrets
   runId?: string
+  projectId?: string
 }
 export type AutomationLog = {
   timestamp: string
@@ -63,12 +64,20 @@ export type AutomationLog = {
   message: string
   durationMs?: number
 }
+export type AutomationScreenshot = {
+  name: string
+  dataUrl: string
+  capturedAt: string
+  testCaseId: string
+  status: 'passed' | 'failed'
+}
 export type AutomationRunResponse = {
   status: 'passed' | 'failed' | 'blocked' | 'unsupported' | 'stopped'
   framework: 'playwright' | 'cypress'
   logs: AutomationLog[]
   error?: string
-  screenshot?: { name: string; dataUrl: string; capturedAt: string; testCaseId: string; status: 'passed' | 'failed' }
+  screenshot?: AutomationScreenshot
+  screenshots?: AutomationScreenshot[]
 }
 
 export type ApiErrorResponse = {

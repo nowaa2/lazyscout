@@ -90,6 +90,6 @@ LAZYSCOUT_MODE=public npm run dev:server
 
 - Project Settings credentials อยู่ใน memory และหายเมื่อ refresh
 - environment variables เป็นวิธีที่แนะนำสำหรับ runner
-- Projects, results, screenshots และ Bug Reports อยู่ใน browser localStorage ซึ่งไม่ใช่ encrypted vault
+- Projects, results, screenshots, Bug Reports, reports และ logs อยู่ใน file-backed workspace ซึ่งไม่ใช่ encrypted vault
 - screenshot, trace, video, HAR, API dump และ Bug evidence อาจมีข้อมูลอ่อนไหว ต้อง redact ก่อนแชร์
 - directory ของ artifacts ทั่วไปถูกเพิ่มไว้ใน `.gitignore` แต่ผู้ใช้ยังต้องตรวจ `git status` และ `git diff --cached` ก่อน push

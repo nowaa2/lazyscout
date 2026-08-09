@@ -42,7 +42,7 @@ Never commit, publish or attach real:
 
 `.env.example` contains synthetic placeholders only. Put real values in local environment variables and keep `.env` ignored.
 
-Project Settings credentials are memory-only and cleared when the page refreshes. Projects, Test Cases, results, Bug Reports and screenshots use browser `localStorage`; local storage is not encrypted and must not be treated as a secret vault.
+Project Settings credentials are memory-only and cleared when the page refreshes. Projects, Test Cases, results, Bug Reports, reports, logs and explicit screenshots are stored under the local LazyScout workspace. The workspace is not encrypted and must not be treated as a secret vault. Browser `localStorage` is limited to lightweight UI preferences after migration.
 
 ## Browser Automation Safety
 

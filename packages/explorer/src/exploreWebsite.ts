@@ -239,7 +239,7 @@ async function visitPage(page: Page, item: QueueItem, config: ExploreOptions): P
         issue: {
           url: item.url,
           code: 'cloudflare',
-          message: 'พบ Cloudflare/browser challenge — หยุดที่หน้านี้และต้องให้ Tester ตรวจสอบด้วยตนเอง'
+          message: 'Cloudflare/browser challenge — self check the website in a browser and try again'
         }
       }
     }

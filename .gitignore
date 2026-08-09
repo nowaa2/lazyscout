@@ -13,6 +13,7 @@ dist/
 *.sqlite3
 
 workspace/
+LazyScout/
 local-data/
 user-data/
 sessions/

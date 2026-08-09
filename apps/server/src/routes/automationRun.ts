@@ -1,9 +1,17 @@
 import type { FastifyInstance } from 'fastify'
-import type { AutomationRunRequest, AutomationRunResponse, ProjectSecrets, TargetRef, TestStep } from '@lazyscout/core'
+import type {
+  AutomationRunRequest,
+  AutomationRunResponse,
+  AutomationScreenshot,
+  ProjectSecrets,
+  TargetRef,
+  TestStep
+} from '@lazyscout/core'
 import { checkTargetUrl, redactSensitiveText, redactUrl } from '@lazyscout/core'
 import { isDestructiveLabel, launchBrowser } from '@lazyscout/explorer'
 import type { Locator, Page } from 'playwright-core'
 import { config } from '../config.js'
+import { saveRunLog } from '../workspace.js'
 
 const MAX_STEPS = 100
 const MAX_LOGS = 250
@@ -12,7 +20,7 @@ const STEP_TIMEOUT_MS = 20_000
 type ActiveRun = { browser?: Awaited<ReturnType<typeof launchBrowser>>['browser']; stopped: boolean }
 const activeRuns = new Map<string, ActiveRun>()
 
-export function registerAutomationRunRoute(app: FastifyInstance): void {
+export function registerAutomationRunRoute(app: FastifyInstance, workspaceRoot: string): void {
   app.post('/api/automation/stop', async (request, reply) => {
     const runId = (request.body as { runId?: string } | undefined)?.runId
     if (!runId) return reply.status(400).send({ error: { code: 'invalid-run', message: 'Run ID is required.' } })
@@ -54,6 +62,12 @@ export function registerAutomationRunRoute(app: FastifyInstance): void {
           ...(durationMs === undefined ? {} : { durationMs })
         })
     }
+    const persistLog = async (runStatus: AutomationRunResponse['status']) => {
+      if (!body.projectId) return
+      await saveRunLog(workspaceRoot, body.projectId, testCase.id, runStatus, logs).catch((error) =>
+        addLog('warn', `Could not save run log: ${error instanceof Error ? error.message : String(error)}`)
+      )
+    }
     const started = Date.now()
     addLog('info', '$ lazyscout test --case ' + testCase.id)
     addLog('info', 'Starting Playwright runner: ' + testCase.title)
@@ -63,16 +77,19 @@ export function registerAutomationRunRoute(app: FastifyInstance): void {
     )
     if (testCase.automationStatus === 'manual') {
       addLog('warn', 'Blocked: this case is marked manual and cannot be automated')
+      await persistLog('blocked')
       return reply.send({ status: 'blocked', framework, logs })
     }
     if (framework === 'cypress') {
       addLog('warn', 'Cypress code generation is available; local runner uses Playwright only.')
+      await persistLog('unsupported')
       return reply.send({ status: 'unsupported', framework, logs })
     }
     const active: ActiveRun = { stopped: false }
     activeRuns.set(runId, active)
     let browser: Awaited<ReturnType<typeof launchBrowser>>['browser'] | undefined
     let page: Page | undefined
+    const capturedScreenshots: AutomationScreenshot[] = []
     try {
       const launched = await launchBrowser()
       browser = launched.browser
@@ -83,7 +100,7 @@ export function registerAutomationRunRoute(app: FastifyInstance): void {
       page = await context.newPage()
       if (typeof body.code === 'string' && body.code.trim()) {
         addLog('info', 'Running edited automation source')
-        await executeEditedCode(page, body.code, addLog, secrets)
+        await executeEditedCode(page, body.code, testCase.id, capturedScreenshots, addLog, secrets)
         if (active.stopped) throw new Error('Run stopped by user')
         addLog('pass', '✓ edited source completed')
       } else
@@ -95,25 +112,32 @@ export function registerAutomationRunRoute(app: FastifyInstance): void {
           addLog('pass', `✓ ${step.type}`, Date.now() - stepStarted)
         }
       addLog('pass', `Completed ${testCase.id}`, Date.now() - started)
+      const screenshots = withScreenshotStatus(capturedScreenshots, 'passed')
+      await persistLog('passed')
       return reply.send({
         status: 'passed',
         framework,
         logs,
-        screenshot: await captureScreenshot(page, testCase.id, 'passed')
+        screenshots,
+        screenshot: screenshots.at(-1)
       })
     } catch (error) {
       const message = redactSensitiveText(error instanceof Error ? error.message : String(error), secretValues)
       if (active.stopped) {
         addLog('warn', 'Run stopped by user', Date.now() - started)
+        await persistLog('stopped')
         return reply.send({ status: 'stopped', framework, logs })
       }
       addLog('fail', `✕ ${message}`, Date.now() - started)
+      const screenshots = withScreenshotStatus(capturedScreenshots, 'failed')
+      await persistLog('failed')
       return reply.send({
         status: 'failed',
         framework,
         logs,
         error: message,
-        screenshot: await captureScreenshot(page, testCase.id, 'failed')
+        screenshots,
+        screenshot: screenshots.at(-1)
       })
     } finally {
       activeRuns.delete(runId)
@@ -122,25 +146,15 @@ export function registerAutomationRunRoute(app: FastifyInstance): void {
   })
 }
 
-async function captureScreenshot(page: Page | undefined, testCaseId: string, status: 'passed' | 'failed') {
-  if (!page) return undefined
-  try {
-    const image = await page.screenshot({ type: 'jpeg', quality: 65, fullPage: false })
-    return {
-      name: `${testCaseId}-${status}-${Date.now()}.jpg`,
-      dataUrl: `data:image/jpeg;base64,${image.toString('base64')}`,
-      capturedAt: new Date().toISOString(),
-      testCaseId,
-      status
-    }
-  } catch {
-    return undefined
-  }
+function withScreenshotStatus(screenshots: AutomationScreenshot[], status: 'passed' | 'failed') {
+  return screenshots.map((screenshot) => ({ ...screenshot, status }))
 }
 
 async function executeEditedCode(
   page: Page,
   source: string,
+  testCaseId: string,
+  capturedScreenshots: AutomationScreenshot[],
   addLog: (level: 'info' | 'pass' | 'fail' | 'warn', message: string) => void,
   projectSecrets?: ProjectSecrets
 ): Promise<void> {
@@ -168,6 +182,14 @@ async function executeEditedCode(
       const waitMs = Math.min(Number(waitMatch[1]), 5_000)
       addLog('info', `→ Waiting ${waitMs}ms`)
       await page.waitForTimeout(waitMs)
+      continue
+    }
+
+    const screenshotMatch = line.match(/^await page\.screenshot\((.*)\)$/)
+    if (screenshotMatch) {
+      const screenshot = await captureRequestedScreenshot(page, screenshotMatch[1], testCaseId)
+      capturedScreenshots.push(screenshot)
+      addLog('pass', `Screenshot captured: ${screenshot.name}`)
       continue
     }
 
@@ -233,6 +255,128 @@ async function executeEditedCode(
   }
 
   if (executed === 0) throw new Error('Edited source does not contain a supported Playwright action')
+}
+
+type ScreenshotOptions = {
+  path?: string
+  fullPage: boolean
+  type: 'png' | 'jpeg'
+  quality?: number
+}
+
+function parseScreenshotOptions(source: string): ScreenshotOptions {
+  const value = source.trim()
+  if (!value) return { fullPage: false, type: 'png' }
+  const objectMatch = value.match(/^\{([\s\S]*)\}$/)
+  if (!objectMatch) throw new Error('page.screenshot() accepts an options object only')
+
+  let path: string | undefined
+  let fullPage = false
+  let type: 'png' | 'jpeg' | undefined
+  let quality: number | undefined
+
+  for (const entry of splitOptionList(objectMatch[1])) {
+    const separator = entry.indexOf(':')
+    if (separator < 1) throw new Error(`Unsupported screenshot option: ${entry.slice(0, 80)}`)
+    const key = entry.slice(0, separator).trim()
+    const raw = entry.slice(separator + 1).trim()
+    if (key === 'path') path = parseSourceString(raw)
+    else if (key === 'fullPage' && /^(true|false)$/.test(raw)) fullPage = raw === 'true'
+    else if (key === 'type') {
+      const parsedType = parseSourceString(raw)
+      if (parsedType !== 'png' && parsedType !== 'jpeg') throw new Error('Screenshot type must be png or jpeg')
+      type = parsedType
+    } else if (key === 'quality' && /^\d{1,3}$/.test(raw)) quality = Math.min(100, Math.max(1, Number(raw)))
+    else throw new Error(`Unsupported screenshot option: ${key.slice(0, 40)}`)
+  }
+
+  const inferredType = path && /\.jpe?g$/i.test(path) ? 'jpeg' : 'png'
+  return { path, fullPage, type: type ?? inferredType, quality }
+}
+
+function splitOptionList(value: string): string[] {
+  const entries: string[] = []
+  let current = ''
+  let quote = ''
+  let escaped = false
+  for (const character of value) {
+    if (escaped) {
+      current += character
+      escaped = false
+      continue
+    }
+    if (character === '\\') {
+      current += character
+      escaped = true
+      continue
+    }
+    if (quote) {
+      current += character
+      if (character === quote) quote = ''
+      continue
+    }
+    if (character === '"' || character === "'") {
+      quote = character
+      current += character
+      continue
+    }
+    if (character === ',') {
+      if (current.trim()) entries.push(current.trim())
+      current = ''
+      continue
+    }
+    current += character
+  }
+  if (quote || escaped) throw new Error('Screenshot options contain an incomplete string')
+  if (current.trim()) entries.push(current.trim())
+  return entries
+}
+
+function parseSourceString(value: string): string {
+  if (value.startsWith('"')) return parseStringLiteral(value)
+  if (!value.startsWith("'") || !value.endsWith("'")) throw new Error('Screenshot strings must use quotes')
+  const inner = value.slice(1, -1)
+  let parsed = ''
+  for (let index = 0; index < inner.length; index++) {
+    const character = inner[index]
+    if (character !== '\\') {
+      parsed += character
+      continue
+    }
+    const next = inner[++index]
+    if (next === undefined) throw new Error('Screenshot string contains an incomplete escape')
+    parsed += next === 'n' ? '\n' : next === 'r' ? '\r' : next === 't' ? '\t' : next
+  }
+  return parsed
+}
+
+async function captureRequestedScreenshot(
+  page: Page,
+  source: string,
+  testCaseId: string
+): Promise<AutomationScreenshot> {
+  const options = parseScreenshotOptions(source)
+  const image = await page.screenshot({
+    type: options.type,
+    fullPage: options.fullPage,
+    ...(options.type === 'jpeg' && options.quality ? { quality: options.quality } : {})
+  })
+  const extension = options.type === 'jpeg' ? 'jpg' : 'png'
+  const requestedName = options.path
+    ?.split(/[\\/]/)
+    .pop()
+    ?.replace(/\.[^.]+$/, '')
+  const safeName = (requestedName || `${testCaseId}-${Date.now()}`)
+    .replace(/[^\p{L}\p{N}._-]+/gu, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 100)
+  return {
+    name: `${safeName || `screenshot-${Date.now()}`}.${extension}`,
+    dataUrl: `data:image/${options.type};base64,${image.toString('base64')}`,
+    capturedAt: new Date().toISOString(),
+    testCaseId,
+    status: 'passed'
+  }
 }
 
 const STRING_LITERAL = '"(?:\\\\.|[^"\\\\])*"'

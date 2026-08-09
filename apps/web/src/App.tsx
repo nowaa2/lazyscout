@@ -35,6 +35,8 @@ import { useScreenshots } from './hooks/useScreenshots'
 import { filterTestCases, filterTestData, uniqueModules } from './lib/filterTestCases'
 import { EMPTY_FILTERS, type AutomationLog, type ResultTab, type TestCase, type TestCaseFilters } from './types'
 
+const LAST_PROJECT_STORAGE_KEY = 'lazyscout-active-project-id'
+
 export default function App() {
   const { status, result: analysisResult, error, analyze, reset } = useAnalyze()
   const {
@@ -45,7 +47,11 @@ export default function App() {
     createEmptyProject,
     deleteProject,
     renameProject,
-    updateProjectResult
+    updateProjectResult,
+    workspaceRoot,
+    workspaceError,
+    loading: projectsLoading,
+    openWorkspace
   } = useProjects()
   const activeProject = projects.find((project) => project.id === activeProjectId)
   const { secrets, saveSecrets, clearSecrets } = useProjectSecrets(activeProjectId)
@@ -84,7 +90,7 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [screenshotOpen, setScreenshotOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
-  const [newProjectOpen, setNewProjectOpen] = useState(true)
+  const [newProjectOpen, setNewProjectOpen] = useState(false)
   const [navigating, setNavigating] = useState(false)
   const [scoutNotice, setScoutNotice] = useState<{ message: string; detail: string }>()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(
@@ -118,6 +124,26 @@ export default function App() {
     if (activeProjectId && result && activeProject?.result === result)
       updateProjectResult(activeProjectId, { ...result, testCases, testData })
   }, [testCases, testData])
+
+  useEffect(() => {
+    if (projectsLoading) return
+
+    if (projects.length === 0) {
+      localStorage.removeItem(LAST_PROJECT_STORAGE_KEY)
+      setNewProjectOpen(true)
+      return
+    }
+
+    if (activeProjectId && projects.some((project) => project.id === activeProjectId)) return
+
+    const storedProjectId = localStorage.getItem(LAST_PROJECT_STORAGE_KEY)
+    const projectToOpen = projects.find((project) => project.id === storedProjectId) ?? projects[0]
+    setActiveProjectId(projectToOpen.id)
+  }, [activeProjectId, projects, projectsLoading, setActiveProjectId])
+
+  useEffect(() => {
+    if (!projectsLoading && activeProjectId) localStorage.setItem(LAST_PROJECT_STORAGE_KEY, activeProjectId)
+  }, [activeProjectId, projectsLoading])
 
   useEffect(() => {
     if (status !== 'loading') return
@@ -212,6 +238,8 @@ export default function App() {
         onDelete={deleteProject}
         onRename={renameProject}
         onSettings={() => setSettingsOpen(true)}
+        workspaceRoot={workspaceRoot}
+        onOpenWorkspace={openWorkspace}
       />
       <div className="app-main">
         <header className="app-header">
@@ -249,6 +277,9 @@ export default function App() {
           )}
 
           {error && <ErrorBanner message={error.message} hint={error.hint} />}
+          {workspaceError && (
+            <ErrorBanner message={workspaceError} hint="Check that the LazyScout workspace is writable." />
+          )}
           {exportError && <ErrorBanner message={exportError} />}
           {scoutNotice && <ScoutNotice {...scoutNotice} onClose={() => setScoutNotice(undefined)} />}
 
@@ -274,7 +305,12 @@ export default function App() {
                       ...current,
                       [id]: { ...result, finishedAt: new Date().toISOString() }
                     }))
-                    if (result.screenshot) addScreenshot(result.screenshot)
+                    const captured = result.screenshots?.length
+                      ? result.screenshots
+                      : result.screenshot
+                        ? [result.screenshot]
+                        : []
+                    captured.forEach(addScreenshot)
                   }}
                 />
               ) : workspaceView === 'overview' ? (
@@ -283,6 +319,7 @@ export default function App() {
                   testCases={testCases}
                   executionStatuses={executionStatuses}
                   runResults={runResults}
+                  projectId={activeProjectId}
                 />
               ) : (
                 <div className="workspace-shell">

@@ -29,7 +29,7 @@ PageInfo[] + action graph + API observations
   ↓
 Draft Test Cases + Test Data
   ↓
-Browser-local Project workspace
+File-backed Project workspace under `~/LazyScout`
   ↓
 Review / import / CSV / reports / generated automation
 ```
@@ -73,7 +73,7 @@ Edited Playwright source is interpreted through a statement whitelist. The serve
 
 The React UI provides Projects, dashboards, Test Case/Test Data review, imports, code generation, logs, screenshots, Bug Reports, reports and Version Center.
 
-Projects, Test Cases, results, screenshots and Bug Reports use browser `localStorage`. Project Settings credentials remain in React memory and are cleared by a refresh.
+Projects, Test Cases, CSV backups, screenshots, Bug Reports, reports, edited automation and run logs use the file-backed LazyScout workspace. The CLI creates the workspace before serving the UI. Project Settings credentials remain in React memory and are cleared by a refresh; browser `localStorage` is reserved for lightweight UI preferences and one-time migration.
 
 ### `apps/cli`
 
@@ -85,6 +85,7 @@ lazyscout serve
 lazyscout scan <url>
 lazyscout --help
 lazyscout --version
+lazyscout --workspace <path>
 ```
 
 `build.mjs` bundles server/workspace code with esbuild, injects the CLI package version and copies the Vite build.

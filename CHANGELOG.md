@@ -2,6 +2,21 @@
 
 All notable changes to LazyScout are documented in this file.
 
+## [0.3.0] - Unreleased
+
+### Added
+
+- File-backed workspace created automatically at `~/LazyScout`
+- Per-Project JSON, CSV, automation, screenshots, Bug Reports, reports and run logs
+- `--workspace <path>` override and an Open Workspace Folder action
+- Automatic migration of existing browser-local Projects, screenshots, Bug Reports and edited automation
+- Recoverable Project deletion by moving the Project directory into `backups`
+
+### Changed
+
+- Browser `localStorage` is limited to lightweight UI preferences
+- Playwright screenshots are captured only when edited code explicitly calls `page.screenshot()`
+
 ## [0.2.0] - 2026-08-09
 
 ### Added

@@ -15,7 +15,7 @@ LazyScout คือผู้ช่วย QA แบบ Local-first สำหร�
 - Import ภาพเพื่อช่วยสร้าง Test Case ด้วย OCR
 - Export CSV, HTML/PDF Test Summary และ Bug Report ZIP
 - Generate โค้ด Playwright และ Cypress
-- รัน Test Case ที่รองรับด้วย Playwright บนเครื่อง พร้อม logs และ screenshot
+- รัน Test Case ที่รองรับด้วย Playwright บนเครื่อง พร้อม logs และ screenshot ที่ผู้ใช้สั่งจับผ่านโค้ดเอง
 - ตรวจ XHR/fetch และรัน API checks เฉพาะ GET, HEAD และ OPTIONS
 
 Cypress ในเวอร์ชันนี้รองรับการสร้างโค้ด แต่ยังไม่รองรับการรันใน LazyScout
@@ -26,6 +26,12 @@ Cypress ในเวอร์ชันนี้รองรับการสร
 
 ```bash
 npx lazyscout@latest
+```
+
+LazyScout จะสร้าง `~/LazyScout` ให้อัตโนมัติ หากต้องการเลือกตำแหน่งเอง:
+
+```bash
+npx lazyscout@latest --workspace D:\\QA\\LazyScout
 ```
 
 ถ้ายังไม่มี browser ที่รองรับ:
@@ -47,7 +53,9 @@ npx lazyscout@latest scan https://example.com --max-pages 10 --csv report.csv
 
 Playwright และ local runner ทำงานบนเครื่องผู้ใช้ จึงเข้าถึง localhost, DEV, UAT, VPN หรือ intranet ได้ถ้าเครื่องนั้นเข้า environment ได้
 
-Projects, Test Cases, Results, Bug Reports และ Screenshots ถูกเก็บใน `localStorage` ของ browser บนเครื่องนี้ ไม่มีระบบ account หรือ cloud database ในเวอร์ชันปัจจุบัน ส่วน credentials ที่กรอกใน Project Settings จะอยู่ใน memory และหายเมื่อ refresh หน้า
+LazyScout สร้าง workspace ที่ `~/LazyScout` อัตโนมัติก่อนเปิด UI โดย Projects, Test Cases, CSV, Automation, Screenshots, Bug Reports, Reports และ Logs จะแยกเป็นโฟลเดอร์ของแต่ละ Project สามารถเปลี่ยนตำแหน่งด้วย `npx lazyscout --workspace <path>` ส่วน `localStorage` ใช้เฉพาะการตั้งค่าหน้าจอขนาดเล็ก
+
+Credentials ที่กรอกใน Project Settings จะอยู่ใน memory และหายเมื่อ refresh หน้า Workspace ไม่ได้เข้ารหัส จึงไม่ควรเก็บ secret หรือข้อมูล production
 
 Version Center จะติดต่อ npm Registry เพื่อดูรายการเวอร์ชัน
 
