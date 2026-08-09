@@ -15,7 +15,7 @@
     "url": "https://github.com/nowaa2/lazyscout/issues"
   },
   "bin": {
-    "lazyscout": "./dist/index.js"
+    "lazyscout": "dist/index.js"
   },
   "files": [
     "dist",
