@@ -1,4 +1,3 @@
-
 export type UrlPolicy = {
   allowedProtocols: string[]
 
@@ -10,5 +9,4 @@ export type UrlPolicy = {
 }
 
 export type UrlCheckResult =
-  | { ok: true; url: URL }
-  | { ok: false; code: 'invalid-url' | 'blocked-url'; message: string }
+  { ok: true; url: URL } | { ok: false; code: 'invalid-url' | 'blocked-url'; message: string }

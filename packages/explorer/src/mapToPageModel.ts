@@ -31,7 +31,15 @@ export function mapToPageModel(
   const textareas = raw.textareas.map(toUIElement)
   const selects = raw.selects.map(toUIElement)
   const controls = [...links, ...buttons, ...inputs, ...textareas, ...selects]
-  const stateInput = { url: meta.finalUrl, title: raw.title, visibleDialogs: raw.visibleDialogs, headings: raw.headings, controls, interactions: raw.interactions, stateContent: raw.stateContent }
+  const stateInput = {
+    url: meta.finalUrl,
+    title: raw.title,
+    visibleDialogs: raw.visibleDialogs,
+    headings: raw.headings,
+    controls,
+    interactions: raw.interactions,
+    stateContent: raw.stateContent
+  }
   const fingerprint = fingerprintState(stateInput)
   return {
     url: meta.url,
@@ -40,7 +48,13 @@ export function mapToPageModel(
     depth: meta.depth,
     statusCode: meta.statusCode,
     headings: raw.headings,
-    links, buttons, inputs, textareas, selects, forms: raw.forms.map(toFormInfo), apiRequests: meta.apiRequests ?? [],
+    links,
+    buttons,
+    inputs,
+    textareas,
+    selects,
+    forms: raw.forms.map(toFormInfo),
+    apiRequests: meta.apiRequests ?? [],
     state: { id: stateId(meta.finalUrl, fingerprint), ...stateInput, fingerprint }
   }
 }

@@ -11,21 +11,36 @@ type AnalyzeState = {
 export function useAnalyze() {
   const [state, setState] = useState<AnalyzeState>({ status: 'idle', result: null, error: null })
 
-  async function analyze(url: string, maxPages: number, maxDepth: number, language: TestCaseLanguage = 'en', includeApiChecks = false, waitAfterNavigationMs = 750) {
+  async function analyze(
+    url: string,
+    maxPages: number,
+    maxDepth: number,
+    language: TestCaseLanguage = 'en',
+    includeApiChecks = false,
+    waitAfterNavigationMs = 750
+  ) {
     setState({ status: 'loading', result: null, error: null })
     try {
-      const result = await analyzeWebsite({ url, maxPages, maxDepth, language, includeApiChecks, waitAfterNavigationMs })
+      const result = await analyzeWebsite({
+        url,
+        maxPages,
+        maxDepth,
+        language,
+        includeApiChecks,
+        waitAfterNavigationMs
+      })
       setState({ status: 'success', result, error: null })
       return result
     } catch (error) {
-      const apiError =
-        error instanceof ApiError ? error : new ApiError('unknown', 'An unexpected error occurred.')
+      const apiError = error instanceof ApiError ? error : new ApiError('unknown', 'An unexpected error occurred.')
       setState({ status: 'error', result: null, error: apiError })
       return null
     }
   }
 
-  function reset() { setState({ status: 'idle', result: null, error: null }) }
+  function reset() {
+    setState({ status: 'idle', result: null, error: null })
+  }
 
   return { ...state, analyze, reset }
 }

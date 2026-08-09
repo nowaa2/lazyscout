@@ -1,13 +1,14 @@
-
-
 export type {
   AnalyzeRequest,
   AnalyzeResponse,
   ApiErrorResponse,
   AutomationRunResponse,
+  AutomationLog,
   ApiCheck,
   ApiCheckRunResponse,
   ApiCheckRunRequest,
+  LoadTestResponse,
+  LoadTestRequest,
   ProjectSecrets,
   AutomationStatus,
   ExploreIssue,
@@ -25,7 +26,7 @@ export type {
   TestCaseLanguage
 } from '@lazyscout/core'
 
-export type ResultTab = 'testcases' | 'testdata' | 'apichecks'
+export type ResultTab = 'testcases' | 'testdata' | 'apichecks' | 'bugreports' | 'screenshots'
 
 export type TestCaseFilters = {
   search: string

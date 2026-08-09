@@ -1,4 +1,4 @@
-import type { ApiErrorResponse } from '@lazyscout/core'
+import { redactSensitiveText, type ApiErrorResponse } from '@lazyscout/core'
 import { ExplorerError } from '@lazyscout/explorer'
 
 export function toApiError(error: unknown): { status: number; body: ApiErrorResponse } {
@@ -6,7 +6,13 @@ export function toApiError(error: unknown): { status: number; body: ApiErrorResp
     const status = error.code === 'invalid-url' || error.code === 'blocked-url' ? 400 : 502
     return {
       status,
-      body: { error: { code: error.code, message: error.message, hint: error.hint } }
+      body: {
+        error: {
+          code: error.code,
+          message: redactSensitiveText(error.message),
+          hint: error.hint ? redactSensitiveText(error.hint) : undefined
+        }
+      }
     }
   }
 

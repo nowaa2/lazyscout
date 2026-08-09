@@ -57,9 +57,7 @@ export function useTestCases(generated: TestCase[] | undefined) {
   }
 
   function toggleSelected(id: string) {
-    setSelectedIds((current) =>
-      current.includes(id) ? current.filter((item) => item !== id) : [...current, id]
-    )
+    setSelectedIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]))
   }
 
   function setSelection(ids: string[]) {

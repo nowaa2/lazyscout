@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import type { ApiCheck, AnalyzeRequest, AnalyzeResponse } from '@lazyscout/core'
-import { checkTargetUrl } from '@lazyscout/core'
+import { checkTargetUrl, redactSensitiveText } from '@lazyscout/core'
 import { ExplorerError, exploreWebsite } from '@lazyscout/explorer'
 import { generateTestCases, generateTestData } from '@lazyscout/generators'
 import { clamp, config } from '../config.js'
@@ -43,13 +43,49 @@ export function registerAnalyzeRoute(app: FastifyInstance): void {
 
       const testCases = generateTestCases(result.pages, { language: body.language ?? 'en' })
       const runEvents = [
-        { timestamp: new Date(Date.now() - result.stats.durationMs).toISOString(), eventType: 'run-started' as const, result: 'running' as const, message: 'Explorer run started' },
+        {
+          timestamp: new Date(Date.now() - result.stats.durationMs).toISOString(),
+          eventType: 'run-started' as const,
+          result: 'running' as const,
+          message: 'Explorer run started'
+        },
         ...result.pages.flatMap((page) => [
-          { timestamp: new Date().toISOString(), eventType: 'page-discovered' as const, currentUrl: page.finalUrl, currentStateId: page.state?.id, result: 'passed' as const, message: `Page discovered: ${page.title || page.finalUrl}` },
-          ...(page.state?.interactions ?? []).map((interaction) => ({ timestamp: new Date().toISOString(), eventType: (result.actionGraph.blockedActionKeys.some((key) => key.endsWith(`|${interaction.cssSelector}`)) ? 'action-blocked' : 'action-discovered') as 'action-blocked' | 'action-discovered', currentUrl: page.finalUrl, currentStateId: page.state?.id, result: (result.actionGraph.blockedActionKeys.some((key) => key.endsWith(`|${interaction.cssSelector}`)) ? 'blocked' : 'warning') as 'blocked' | 'warning', message: `${interaction.kind}: ${interaction.name}` }))
+          {
+            timestamp: new Date().toISOString(),
+            eventType: 'page-discovered' as const,
+            currentUrl: page.finalUrl,
+            currentStateId: page.state?.id,
+            result: 'passed' as const,
+            message: `Page discovered: ${page.title || page.finalUrl}`
+          },
+          ...(page.state?.interactions ?? []).map((interaction) => ({
+            timestamp: new Date().toISOString(),
+            eventType: (result.actionGraph.blockedActionKeys.some((key) => key.endsWith(`|${interaction.cssSelector}`))
+              ? 'action-blocked'
+              : 'action-discovered') as 'action-blocked' | 'action-discovered',
+            currentUrl: page.finalUrl,
+            currentStateId: page.state?.id,
+            result: (result.actionGraph.blockedActionKeys.some((key) => key.endsWith(`|${interaction.cssSelector}`))
+              ? 'blocked'
+              : 'warning') as 'blocked' | 'warning',
+            message: `${interaction.kind}: ${interaction.name}`
+          }))
         ]),
-        ...result.issues.map((issue) => ({ timestamp: new Date().toISOString(), eventType: 'error' as const, currentUrl: issue.url, result: 'failed' as const, error: issue.message, message: issue.message })),
-        { timestamp: new Date().toISOString(), eventType: 'run-completed' as const, result: result.issues.length ? 'warning' as const : 'passed' as const, durationMs: result.stats.durationMs, message: 'Analysis completed' }
+        ...result.issues.map((issue) => ({
+          timestamp: new Date().toISOString(),
+          eventType: 'error' as const,
+          currentUrl: issue.url,
+          result: 'failed' as const,
+          error: issue.message,
+          message: issue.message
+        })),
+        {
+          timestamp: new Date().toISOString(),
+          eventType: 'run-completed' as const,
+          result: result.issues.length ? ('warning' as const) : ('passed' as const),
+          durationMs: result.stats.durationMs,
+          message: 'Analysis completed'
+        }
       ]
       const response: AnalyzeResponse = {
         startUrl: result.startUrl,
@@ -65,7 +101,10 @@ export function registerAnalyzeRoute(app: FastifyInstance): void {
       }
       return reply.send(response)
     } catch (error) {
-      request.log.error({ err: error }, 'analyze failed')
+      request.log.error(
+        { message: redactSensitiveText(error instanceof Error ? error.message : String(error)) },
+        'analyze failed'
+      )
       const { status, body: errorBody } = toApiError(error)
       return reply.status(status).send(errorBody)
     }
@@ -75,12 +114,34 @@ export function registerAnalyzeRoute(app: FastifyInstance): void {
 function buildApiChecks(pages: AnalyzeResponse['pages']): ApiCheck[] {
   const seen = new Set<string>()
   const checks: ApiCheck[] = []
-  for (const page of pages) for (const request of page.apiRequests) {
-    const key = `${request.method}:${request.url}`
-    if (seen.has(key)) continue
-    seen.add(key)
-    const authRequired = request.status === 401 || request.status === 403
-    checks.push({ id: `API-${String(checks.length + 1).padStart(3, '0')}`, method: request.method, url: request.url, observedStatus: request.status, expectedStatus: authRequired ? undefined : request.status && request.status < 400 ? 200 : undefined, sourceUrl: request.sourceUrl, durationMs: request.durationMs, status: authRequired ? 'needs-auth' : request.status && request.status >= 400 ? 'needs-review' : 'observed', note: authRequired ? 'Requires auth profile or token before execution.' : undefined })
-  }
+  for (const page of pages)
+    for (const request of page.apiRequests) {
+      const key = `${request.method}:${request.url}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      const authRequired = request.status === 401 || request.status === 403
+      const safeMethod = ['GET', 'HEAD', 'OPTIONS'].includes(request.method.toUpperCase())
+      checks.push({
+        id: `API-${String(checks.length + 1).padStart(3, '0')}`,
+        method: request.method,
+        url: request.url,
+        observedStatus: request.status,
+        expectedStatus: authRequired ? undefined : request.status && request.status < 400 ? 200 : undefined,
+        sourceUrl: request.sourceUrl,
+        durationMs: request.durationMs,
+        status: !safeMethod
+          ? 'needs-review'
+          : authRequired
+            ? 'needs-auth'
+            : request.status && request.status >= 400
+              ? 'needs-review'
+              : 'observed',
+        note: !safeMethod
+          ? 'Observation only. LazyScout does not replay state-changing API methods automatically.'
+          : authRequired
+            ? 'Requires auth profile or token before execution.'
+            : undefined
+      })
+    }
   return checks
 }

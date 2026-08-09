@@ -4,17 +4,17 @@
 
 ```ts
 type TestCase = {
-  id: string                    // TC-LOGIN-001
-  module: string                // มาจาก path ของ URL
+  id: string // TC-LOGIN-001
+  module: string // มาจาก path ของ URL
   title: string
   preconditions: string[]
-  steps: TestStep[]             // structured data ไม่ใช่ string
+  steps: TestStep[] // structured data ไม่ใช่ string
   expectedResult: string
   type: 'positive' | 'negative' | 'validation'
   priority: 'low' | 'medium' | 'high'
   automationStatus: 'ready' | 'needs-data' | 'needs-review' | 'manual'
-  sourceUrl: string             // หลักฐานว่ามาจากหน้าไหน
-  notes?: string                // ข้อความจาก generator ถึง Tester
+  sourceUrl: string // หลักฐานว่ามาจากหน้าไหน
+  notes?: string // ข้อความจาก generator ถึง Tester
 }
 ```
 
@@ -22,14 +22,14 @@ type TestCase = {
 
 ```ts
 type TestStep =
-  | { type: 'navigate';     url: string }
-  | { type: 'click';        target: TargetRef }
-  | { type: 'fill';         target: TargetRef; value: string }
-  | { type: 'select';       target: TargetRef; option: string }
-  | { type: 'assertVisible';target: TargetRef }
-  | { type: 'assertText';   target?: TargetRef; text: string }
-  | { type: 'assertUrl';    urlContains: string }
-  | { type: 'manual';       description: string }   // ยังไม่รู้ behavior — ห้ามเดา
+  | { type: 'navigate'; url: string }
+  | { type: 'click'; target: TargetRef }
+  | { type: 'fill'; target: TargetRef; value: string }
+  | { type: 'select'; target: TargetRef; option: string }
+  | { type: 'assertVisible'; target: TargetRef }
+  | { type: 'assertText'; target?: TargetRef; text: string }
+  | { type: 'assertUrl'; urlContains: string }
+  | { type: 'manual'; description: string } // ยังไม่รู้ behavior — ห้ามเดา
 ```
 
 `TargetRef` ให้ความสำคัญกับ accessibility ก่อน CSS selector เสมอ:
@@ -44,13 +44,13 @@ type TestStep =
 
 ## กฎการสร้าง test case (packages/generators/src/testcases/rules.ts)
 
-| กฎ | สร้างเมื่อ | ผลลัพธ์ | automationStatus |
-| -- | ---------- | ------- | ---------------- |
-| 1. Page structure | หน้ามี control ที่มีชื่ออย่างน้อย 1 ตัว | `<Page> page displays required controls` | `ready` |
-| 2. Required field | form มีปุ่ม submit และมีช่องกรอกข้อความ | `<Field> is required` | `needs-review` |
-| 3. Form submit | form มี field + ปุ่ม submit ที่ไม่ destructive | `Submit <form> with valid data` | `needs-data` |
-| 4. Navigation | link ภายใน origin เดียวกันที่มีชื่อ | `Navigate to <Link>` | `ready` ถ้า Explorer เคยเปิดหน้าปลายทาง ไม่งั้น `needs-review` |
-| 5. Destructive | element ตรงกับ safety keyword | `Verify "<name>" action (manual)` | `manual` |
+| กฎ                | สร้างเมื่อ                                     | ผลลัพธ์                                  | automationStatus                                               |
+| ----------------- | ---------------------------------------------- | ---------------------------------------- | -------------------------------------------------------------- |
+| 1. Page structure | หน้ามี control ที่มีชื่ออย่างน้อย 1 ตัว        | `<Page> page displays required controls` | `ready`                                                        |
+| 2. Required field | form มีปุ่ม submit และมีช่องกรอกข้อความ        | `<Field> is required`                    | `needs-review`                                                 |
+| 3. Form submit    | form มี field + ปุ่ม submit ที่ไม่ destructive | `Submit <form> with valid data`          | `needs-data`                                                   |
+| 4. Navigation     | link ภายใน origin เดียวกันที่มีชื่อ            | `Navigate to <Link>`                     | `ready` ถ้า Explorer เคยเปิดหน้าปลายทาง ไม่งั้น `needs-review` |
+| 5. Destructive    | element ตรงกับ safety keyword                  | `Verify "<name>" action (manual)`        | `manual`                                                       |
 
 จำกัด 15 test case ต่อหน้า (ปรับได้ที่ `DEFAULT_GENERATE_OPTIONS`)
 
@@ -87,31 +87,31 @@ TC-LOGIN-006 | positive/low/ready           | Navigate to Forgot Password
 
 ```ts
 type TestDataRow = {
-  id: string           // TD-LOGIN-001
-  module: string       // ชื่อเดียวกับ module ของ test case (ใช้ assignModules ตัวเดียวกัน)
+  id: string // TD-LOGIN-001
+  module: string // ชื่อเดียวกับ module ของ test case (ใช้ assignModules ตัวเดียวกัน)
   sourceUrl: string
-  field: string        // accessible name ของ field
-  inputType: string    // email / password / text / select / checkbox ...
+  field: string // accessible name ของ field
+  inputType: string // email / password / text / select / checkbox ...
   required: boolean
-  validValue: string   // ค่าที่ควรผ่าน
+  validValue: string // ค่าที่ควรผ่าน
   invalidValue: string // ค่าที่ควรถูกปฏิเสธ
-  note?: string        // เคสนี้ตั้งใจทดสอบอะไร
+  note?: string // เคสนี้ตั้งใจทดสอบอะไร
 }
 ```
 
 สร้างจาก field ทุกช่องที่ Explorer พบ (1 แถว/1 field ตัดชื่อซ้ำภายใน module เดียวกัน)
 ค่าที่เสนอมาจาก **ชนิดของ input เท่านั้น ไม่ใช่กฎจริงของระบบ**:
 
-| Input type   | Valid Value             | Invalid Value           | ตั้งใจทดสอบ                 |
-| ------------ | ----------------------- | ----------------------- | --------------------------- |
-| email        | `qa.tester@example.com` | `invalid-email`         | รูปแบบอีเมล                 |
-| password     | `Passw0rd!23`           | `123`                   | ความยาว/ความซับซ้อน         |
-| number       | `1`                     | `abc`                   | ค่าที่ไม่ใช่ตัวเลข           |
-| date         | `2026-01-01`            | `2026-13-45`            | วันที่นอกช่วง               |
-| url          | `https://example.com`   | `not-a-url`             | รูปแบบ URL                  |
-| select       | ตัวเลือกแรกที่พบจริง     | `(no option selected)`  | กรณีไม่เลือก                |
-| checkbox/radio | `(selected)`          | `(not selected)`        | กรณีไม่ติ๊ก                 |
-| text/textarea| `test data`             | `(empty)`               | กฎ required                 |
+| Input type     | Valid Value             | Invalid Value          | ตั้งใจทดสอบ         |
+| -------------- | ----------------------- | ---------------------- | ------------------- |
+| email          | `qa.tester@example.com` | `invalid-email`        | รูปแบบอีเมล         |
+| password       | `Passw0rd!23`           | `123`                  | ความยาว/ความซับซ้อน |
+| number         | `1`                     | `abc`                  | ค่าที่ไม่ใช่ตัวเลข  |
+| date           | `2026-01-01`            | `2026-13-45`           | วันที่นอกช่วง       |
+| url            | `https://example.com`   | `not-a-url`            | รูปแบบ URL          |
+| select         | ตัวเลือกแรกที่พบจริง    | `(no option selected)` | กรณีไม่เลือก        |
+| checkbox/radio | `(selected)`            | `(not selected)`       | กรณีไม่ติ๊ก         |
+| text/textarea  | `test data`             | `(empty)`              | กฎ required         |
 
 ถ้า field ไม่มี attribute `required` จะเขียนใน `note` ว่า
 `Field is not marked required — confirm with the specification whether validation applies.`

@@ -8,21 +8,32 @@ export function generateCypressTest(testCase: TestCase): string {
 }
 function locator(target: TargetRef): string {
   if (target.role && target.name) return `cy.contains(${quote(target.role)}, ${quote(target.name)})`
-  if (target.label) return `cy.get('label').contains(${quote(target.label)}).invoke('attr', 'for').then((id) => cy.get('#' + id))`
+  if (target.label)
+    return `cy.get('label').contains(${quote(target.label)}).invoke('attr', 'for').then((id) => cy.get('#' + id))`
   if (target.placeholder) return `cy.get(${quote(`[placeholder="${target.placeholder}"]`)})`
   if (target.text) return `cy.contains(${quote(target.text)})`
   return `cy.get(${quote(target.cssSelector ?? '')})`
 }
 function cypressStep(step: TestStep): string {
   switch (step.type) {
-    case 'navigate': return `cy.visit(${quote(step.url)})`
-    case 'click': return `${locator(step.target)}.click()`
-    case 'fill': return `${locator(step.target)}.clear().type(${quote(runtimeValue(step))})`
-    case 'select': return `${locator(step.target)}.select(${quote(step.option)})`
-    case 'assertVisible': return `${locator(step.target)}.should('be.visible')`
-    case 'assertText': return step.target ? `${locator(step.target)}.should('contain.text', ${quote(step.text)})` : `cy.contains(${quote(step.text)}).should('be.visible')`
-    case 'assertUrl': return `cy.url().should('include', ${quote(step.urlContains)})`
-    case 'manual': return `// TODO: ${step.description}`
+    case 'navigate':
+      return `cy.visit(${quote(step.url)})`
+    case 'click':
+      return `${locator(step.target)}.click()`
+    case 'fill':
+      return `${locator(step.target)}.clear().type(${quote(runtimeValue(step))})`
+    case 'select':
+      return `${locator(step.target)}.select(${quote(step.option)})`
+    case 'assertVisible':
+      return `${locator(step.target)}.should('be.visible')`
+    case 'assertText':
+      return step.target
+        ? `${locator(step.target)}.should('contain.text', ${quote(step.text)})`
+        : `cy.contains(${quote(step.text)}).should('be.visible')`
+    case 'assertUrl':
+      return `cy.url().should('include', ${quote(step.urlContains)})`
+    case 'manual':
+      return `// TODO: ${step.description}`
   }
 }
 function runtimeValue(step: Extract<TestStep, { type: 'fill' }>): string {

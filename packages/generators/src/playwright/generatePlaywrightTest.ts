@@ -1,7 +1,11 @@
 import type { TargetRef, TestCase, TestStep } from '@lazyscout/core'
 
 export function generatePlaywrightTest(testCase: TestCase): string {
-  const lines = [`import { test, expect } from '@playwright/test'`, '', `test('${quote(testCase.title)}', async ({ page }) => {`]
+  const lines = [
+    `import { test, expect } from '@playwright/test'`,
+    '',
+    `test('${quote(testCase.title)}', async ({ page }) => {`
+  ]
   for (const step of testCase.steps) lines.push(`  ${playwrightStep(step)}`)
   lines.push('})', '')
   return lines.join('\n')
@@ -16,14 +20,24 @@ function locator(target: TargetRef): string {
 }
 function playwrightStep(step: TestStep): string {
   switch (step.type) {
-    case 'navigate': return `await page.goto(${quote(step.url)})`
-    case 'click': return `await ${locator(step.target)}.click()`
-    case 'fill': return `await ${locator(step.target)}.fill(${quote(runtimeValue(step))})`
-    case 'select': return `await ${locator(step.target)}.selectOption(${quote(step.option)})`
-    case 'assertVisible': return `await expect(${locator(step.target)}).toBeVisible()`
-    case 'assertText': return step.target ? `await expect(${locator(step.target)}).toContainText(${quote(step.text)})` : `await expect(page).toContainText(${quote(step.text)})`
-    case 'assertUrl': return `await expect(page).toHaveURL(new RegExp(${quote(step.urlContains)}))`
-    case 'manual': return `// TODO: ${step.description}`
+    case 'navigate':
+      return `await page.goto(${quote(step.url)})`
+    case 'click':
+      return `await ${locator(step.target)}.click()`
+    case 'fill':
+      return `await ${locator(step.target)}.fill(${quote(runtimeValue(step))})`
+    case 'select':
+      return `await ${locator(step.target)}.selectOption(${quote(step.option)})`
+    case 'assertVisible':
+      return `await expect(${locator(step.target)}).toBeVisible()`
+    case 'assertText':
+      return step.target
+        ? `await expect(${locator(step.target)}).toContainText(${quote(step.text)})`
+        : `await expect(page).toContainText(${quote(step.text)})`
+    case 'assertUrl':
+      return `await expect(page).toHaveURL(new RegExp(${quote(step.urlContains)}))`
+    case 'manual':
+      return `// TODO: ${step.description}`
   }
 }
 function runtimeValue(step: Extract<TestStep, { type: 'fill' }>): string {

@@ -1,5 +1,3 @@
-
-
 import { build } from 'esbuild'
 import { access, cp, mkdir, readFile, rm } from 'node:fs/promises'
 import { dirname, join } from 'node:path'

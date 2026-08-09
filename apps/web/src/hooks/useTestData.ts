@@ -22,7 +22,10 @@ export function useTestData(generated: TestDataRow[] | undefined) {
     let sequence = testData.filter((row) => row.module === 'MANUAL').length + 1
     while (used.has(makeTestDataId('MANUAL', sequence))) sequence++
 
-    setTestData((current) => [createEmptyTestDataRow('MANUAL', makeTestDataId('MANUAL', sequence), sourceUrl), ...current])
+    setTestData((current) => [
+      createEmptyTestDataRow('MANUAL', makeTestDataId('MANUAL', sequence), sourceUrl),
+      ...current
+    ])
   }
 
   return { testData, updateRow, deleteRow, addRow }

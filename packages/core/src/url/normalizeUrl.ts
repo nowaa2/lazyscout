@@ -1,7 +1,26 @@
-
 const NON_PAGE_EXTENSIONS = [
-  '.pdf', '.zip', '.rar', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp', '.ico',
-  '.mp4', '.mp3', '.avi', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.csv', '.exe', '.dmg'
+  '.pdf',
+  '.zip',
+  '.rar',
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.gif',
+  '.svg',
+  '.webp',
+  '.ico',
+  '.mp4',
+  '.mp3',
+  '.avi',
+  '.doc',
+  '.docx',
+  '.xls',
+  '.xlsx',
+  '.ppt',
+  '.pptx',
+  '.csv',
+  '.exe',
+  '.dmg'
 ]
 
 export function normalizeUrl(rawUrl: string): string {

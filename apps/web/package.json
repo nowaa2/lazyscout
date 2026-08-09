@@ -1,6 +1,6 @@
 {
   "name": "@lazyscout/web",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -13,9 +13,11 @@
     "@lazyscout/core": "*",
     "@lazyscout/generators": "*",
     "@monaco-editor/react": "^4.7.0",
-    "monaco-editor": "^0.56.0",
+    "jszip": "^3.10.1",
+    "monaco-editor": "0.53.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "read-excel-file": "^9.3.8",
     "tesseract.js": "^7.0.0"
   },
   "devDependencies": {

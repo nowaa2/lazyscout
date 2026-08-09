@@ -11,6 +11,8 @@ type Props = {
 export function TestCaseEditor({ testCase, onSave, onCancel }: Props) {
   const [draft, setDraft] = useState<TestCase>({ ...testCase })
   const [preconditionsText, setPreconditionsText] = useState(testCase.preconditions.join('\n'))
+  const [tagsText, setTagsText] = useState((testCase.tags ?? []).join(', '))
+  const [requirementsText, setRequirementsText] = useState((testCase.requirements ?? []).join(', '))
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -31,9 +33,7 @@ export function TestCaseEditor({ testCase, onSave, onCancel }: Props) {
   function updateStepDescription(index: number, description: string) {
     setDraft((current) => ({
       ...current,
-      steps: current.steps.map((step, position) =>
-        position === index ? ({ ...step, description } as TestStep) : step
-      )
+      steps: current.steps.map((step, position) => (position === index ? ({ ...step, description } as TestStep) : step))
     }))
   }
 
@@ -57,30 +57,23 @@ export function TestCaseEditor({ testCase, onSave, onCancel }: Props) {
       preconditions: preconditionsText
         .split('\n')
         .map((line) => line.trim())
-        .filter(Boolean)
+        .filter(Boolean),
+      tags: splitList(tagsText),
+      requirements: splitList(requirementsText)
     })
   }
 
   return (
-
-    <div
-      className="modern-modal-backdrop"
-      onMouseDown={(event) => event.target === event.currentTarget && onCancel()}
-    >
-      <div className="modern-modal flex max-h-[90vh] w-full max-w-3xl flex-col">
+    <div className="modern-modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onCancel()}>
+      <div className="modern-modal test-case-editor-modal">
         <div className="card-title flex shrink-0 items-center justify-between">
           <span>Edit {draft.id}</span>
-          <button
-            type="button"
-            className="btn btn-secondary px-2 py-1"
-            onClick={onCancel}
-            aria-label="Close editor"
-          >
+          <button type="button" className="btn btn-secondary px-2 py-1" onClick={onCancel} aria-label="Close editor">
             ✕
           </button>
         </div>
 
-        <div className="flex-1 space-y-4 overflow-y-auto p-4">
+        <div className="test-case-editor-body">
           <div className="grid gap-3 md:grid-cols-2">
             <div>
               <label className="field-label" htmlFor="edit-module">
@@ -102,6 +95,17 @@ export function TestCaseEditor({ testCase, onSave, onCancel }: Props) {
                 className="field font-mono"
                 value={draft.id}
                 onChange={(event) => patch({ id: event.target.value })}
+              />
+            </div>
+            <div>
+              <label className="field-label" htmlFor="edit-folder">
+                Folder
+              </label>
+              <input
+                id="edit-folder"
+                className="field"
+                value={draft.folder ?? draft.module}
+                onChange={(event) => patch({ folder: event.target.value })}
               />
             </div>
           </div>
@@ -179,6 +183,34 @@ export function TestCaseEditor({ testCase, onSave, onCancel }: Props) {
             />
           </div>
 
+          <div className="grid gap-3 md:grid-cols-2">
+            <div>
+              <label className="field-label" htmlFor="edit-tags">
+                Tags (comma separated)
+              </label>
+              <input
+                id="edit-tags"
+                className="field"
+                value={tagsText}
+                onChange={(event) => setTagsText(event.target.value)}
+                placeholder="smoke, regression, critical"
+              />
+            </div>
+            <div>
+              <label className="field-label" htmlFor="edit-requirements">
+                Requirements / Tickets
+              </label>
+              <textarea
+                id="edit-requirements"
+                className="field min-h-10 resize-y leading-5"
+                value={requirementsText}
+                onChange={(event) => setRequirementsText(event.target.value)}
+                placeholder="JIRA-123, https://tracker.example/456"
+                rows={2}
+              />
+            </div>
+          </div>
+
           <div>
             <div className="mb-1 flex items-center justify-between">
               <span className="field-label mb-0">Steps</span>
@@ -188,19 +220,15 @@ export function TestCaseEditor({ testCase, onSave, onCancel }: Props) {
             </div>
             <div className="space-y-2">
               {draft.steps.map((step, index) => (
-                <div key={index} className="flex items-center gap-2">
+                <div key={index} className="flex min-w-0 items-center gap-2">
                   <span className="w-5 text-xs text-slate-400">{index + 1}.</span>
                   <input
-                    className="field"
+                    className="field min-w-0"
                     value={describeStep(step)}
                     onChange={(event) => updateStepDescription(index, event.target.value)}
                   />
                   <span className="w-24 shrink-0 font-mono text-xs text-slate-400">{step.type}</span>
-                  <button
-                    type="button"
-                    className="btn btn-danger px-2 py-1"
-                    onClick={() => removeStep(index)}
-                  >
+                  <button type="button" className="btn btn-danger px-2 py-1" onClick={() => removeStep(index)}>
                     Delete
                   </button>
                 </div>
@@ -222,7 +250,7 @@ export function TestCaseEditor({ testCase, onSave, onCancel }: Props) {
           </div>
         </div>
 
-        <div className="flex shrink-0 justify-end gap-2 border-t border-slate-200 bg-white p-4">
+        <div className="test-case-editor-footer">
           <button type="button" className="btn btn-secondary" onClick={onCancel}>
             Cancel
           </button>
@@ -233,4 +261,11 @@ export function TestCaseEditor({ testCase, onSave, onCancel }: Props) {
       </div>
     </div>
   )
+}
+
+function splitList(value: string) {
+  return value
+    .split(/[,;\n]/)
+    .map((item) => item.trim())
+    .filter(Boolean)
 }

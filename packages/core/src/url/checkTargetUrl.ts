@@ -43,7 +43,7 @@ export function checkTargetUrl(rawUrl: string, policy: UrlPolicy = LOCAL_QA_POLI
   try {
     url = new URL(withProtocol)
   } catch {
-    return { ok: false, code: 'invalid-url', message: `รูปแบบ URL ไม่ถูกต้อง: ${rawUrl}` }
+    return { ok: false, code: 'invalid-url', message: 'รูปแบบ URL ไม่ถูกต้อง' }
   }
 
   if (!policy.allowedProtocols.includes(url.protocol)) {
@@ -56,6 +56,10 @@ export function checkTargetUrl(rawUrl: string, policy: UrlPolicy = LOCAL_QA_POLI
 
   if (!url.hostname) {
     return { ok: false, code: 'invalid-url', message: 'URL ไม่มีชื่อโฮสต์' }
+  }
+
+  if (url.username || url.password) {
+    return { ok: false, code: 'blocked-url', message: 'ไม่อนุญาตให้ใส่ credentials ไว้ใน URL' }
   }
 
   if (!policy.allowCloudMetadata && isCloudMetadataHostname(url.hostname)) {

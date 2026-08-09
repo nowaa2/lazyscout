@@ -1,8 +1,13 @@
-
-
 export type UIElementKind = 'link' | 'button' | 'input' | 'textarea' | 'select'
 export type UIInteractionKind = 'dialog' | 'tab' | 'accordion' | 'dropdown'
-export type UIInteraction = { kind: UIInteractionKind; name: string; role: string; cssSelector: string; expanded?: boolean; visible: boolean }
+export type UIInteraction = {
+  kind: UIInteractionKind
+  name: string
+  role: string
+  cssSelector: string
+  expanded?: boolean
+  visible: boolean
+}
 
 export type UIElement = {
   kind: UIElementKind
@@ -39,7 +44,6 @@ export type FormInfo = {
 }
 
 export type PageInfo = {
-
   url: string
 
   finalUrl: string
@@ -59,13 +63,58 @@ export type PageInfo = {
   state?: PageState
 }
 
-export type ApiObservation = { id: string; method: string; url: string; status?: number; durationMs?: number; resourceType: 'xhr' | 'fetch'; sourceUrl: string; contentType?: string }
+export type ApiObservation = {
+  id: string
+  method: string
+  url: string
+  status?: number
+  durationMs?: number
+  resourceType: 'xhr' | 'fetch'
+  sourceUrl: string
+  contentType?: string
+}
 
-export type ExplorerActionType = 'navigate' | 'click' | 'openModal' | 'closeDialog' | 'selectTab' | 'expandAccordion' | 'openDropdown'
-export type ExplorerAction = { type: ExplorerActionType; target?: string; selector?: string; safe: boolean; reason?: string }
-export type StateEdge = { fromStateId: string; toStateId?: string; action: ExplorerAction; status: 'visited' | 'discovered' | 'blocked' | 'failed' }
-export type ActionGraph = { states: PageState[]; edges: StateEdge[]; visitedStateIds: string[]; visitedActionKeys: string[]; failedActionKeys: string[]; blockedActionKeys: string[] }
-export type RunEvent = { timestamp: string; eventType: 'run-started' | 'page-discovered' | 'state-discovered' | 'action-discovered' | 'action-blocked' | 'run-completed' | 'error'; currentUrl?: string; currentStateId?: string; action?: ExplorerAction; result: 'running' | 'passed' | 'warning' | 'failed' | 'blocked'; error?: string; durationMs?: number; message: string }
+export type ExplorerActionType =
+  'navigate' | 'click' | 'openModal' | 'closeDialog' | 'selectTab' | 'expandAccordion' | 'openDropdown'
+export type ExplorerAction = {
+  type: ExplorerActionType
+  target?: string
+  selector?: string
+  safe: boolean
+  reason?: string
+}
+export type StateEdge = {
+  fromStateId: string
+  toStateId?: string
+  action: ExplorerAction
+  status: 'visited' | 'discovered' | 'blocked' | 'failed'
+}
+export type ActionGraph = {
+  states: PageState[]
+  edges: StateEdge[]
+  visitedStateIds: string[]
+  visitedActionKeys: string[]
+  failedActionKeys: string[]
+  blockedActionKeys: string[]
+}
+export type RunEvent = {
+  timestamp: string
+  eventType:
+    | 'run-started'
+    | 'page-discovered'
+    | 'state-discovered'
+    | 'action-discovered'
+    | 'action-blocked'
+    | 'run-completed'
+    | 'error'
+  currentUrl?: string
+  currentStateId?: string
+  action?: ExplorerAction
+  result: 'running' | 'passed' | 'warning' | 'failed' | 'blocked'
+  error?: string
+  durationMs?: number
+  message: string
+}
 
 export type PageState = {
   id: string
@@ -111,7 +160,6 @@ export type ExploreOptions = {
 }
 
 export type ExploreStats = {
-
   browser?: string
   pagesVisited: number
 

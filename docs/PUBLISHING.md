@@ -7,13 +7,10 @@
 ## ขั้นตอนก่อน publish ทุกครั้ง
 
 ```bash
-npm run typecheck        # ต้องผ่าน
-npm test                 # ต้องผ่าน
-npm run build            # build packages + server + web + cli ตามลำดับ
-
-cd apps/cli
-npm pack --dry-run       # ดูว่าไฟล์ที่จะขึ้นไปมีอะไรบ้าง (ควรมีแค่ dist/, README, LICENSE, package.json)
+npm run release:check
 ```
+
+คำสั่งนี้ตรวจ secrets, Prettier, TypeScript, tests, build และ `npm pack --dry-run` ตามลำดับ
 
 ทดสอบเหมือนผู้ใช้จริงก่อน publish:
 
@@ -28,9 +25,10 @@ npx lazyscout                             # ต้องเปิดหน้า
 ## publish
 
 ```bash
-npm login                          # ครั้งแรกครั้งเดียว (เปิด 2FA ไว้ด้วย)
-cd apps/cli
-npm publish --access public
+npm login
+npm whoami
+npm run release:check
+npm publish --workspace lazyscout --access public
 ```
 
 ตรวจผล: <https://www.npmjs.com/package/lazyscout>
@@ -57,13 +55,15 @@ npm publish              # prepublishOnly จะ build ใหม่ทั้ง�
 
 ## ผู้ใช้จะได้เวอร์ชันใหม่ยังไง
 
-| ผู้ใช้รันแบบ | ได้เวอร์ชันใหม่ไหม |
-| --- | --- |
-| `npx lazyscout@latest` | ได้เสมอ ✅ |
-| `npx lazyscout` | **อาจได้ของเก่า** เพราะ npx เก็บ cache ไว้ |
-| ติดตั้งถาวร (`npm i -g lazyscout`) | ต้องสั่ง `npm i -g lazyscout@latest` เอง |
+| ผู้ใช้รันแบบ                       | ได้เวอร์ชันใหม่ไหม                         |
+| ---------------------------------- | ------------------------------------------ |
+| `npx lazyscout@latest`             | ได้เสมอ ✅                                 |
+| `npx lazyscout`                    | **อาจได้ของเก่า** เพราะ npx เก็บ cache ไว้ |
+| ติดตั้งถาวร (`npm i -g lazyscout`) | ต้องสั่ง `npm i -g lazyscout@latest` เอง   |
 
 ดังนั้นเวลาบอกให้คนอัปเดต ให้บอกว่า `npx lazyscout@latest` เสมอ
+
+Version Center จะแสดงอยู่ใน Modal เริ่มต้นก่อนเปิด Project โดยอ่านรายการเวอร์ชันจาก npm Registry และติดตั้งเวอร์ชันที่เลือกแบบ global ได้ หลังติดตั้งผู้ใช้ต้องปิด LazyScout ที่กำลังรันแล้วเปิดใหม่เพื่อเปลี่ยนไปใช้เวอร์ชันที่เลือก
 
 ## ถ้าปล่อยเวอร์ชันที่มีบั๊กไปแล้ว
 
@@ -77,13 +77,13 @@ npm deprecate lazyscout@0.1.1 "มีบั๊กเรื่อง X — กร
 
 ## ข้อควรระวัง
 
-| เรื่อง | รายละเอียด |
-| --- | --- |
-| **ถอนคืนไม่ได้** | npm ให้ `npm unpublish` ได้ภายใน 72 ชม. และต้องไม่มีใครใช้เป็น dependency หลังจากนั้นทำได้แค่ `npm deprecate` |
-| **ชื่อถูกจองถาวร** | เมื่อ publish แล้วชื่อ `lazyscout` เป็นของคุณ ใครมาแย่งไม่ได้ |
-| **เปิด 2FA** | ป้องกันบัญชีถูกยึดแล้วปล่อยเวอร์ชันมัลแวร์ในชื่อคุณ |
-| **ตรวจ dependency** | ตอนนี้มีแค่ `fastify`, `@fastify/static`, `playwright-core` — ยิ่งน้อยยิ่งปลอดภัยต่อ supply chain |
-| **provenance** | ถ้าย้ายไป publish ผ่าน GitHub Actions ใช้ `npm publish --provenance` เพื่อให้ npm แสดงว่า build มาจาก commit ไหน |
+| เรื่อง              | รายละเอียด                                                                                                       |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| **ถอนคืนไม่ได้**    | npm ให้ `npm unpublish` ได้ภายใน 72 ชม. และต้องไม่มีใครใช้เป็น dependency หลังจากนั้นทำได้แค่ `npm deprecate`    |
+| **ชื่อถูกจองถาวร**  | เมื่อ publish แล้วชื่อ `lazyscout` เป็นของคุณ ใครมาแย่งไม่ได้                                                    |
+| **เปิด 2FA**        | ป้องกันบัญชีถูกยึดแล้วปล่อยเวอร์ชันมัลแวร์ในชื่อคุณ                                                              |
+| **ตรวจ dependency** | ตอนนี้มีแค่ `fastify`, `@fastify/static`, `playwright-core` — ยิ่งน้อยยิ่งปลอดภัยต่อ supply chain                |
+| **provenance**      | ถ้าย้ายไป publish ผ่าน GitHub Actions ใช้ `npm publish --provenance` เพื่อให้ npm แสดงว่า build มาจาก commit ไหน |
 
 ## ทำไมไม่ publish `packages/*` แยก
 

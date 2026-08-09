@@ -8,15 +8,15 @@ code focused on behaviour and makes documentation easier to find and maintain.
 
 Use these documents as the source of truth:
 
-| Topic | Document |
-| --- | --- |
-| System structure and package ownership | [ARCHITECTURE.md](ARCHITECTURE.md) |
-| API contracts | [API.md](API.md) |
-| Test Case model and generation rules | [TEST-CASE-MODEL.md](TEST-CASE-MODEL.md) |
-| Authentication and local credentials | [AUTHENTICATION.md](AUTHENTICATION.md) |
-| Explorer safety and URL policy | [SAFETY.md](SAFETY.md) |
-| Release and distribution | [PUBLISHING.md](PUBLISHING.md) |
-| Product direction | [ROADMAP.md](ROADMAP.md) |
+| Topic                                  | Document                                 |
+| -------------------------------------- | ---------------------------------------- |
+| System structure and package ownership | [ARCHITECTURE.md](ARCHITECTURE.md)       |
+| API contracts                          | [API.md](API.md)                         |
+| Test Case model and generation rules   | [TEST-CASE-MODEL.md](TEST-CASE-MODEL.md) |
+| Authentication and local credentials   | [AUTHENTICATION.md](AUTHENTICATION.md)   |
+| Explorer safety and URL policy         | [SAFETY.md](SAFETY.md)                   |
+| Release and distribution               | [PUBLISHING.md](PUBLISHING.md)           |
+| Product direction                      | [ROADMAP.md](ROADMAP.md)                 |
 
 ## Source files
 

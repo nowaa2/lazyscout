@@ -1,5 +1,3 @@
-
-
 export type TestDataRow = {
   id: string
   module: string

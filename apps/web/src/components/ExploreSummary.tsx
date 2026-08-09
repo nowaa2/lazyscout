@@ -20,9 +20,7 @@ function ElementList({ title, elements }: { title: string; elements: UIElement[]
             )}
           </li>
         ))}
-        {elements.length > 12 && (
-          <li className="text-xs text-slate-400">… และอีก {elements.length - 12} รายการ</li>
-        )}
+        {elements.length > 12 && <li className="text-xs text-slate-400">… และอีก {elements.length - 12} รายการ</li>}
       </ul>
     </div>
   )
@@ -39,9 +37,7 @@ function PageCard({ page }: { page: PageInfo }) {
         className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-slate-50"
       >
         <span className="min-w-0">
-          <span className="block truncate text-sm font-medium text-slate-800">
-            {page.title || '(no title)'}
-          </span>
+          <span className="block truncate text-sm font-medium text-slate-800">{page.title || '(no title)'}</span>
           <span className="block truncate text-xs text-slate-500">{page.finalUrl}</span>
         </span>
         <span className="ml-3 shrink-0 text-xs text-slate-500">
@@ -64,9 +60,7 @@ function PageCard({ page }: { page: PageInfo }) {
                 </li>
               ))}
             </ul>
-            {page.forms.length > 0 && (
-              <p className="mt-2 text-xs text-slate-500">Forms: {page.forms.length}</p>
-            )}
+            {page.forms.length > 0 && <p className="mt-2 text-xs text-slate-500">Forms: {page.forms.length}</p>}
           </div>
         </div>
       )}
@@ -87,9 +81,7 @@ export function ExploreSummary({ result }: { result: AnalyzeResponse }) {
 
       {result.issues.length > 0 && (
         <div className="border-b border-amber-200 bg-amber-50 px-4 py-2">
-          <p className="text-xs font-semibold text-amber-800">
-            หน้าที่เปิดไม่สำเร็จ ({result.issues.length})
-          </p>
+          <p className="text-xs font-semibold text-amber-800">หน้าที่เปิดไม่สำเร็จ ({result.issues.length})</p>
           <ul className="mt-1 space-y-0.5">
             {result.issues.slice(0, 5).map((issue, index) => (
               <li key={index} className="truncate text-xs text-amber-700">

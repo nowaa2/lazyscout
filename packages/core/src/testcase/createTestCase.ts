@@ -9,7 +9,11 @@ export function makeTestDataId(module: string, sequence: number): string {
   return `TD-${module}-${String(sequence).padStart(3, '0')}`
 }
 
-export function createEmptyTestDataRow(module = 'MANUAL', id = makeTestDataId('MANUAL', 1), sourceUrl = ''): TestDataRow {
+export function createEmptyTestDataRow(
+  module = 'MANUAL',
+  id = makeTestDataId('MANUAL', 1),
+  sourceUrl = ''
+): TestDataRow {
   return {
     id,
     module,

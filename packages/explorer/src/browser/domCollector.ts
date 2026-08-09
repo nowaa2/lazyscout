@@ -116,13 +116,13 @@ export function collectPageData(): RawPageData {
       if (!explicitRole) role = inputRole(el)
     }
     if (el instanceof HTMLSelectElement) {
-      options = Array.from(el.options).map((option) => cleanText(option.textContent)).slice(0, 30)
+      options = Array.from(el.options)
+        .map((option) => cleanText(option.textContent))
+        .slice(0, 30)
     }
 
-    const disabled =
-      (el as HTMLInputElement).disabled === true || el.getAttribute('aria-disabled') === 'true'
-    const required =
-      (el as HTMLInputElement).required === true || el.getAttribute('aria-required') === 'true'
+    const disabled = (el as HTMLInputElement).disabled === true || el.getAttribute('aria-disabled') === 'true'
+    const required = (el as HTMLInputElement).required === true || el.getAttribute('aria-required') === 'true'
 
     return {
       kind,
@@ -155,8 +155,7 @@ export function collectPageData(): RawPageData {
       .map((el) => toRawElement(el, kind, defaultRole))
   }
 
-  const BUTTON_SELECTOR =
-    'button, input[type="submit"], input[type="button"], input[type="reset"], [role="button"]'
+  const BUTTON_SELECTOR = 'button, input[type="submit"], input[type="button"], input[type="reset"], [role="button"]'
   const INPUT_SELECTOR =
     'input:not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="hidden"]):not([type="image"])'
 
@@ -202,13 +201,41 @@ export function collectPageData(): RawPageData {
     textareas: collect('textarea', 'textarea', 'textbox'),
     selects: collect('select', 'select', 'combobox'),
     forms,
-    visibleDialogs: Array.from(document.querySelectorAll('[role="dialog"], dialog[open], [aria-modal="true"]')).filter(isCollectable).map((element) => accessibleName(element) || cleanText(element.textContent).slice(0, 120)).filter(Boolean).slice(0, 20),
-    interactions: Array.from(document.querySelectorAll('[role="tab"], [role="tablist"] [aria-controls], [aria-expanded], select')).filter(isCollectable).map((element) => {
-      const role = attr(element, 'role') || (element instanceof HTMLSelectElement ? 'combobox' : 'button')
-      const expanded = element.getAttribute('aria-expanded')
-      const kind: 'dialog' | 'tab' | 'accordion' | 'dropdown' = role === 'tab' ? 'tab' : element instanceof HTMLSelectElement ? 'dropdown' : element.matches('[aria-expanded]') ? 'accordion' : 'dialog'
-      return { kind, name: accessibleName(element), role, cssSelector: cssSelector(element), expanded: expanded === null ? undefined : expanded === 'true', visible: true }
-    }).filter((item) => item.name).slice(0, 40),
-    stateContent: Array.from(document.querySelectorAll('[aria-live], [data-state], [data-testid*="state" i]')).filter(isCollectable).map((element) => cleanText(element.textContent)).filter(Boolean).slice(0, 30)
+    visibleDialogs: Array.from(document.querySelectorAll('[role="dialog"], dialog[open], [aria-modal="true"]'))
+      .filter(isCollectable)
+      .map((element) => accessibleName(element) || cleanText(element.textContent).slice(0, 120))
+      .filter(Boolean)
+      .slice(0, 20),
+    interactions: Array.from(
+      document.querySelectorAll('[role="tab"], [role="tablist"] [aria-controls], [aria-expanded], select')
+    )
+      .filter(isCollectable)
+      .map((element) => {
+        const role = attr(element, 'role') || (element instanceof HTMLSelectElement ? 'combobox' : 'button')
+        const expanded = element.getAttribute('aria-expanded')
+        const kind: 'dialog' | 'tab' | 'accordion' | 'dropdown' =
+          role === 'tab'
+            ? 'tab'
+            : element instanceof HTMLSelectElement
+              ? 'dropdown'
+              : element.matches('[aria-expanded]')
+                ? 'accordion'
+                : 'dialog'
+        return {
+          kind,
+          name: accessibleName(element),
+          role,
+          cssSelector: cssSelector(element),
+          expanded: expanded === null ? undefined : expanded === 'true',
+          visible: true
+        }
+      })
+      .filter((item) => item.name)
+      .slice(0, 40),
+    stateContent: Array.from(document.querySelectorAll('[aria-live], [data-state], [data-testid*="state" i]'))
+      .filter(isCollectable)
+      .map((element) => cleanText(element.textContent))
+      .filter(Boolean)
+      .slice(0, 30)
   }
 }

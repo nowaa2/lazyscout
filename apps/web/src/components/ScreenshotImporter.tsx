@@ -51,7 +51,11 @@ export function ScreenshotImporter({ sourceUrl, existingCases, onImport, onClose
   }
 
   function importCases() {
-    const lines = ocrText.split(/\r?\n/).map((line) => line.trim()).filter((line) => line.length > 1).slice(0, 12)
+    const lines = ocrText
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line.length > 1)
+      .slice(0, 12)
     const module = 'SCREENSHOT'
     const used = new Set(existingCases.map((item) => item.id))
     let sequence = 1
@@ -83,7 +87,10 @@ export function ScreenshotImporter({ sourceUrl, existingCases, onImport, onClose
         ...base,
         id: id(),
         title: `${screenName} matches the screenshot reference`,
-        steps: [{ type: 'navigate', url: sourceUrl || 'about:blank', description: 'Open the page to inspect' }, { type: 'manual', description: 'Compare layout, spacing, colors and element positions with the screenshot' }],
+        steps: [
+          { type: 'navigate', url: sourceUrl || 'about:blank', description: 'Open the page to inspect' },
+          { type: 'manual', description: 'Compare layout, spacing, colors and element positions with the screenshot' }
+        ],
         expectedResult: 'The page layout and visible elements match the screenshot reference.'
       })
     }
@@ -100,24 +107,103 @@ export function ScreenshotImporter({ sourceUrl, existingCases, onImport, onClose
     onClose()
   }
 
-  return <div className="modern-modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-    <section className="modern-modal screenshot-importer" role="dialog" aria-modal="true">
-      <header className="modal-header">
-        <div><p className="eyebrow">Create Test Cases from an image</p><h2>Screenshot → Test Case</h2><p>Follow three steps to create Draft Test Cases for review.</p></div>
-        <button type="button" className="icon-btn" onClick={onClose}>×</button>
-      </header>
-      <div className="screenshot-import-body">
-        <div className="import-step"><span>1</span><div><b>Choose a Test Case pattern</b><p>Pick the pattern that matches what you need to check.</p></div></div>
-        <div className="pattern-grid">{patterns.map((item) => <button key={item.id} type="button" className={`pattern-card ${pattern === item.id ? 'is-selected' : ''}`} onClick={() => setPattern(item.id)}><b>{item.title}</b><span>{item.description}</span></button>)}</div>
-        <div className="import-step"><span>2</span><div><b>Upload a Screenshot</b><p>PNG, JPG and WEBP are supported.</p></div></div>
-        <label className="upload-dropzone"><input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => chooseFile(event.target.files?.[0])} /><strong>{fileName || 'Click to choose an image'}</strong><span>or drop a file here</span></label>
-        {imageUrl && <div className="screenshot-preview"><img src={imageUrl} alt="Screenshot preview" /><button type="button" className="btn btn-secondary" onClick={readImage} disabled={busy}>{busy ? 'Reading…' : 'Read text from image'}</button></div>}
-        <div className="import-step"><span>3</span><div><b>Review text and create cases</b><p>You can edit OCR text before importing.</p></div></div>
-        <label className="field-label">Screen name<input className="field mt-1" value={screenName} onChange={(event) => setScreenName(event.target.value)} /></label>
-        <label className="field-label">Text detected<textarea className="field screenshot-ocr" value={ocrText} onChange={(event) => setOcrText(event.target.value)} placeholder="Read text from the image, or type it yourself" /></label>
-        <p className="screenshot-status">{status}</p>
-      </div>
-      <footer className="modal-footer"><span className="mr-auto text-xs text-slate-500">Results are marked <b>needs-review</b></span><button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button><button type="button" className="btn btn-primary" onClick={importCases} disabled={!ocrText.trim() && pattern !== 'manual'}>Create Draft Test Cases</button></footer>
-    </section>
-  </div>
+  return (
+    <div className="modern-modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+      <section className="modern-modal screenshot-importer" role="dialog" aria-modal="true">
+        <header className="modal-header">
+          <div>
+            <p className="eyebrow">Create Test Cases from an image</p>
+            <h2>Screenshot → Test Case</h2>
+            <p>Follow three steps to create Draft Test Cases for review.</p>
+          </div>
+          <button type="button" className="icon-btn" onClick={onClose}>
+            ×
+          </button>
+        </header>
+        <div className="screenshot-import-body">
+          <div className="import-step">
+            <span>1</span>
+            <div>
+              <b>Choose a Test Case pattern</b>
+              <p>Pick the pattern that matches what you need to check.</p>
+            </div>
+          </div>
+          <div className="pattern-grid">
+            {patterns.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className={`pattern-card ${pattern === item.id ? 'is-selected' : ''}`}
+                onClick={() => setPattern(item.id)}
+              >
+                <b>{item.title}</b>
+                <span>{item.description}</span>
+              </button>
+            ))}
+          </div>
+          <div className="import-step">
+            <span>2</span>
+            <div>
+              <b>Upload a Screenshot</b>
+              <p>PNG, JPG and WEBP are supported.</p>
+            </div>
+          </div>
+          <label className="upload-dropzone">
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              onChange={(event) => chooseFile(event.target.files?.[0])}
+            />
+            <strong>{fileName || 'Click to choose an image'}</strong>
+            <span>or drop a file here</span>
+          </label>
+          {imageUrl && (
+            <div className="screenshot-preview">
+              <img src={imageUrl} alt="Screenshot preview" />
+              <button type="button" className="btn btn-secondary" onClick={readImage} disabled={busy}>
+                {busy ? 'Reading…' : 'Read text from image'}
+              </button>
+            </div>
+          )}
+          <div className="import-step">
+            <span>3</span>
+            <div>
+              <b>Review text and create cases</b>
+              <p>You can edit OCR text before importing.</p>
+            </div>
+          </div>
+          <label className="field-label">
+            Screen name
+            <input className="field mt-1" value={screenName} onChange={(event) => setScreenName(event.target.value)} />
+          </label>
+          <label className="field-label">
+            Text detected
+            <textarea
+              className="field screenshot-ocr"
+              value={ocrText}
+              onChange={(event) => setOcrText(event.target.value)}
+              placeholder="Read text from the image, or type it yourself"
+            />
+          </label>
+          <p className="screenshot-status">{status}</p>
+        </div>
+        <footer className="modal-footer">
+          <span className="mr-auto text-xs text-slate-500">
+            Results are marked <b>needs-review</b>
+          </span>
+          <button type="button" className="btn btn-secondary" onClick={onClose}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={importCases}
+            disabled={!ocrText.trim() && pattern !== 'manual'}
+          >
+            Create Draft Test Cases
+          </button>
+        </footer>
+      </section>
+    </div>
+  )
 }

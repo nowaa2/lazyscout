@@ -86,7 +86,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((error: unknown) => {
-
   const message = error instanceof Error ? error.message : String(error)
   const hint = error && typeof error === 'object' && 'hint' in error ? String(error.hint) : undefined
 

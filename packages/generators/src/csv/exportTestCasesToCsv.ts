@@ -6,6 +6,9 @@ export const UTF8_BOM = '﻿'
 export const CSV_COLUMNS = [
   'TC_ID',
   'Module',
+  'Folder',
+  'Tags',
+  'Requirements',
   'Title',
   'Preconditions',
   'Test_Steps',
@@ -40,6 +43,9 @@ function testCaseRow(testCase: TestCase): string {
   return toRow([
     testCase.id,
     testCase.module,
+    testCase.folder ?? '',
+    (testCase.tags ?? []).join(', '),
+    (testCase.requirements ?? []).join(', '),
     testCase.title,
     testCase.preconditions.join('\n'),
     describeSteps(testCase.steps),

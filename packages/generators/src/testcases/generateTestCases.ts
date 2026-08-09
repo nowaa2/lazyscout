@@ -11,7 +11,6 @@ import {
 } from './rules.js'
 
 export type GenerateOptions = {
-
   maxTestCasesPerPage: number
   language: TestCaseLanguage
 }
@@ -21,10 +20,7 @@ export const DEFAULT_GENERATE_OPTIONS: GenerateOptions = {
   language: 'en'
 }
 
-export function generateTestCases(
-  pages: PageInfo[],
-  options: Partial<GenerateOptions> = {}
-): TestCase[] {
+export function generateTestCases(pages: PageInfo[], options: Partial<GenerateOptions> = {}): TestCase[] {
   const config = { ...DEFAULT_GENERATE_OPTIONS, ...options }
 
   const visitedTitles = new Map<string, string>()
@@ -64,7 +60,11 @@ function localizeThai(testCases: TestCase[]): TestCase[] {
     ...testCase,
     title: translate(testCase.title),
     preconditions: testCase.preconditions.map(translate),
-    steps: testCase.steps.map((step) => step.type === 'manual' ? { ...step, description: translate(step.description) } : { ...step, description: translateStep(step) }),
+    steps: testCase.steps.map((step) =>
+      step.type === 'manual'
+        ? { ...step, description: translate(step.description) }
+        : { ...step, description: translateStep(step) }
+    ),
     expectedResult: translate(testCase.expectedResult),
     notes: testCase.notes ? translate(testCase.notes) : undefined
   }))
@@ -72,14 +72,24 @@ function localizeThai(testCases: TestCase[]): TestCase[] {
 
 function translateStep(step: TestCase['steps'][number]): string {
   switch (step.type) {
-    case 'navigate': return `ไปยังหน้า ${step.url}`
-    case 'click': return `กด ${step.target.name ?? step.target.label ?? step.target.text ?? 'element'}`
-    case 'fill': return `กรอกข้อมูลใน ${step.target.name ?? step.target.label ?? step.target.placeholder ?? 'ช่องข้อมูล'}`
-    case 'select': return `เลือก ${step.option} จาก ${step.target.name ?? step.target.label ?? 'รายการ'}`
-    case 'assertVisible': return `ตรวจสอบว่า ${step.target.name ?? step.target.label ?? 'element'} แสดงอยู่`
-    case 'assertText': return step.target ? `ตรวจสอบว่า ${step.target.name ?? step.target.label ?? 'element'} แสดงข้อความ "${step.text}"` : `ตรวจสอบว่าหน้าเว็บแสดงข้อความ "${step.text}"`
-    case 'assertUrl': return `ตรวจสอบว่า URL มีคำว่า "${step.urlContains}"`
-    case 'manual': return step.description
+    case 'navigate':
+      return `ไปยังหน้า ${step.url}`
+    case 'click':
+      return `กด ${step.target.name ?? step.target.label ?? step.target.text ?? 'element'}`
+    case 'fill':
+      return `กรอกข้อมูลใน ${step.target.name ?? step.target.label ?? step.target.placeholder ?? 'ช่องข้อมูล'}`
+    case 'select':
+      return `เลือก ${step.option} จาก ${step.target.name ?? step.target.label ?? 'รายการ'}`
+    case 'assertVisible':
+      return `ตรวจสอบว่า ${step.target.name ?? step.target.label ?? 'element'} แสดงอยู่`
+    case 'assertText':
+      return step.target
+        ? `ตรวจสอบว่า ${step.target.name ?? step.target.label ?? 'element'} แสดงข้อความ "${step.text}"`
+        : `ตรวจสอบว่าหน้าเว็บแสดงข้อความ "${step.text}"`
+    case 'assertUrl':
+      return `ตรวจสอบว่า URL มีคำว่า "${step.urlContains}"`
+    case 'manual':
+      return step.description
   }
 }
 
@@ -92,7 +102,10 @@ function translate(value: string): string {
     .replace(/^Verify "(.+)" action \(manual\)$/, 'ตรวจสอบ action "$1" ด้วยตนเอง')
     .replace(/^Open (.+)$/, 'เปิด $1')
     .replace(/^The page is reachable and rendered$/, 'หน้าเว็บสามารถเปิดและแสดงผลได้')
-    .replace(/^Expected behavior is not known from static exploration; review manually\.$/, 'ไม่ทราบ behavior จากการสำรวจแบบ static กรุณาตรวจสอบด้วยตนเอง')
+    .replace(
+      /^Expected behavior is not known from static exploration; review manually\.$/,
+      'ไม่ทราบ behavior จากการสำรวจแบบ static กรุณาตรวจสอบด้วยตนเอง'
+    )
 }
 
 function safeNormalize(url: string): string {

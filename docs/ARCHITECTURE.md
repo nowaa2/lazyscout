@@ -1,153 +1,104 @@
 # Architecture
 
-## แนวคิดหลัก
+LazyScout is an npm-distributed local application built as an npm workspace monorepo. The published package is `apps/cli`; its build bundles the server and workspace packages and copies the compiled web UI into `dist/web`.
 
-แยก 6 ส่วนออกจากกัน และ **Test Case Model ไม่ผูกกับ Playwright**
-เพื่อให้เพิ่ม Cypress หรือ framework อื่นได้ภายหลังโดยไม่ต้องแก้ Explorer
+## Components
 
-```
-1. Web UI (apps/web)          → รับ URL, แสดงผล, แก้ไข test case
-2. API (apps/server)          → ตรวจ URL, สั่ง crawl, ส่ง CSV
-3. Website Explorer           → Playwright เปิดเว็บ เก็บ element
-4. Normalized Page Model      → PageInfo / UIElement / FormInfo
-5. Test Case Generator        → rule-based: PageInfo[] → TestCase[]
-6. CSV Export                 → TestCase[] → CSV (UTF-8 BOM)
-```
-
-## Data Flow
-
-```
-[Web UI]  AnalyzeForm
-    │  POST /api/analyze { url, maxPages, maxDepth }
-    ▼
-[Server]  checkTargetUrl(url, policy)        ← ด่านกัน SSRF (packages/core)
-    │
-    ▼
-[Explorer] exploreWebsite()                  ← Playwright + BFS same-origin
-    │      goto → collectPageData() ใน browser → mapToPageModel()
-    ▼
-   PageInfo[]  +  ExploreIssue[]             ← หน้าที่เปิดไม่ได้ไม่ทำให้ job ล้ม
-    │
-    ▼
-[Generators] generateTestCases(pages) + generateTestData(pages)   ← rule-based ไม่ใช้ AI
-    │
-    ▼
-   AnalyzeResponse { pages, testCases, testData, issues, stats }
-    │
-    ▼
-[Web UI]  แท็บ Test Cases / Test Data → แก้ไข/ลบ/เพิ่ม
-    │  POST /api/export/csv { testCases, testData ที่แก้แล้ว }
-    ▼
-[Generators] exportTestCasesToCsv() → ไฟล์ .csv เดียว (สองส่วน) ดาวน์โหลด
+```text
+apps/web          React UI, local Project state, editors and reports
+    ↓ /api
+apps/server       Fastify routes, limits and local runner orchestration
+    ↓
+packages/core     Shared types, URL policy, redaction and Test Case model
+packages/explorer Playwright browser launch, crawl and DOM collection
+packages/generators Draft Test Cases, Test Data, CSV, Playwright and Cypress code
+    ↓
+apps/cli          Published npm command and static UI server
 ```
 
-จุดสำคัญ: **CSV สร้างจาก test case ที่ผู้ใช้แก้แล้ว** ไม่ใช่ผลดิบจาก generator
+## Main Data Flow
 
-## โครงสร้างโฟลเดอร์
-
-```
-lazyscout/
-├─ packages/
-│  ├─ core/         ไม่มี dependency ภายนอกเลย — ใช้ได้ทั้ง server และ browser
-│  │  └─ src/
-│  │     ├─ types/       page.ts, testcase.ts, api.ts, url.ts   (แยก type ตามหัวข้อ)
-│  │     ├─ url/         policy.ts, checkTargetUrl.ts, normalizeUrl.ts
-│  │     └─ testcase/    describeStep.ts, createTestCase.ts
-│  ├─ explorer/     ที่เดียวในระบบที่ import playwright
-│  │  └─ src/
-│  │     ├─ browser/domCollector.ts   โค้ดที่รันใน browser (page.evaluate)
-│  │     ├─ exploreWebsite.ts         BFS crawler
-│  │     ├─ mapToPageModel.ts         Raw DOM → PageInfo
-│  │     ├─ safety.ts                 keyword ห้ามคลิก
-│  │     └─ errors.ts                 Playwright error → ข้อความภาษาคน
-│  └─ generators/
-│     └─ src/
-│        ├─ testcases/   generateTestCases.ts, rules.ts, targets.ts
-│        ├─ csv/         exportTestCasesToCsv.ts
-│        ├─ playwright/  (ที่ว่างไว้ในอนาคต — README เท่านั้น)
-│        └─ cypress/     (ที่ว่างไว้ในอนาคต — README เท่านั้น)
-├─ apps/
-│  ├─ server/  Fastify: app.ts, config.ts, toApiError.ts, routes/
-│  ├─ web/     React + Vite + Tailwind: components/, hooks/, api/, lib/, types/, styles/
-│  └─ cli/     ★ แพ็กเกจที่ publish ขึ้น npm (ชื่อ lazyscout)
-│              bundle ทุกอย่างข้างบนเป็นไฟล์เดียวด้วย esbuild
-└─ fixtures/   เว็บไซต์ตัวอย่างสำหรับทดสอบ (ไม่มี dependency)
+```text
+Target URL
+  ↓ POST /api/analyze
+URL policy validation
+  ↓
+Playwright same-origin link crawl
+  ↓
+PageInfo[] + action graph + API observations
+  ↓
+Draft Test Cases + Test Data
+  ↓
+Browser-local Project workspace
+  ↓
+Review / import / CSV / reports / generated automation
 ```
 
-## หน้าที่ของไฟล์หลัก
+## Workspace Packages
 
-### packages/core
+### `packages/core`
 
-| ไฟล์                         | ทำอะไร                                                              |
-| ---------------------------- | ------------------------------------------------------------------- |
-| `types/page.ts`              | `PageInfo`, `UIElement`, `FormInfo`, `ExploreResult` — Page Model กลาง |
-| `types/testcase.ts`          | `TestCase`, `TestStep` (union), `TargetRef` — ไม่ผูก framework      |
-| `types/api.ts`               | สัญญา request/response ที่ web กับ server ใช้ร่วมกัน                 |
-| `url/checkTargetUrl.ts`      | ด่านเดียวที่ตัดสินว่า URL เปิดได้ไหม (กัน SSRF)                      |
-| `url/policy.ts`              | `LOCAL_QA_POLICY` (MVP) และ `PUBLIC_SAAS_POLICY` (online version)    |
-| `url/normalizeUrl.ts`        | normalize URL กันหน้าซ้ำ, เช็ค same-origin, ตั้งชื่อ module          |
-| `testcase/describeStep.ts`   | แปลง structured step เป็นประโยค — ใช้ทั้งบน UI และใน CSV            |
+- framework-independent Page, Test Case, Test Data and API types
+- local/public URL policies
+- URL normalization and validation
+- state fingerprints
+- shared sensitive text and URL redaction
 
-### packages/explorer
+### `packages/explorer`
 
-| ไฟล์                       | ทำอะไร                                                                   |
-| -------------------------- | ------------------------------------------------------------------------ |
-| `exploreWebsite.ts`        | BFS: max 20 หน้า, depth 3, timeout, กันวนลูป, redirect, error ต่อหน้า     |
-| `browser/domCollector.ts`  | รันใน browser: หา accessible name จาก aria-label/label/text ก่อน selector |
-| `mapToPageModel.ts`        | เติมผลตรวจ safety ให้ element แล้วแปลงเป็น `PageInfo`                     |
-| `safety.ts`                | keyword destructive (delete/pay/logout/ลบ/ชำระเงิน …) — ตรวจได้ ห้ามคลิก  |
-| `errors.ts`                | `ERR_CONNECTION_REFUSED` ฯลฯ → ข้อความที่ user เข้าใจ                     |
+- Playwright browser selection
+- breadth-first same-origin link crawl
+- page/depth/time limits
+- DOM collection and accessible control metadata
+- destructive-action classification
+- visible state and interaction discovery
+- XHR/fetch metadata observation without response-body capture
 
-### packages/generators
+### `packages/generators`
 
-| ไฟล์                        | ทำอะไร                                                            |
-| --------------------------- | ----------------------------------------------------------------- |
-| `testcases/generateTestCases.ts` | เรียกทุก rule, ออก TC ID ให้เรียงต่อเนื่อง                  |
-| `testcases/rules.ts`        | 5 กฎ: page structure, required field, form submit, navigation, destructive |
-| `testcases/targets.ts`      | `UIElement → TargetRef` (role+name ก่อน selector) และค่าตัวอย่าง    |
-| `testdata/generateTestData.ts` | ตาราง Test Data: 1 แถว/1 field พร้อมค่า valid/invalid ตามชนิด input |
-| `moduleNames.ts`            | ตั้งชื่อ module จาก URL — ใช้ร่วมกันให้ test case กับ test data ตรงกัน |
-| `csv/exportTestCasesToCsv.ts` | CSV ตาม RFC 4180 + UTF-8 BOM (test case + test data ในไฟล์เดียว)  |
+- rule-based Draft Test Cases and Test Data
+- UTF-8 CSV export
+- Playwright code generation
+- Cypress code generation
 
-### apps/server
+## Applications
 
-| ไฟล์                    | ทำอะไร                                             |
-| ----------------------- | -------------------------------------------------- |
-| `app.ts`                | ประกอบ Fastify + route + not-found handler          |
-| `config.ts`             | port, url policy (`LAZYSCOUT_MODE`), limit ของ crawl |
-| `routes/analyze.ts`     | `POST /api/analyze` — ตรวจ URL → crawl → generate   |
-| `routes/exportCsv.ts`   | `POST /api/export/csv` — รับ test case ที่แก้แล้ว   |
-| `toApiError.ts`         | error ภายใน → response ที่ไม่มี stack trace          |
+### `apps/server`
 
-### apps/cli (แพ็กเกจบน npm)
+Fastify exposes fixed routes for analysis, CSV export, Playwright execution, cancellation, API checks, GET load tests and npm version management. It does not expose an arbitrary command endpoint.
 
-| ไฟล์                     | ทำอะไร                                                              |
-| ------------------------ | ------------------------------------------------------------------- |
-| `src/index.ts`           | อ่าน argument ด้วย `util.parseArgs` (built-in ของ Node) แล้วแยกคำสั่ง |
-| `src/commands/serve.ts`  | เปิด Fastify + เสิร์ฟหน้าเว็บที่ build แล้ว + หาพอร์ตว่างให้อัตโนมัติ |
-| `src/commands/scan.ts`   | โหมด CLI ล้วน: crawl → generate → เขียน CSV/JSON (ใช้ใน CI ได้)      |
-| `src/openInBrowser.ts`   | เปิดเบราว์เซอร์ตาม OS (start / open / xdg-open)                      |
-| `build.mjs`              | esbuild bundle โค้ด workspace ทั้งหมดเป็นไฟล์เดียว + คัดลอกหน้าเว็บ   |
+Edited Playwright source is interpreted through a statement whitelist. The server does not evaluate it with `eval` or `new Function`.
 
-### apps/web
+### `apps/web`
 
-| ไฟล์                          | ทำอะไร                                                  |
-| ----------------------------- | ------------------------------------------------------- |
-| `App.tsx`                     | ประกอบทุกส่วนและถือ state ของ filter / detail / editor  |
-| `api/client.ts`               | เรียก API + แปลง error เป็นข้อความ + ดาวน์โหลด CSV       |
-| `hooks/useAnalyze.ts`         | state ของการ analyze (idle/loading/success/error)       |
-| `hooks/useTestCases.ts`       | รายการ test case ที่แก้ไขได้ + การเลือกแถว              |
-| `hooks/useTestData.ts`        | ตาราง test data ที่แก้ไขได้ (คู่ขนานกับ useTestCases)   |
-| `lib/filterTestCases.ts`      | search + filter ของทั้งสองตาราง                          |
-| `components/TestDataTable.tsx`  | ตาราง Test Data แบบแก้ไขในช่องได้ทันที (inline edit)  |
-| `components/ExploreSummary.tsx` | หน้าที่พบ + element ที่เจอ + หน้าที่เปิดไม่ได้         |
-| `components/TestCaseTable.tsx`  | ตารางรีวิว                                            |
-| `components/TestCaseDetail.tsx` | Preconditions / Steps / Expected Result                |
-| `components/TestCaseEditor.tsx` | ฟอร์มแก้ไข (แก้คำอธิบาย step โดยไม่ทิ้ง structured data) |
-| `styles/index.css`            | CSS กลาง (`.btn`, `.field`, `.card`, `.badge`, ตาราง)   |
+The React UI provides Projects, dashboards, Test Case/Test Data review, imports, code generation, logs, screenshots, Bug Reports, reports and Version Center.
 
-## ทำไมถึงเป็น monorepo แบบนี้
+Projects, Test Cases, results, screenshots and Bug Reports use browser `localStorage`. Project Settings credentials remain in React memory and are cleared by a refresh.
 
-- `core` ไม่มี dependency → import ได้ทั้งฝั่ง Node และ browser
-- `explorer` เป็นที่เดียวที่รู้จัก Playwright → เปลี่ยน crawler ได้โดยไม่กระทบ generator
-- `generators` รับแค่ `PageInfo[]`/`TestCase[]` → เพิ่ม Playwright/Cypress generator ได้โดยไม่แตะ explorer
+### `apps/cli`
+
+The published `lazyscout` command supports:
+
+```text
+lazyscout
+lazyscout serve
+lazyscout scan <url>
+lazyscout --help
+lazyscout --version
+```
+
+`build.mjs` bundles server/workspace code with esbuild, injects the CLI package version and copies the Vite build.
+
+## Security Boundaries
+
+- The packaged server binds to `127.0.0.1`.
+- Scout navigation is HTTP/HTTPS and same-origin.
+- Local mode intentionally allows localhost/private networks.
+- Cloud metadata hosts are blocked.
+- Public mode blocks obvious private/loopback hostnames but still requires DNS-level hardening before hosted use.
+- Automation logs pass through shared redaction.
+- Edited code uses supported Playwright statements only.
+- Automatic API checks allow GET, HEAD and OPTIONS only.
+- npm installation accepts only exact published LazyScout versions and launches npm through Node with an argument array.
+
+See [SECURITY.md](../SECURITY.md) and [SAFETY.md](SAFETY.md).

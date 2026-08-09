@@ -4,11 +4,13 @@ import { registerAnalyzeRoute } from './routes/analyze.js'
 import { registerExportCsvRoute } from './routes/exportCsv.js'
 import { registerAutomationRunRoute } from './routes/automationRun.js'
 import { registerApiCheckRunRoute } from './routes/apiCheckRun.js'
+import { registerLoadTestRoute } from './routes/loadTest.js'
+import { registerVersionRoutes } from './routes/versions.js'
 
 export type AppOptions = {
-
   staticDir?: string
   logLevel?: string
+  appVersion?: string
 }
 
 export function buildApp(options: AppOptions = {}): FastifyInstance {
@@ -19,12 +21,16 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
     bodyLimit: 10 * 1024 * 1024
   })
 
-  app.get('/api/health', async () => ({ status: 'ok' }))
+  const appVersion = options.appVersion ?? process.env.npm_package_version ?? '0.0.0-dev'
+
+  app.get('/api/health', async () => ({ status: 'ok', version: appVersion }))
 
   registerAnalyzeRoute(app)
   registerExportCsvRoute(app)
   registerAutomationRunRoute(app)
   registerApiCheckRunRoute(app)
+  registerLoadTestRoute(app)
+  registerVersionRoutes(app, appVersion)
 
   if (options.staticDir) {
     app.register(fastifyStatic, { root: options.staticDir })

@@ -5,7 +5,11 @@ export function filterTestCases(testCases: TestCase[], filters: TestCaseFilters)
   const keyword = filters.search.trim().toLowerCase()
 
   return testCases.filter((testCase) => {
-    if (filters.module !== 'all' && !testCase.module.toLowerCase().includes(filters.module.toLowerCase())) return false
+    if (
+      filters.module !== 'all' &&
+      !(testCase.folder ?? testCase.module).toLowerCase().includes(filters.module.toLowerCase())
+    )
+      return false
     if (filters.type !== 'all' && testCase.type !== filters.type) return false
     if (filters.priority !== 'all' && testCase.priority !== filters.priority) return false
     if (!keyword) return true
@@ -13,6 +17,9 @@ export function filterTestCases(testCases: TestCase[], filters: TestCaseFilters)
     const haystack = [
       testCase.id,
       testCase.module,
+      testCase.folder ?? '',
+      ...(testCase.tags ?? []),
+      ...(testCase.requirements ?? []),
       testCase.title,
       testCase.expectedResult,
       testCase.sourceUrl,
@@ -25,8 +32,8 @@ export function filterTestCases(testCases: TestCase[], filters: TestCaseFilters)
   })
 }
 
-export function uniqueModules(items: { module: string }[]): string[] {
-  return [...new Set(items.map((item) => item.module))].sort()
+export function uniqueModules(items: Array<{ module: string; folder?: string }>): string[] {
+  return [...new Set(items.map((item) => item.folder ?? item.module))].sort()
 }
 
 export function filterTestData(rows: TestDataRow[], search: string, module: string): TestDataRow[] {

@@ -1,41 +1,45 @@
 # Roadmap
 
-## V0.1 (เสร็จแล้ว)
+## Available in 0.2
 
-- [x] Phase 1 — URL Analyzer: ใส่ URL → Playwright เปิด → คืน title/heading/link/button/input/textarea/select/form
-- [x] Phase 2 — Website Explorer: BFS, same-origin, max 20 หน้า, depth 3, timeout, กันวนลูป, error ต่อหน้าไม่ล้มทั้ง job
-- [x] Phase 3 — Core Test Case Model (framework independent)
-- [x] Phase 4 — Rule-Based Generator (ไม่มี AI)
-- [x] Phase 5 — Test Case Review UI: ตาราง, edit, delete, add, select, search, filter, รายละเอียด
-- [x] Phase 6 — CSV Export (UTF-8 BOM, รองรับ comma/newline/ภาษาไทย)
-- [x] เพิ่มเติมหลัง V0.1 — ตาราง Test Data (แท็บแยก, แก้ไขในช่องได้, รวมใน CSV ไฟล์เดียวกัน)
+- Local Project workspaces and dashboard charts
+- Playwright same-origin Website Explorer
+- Page, form, control, visible dialog and interaction discovery
+- Rule-based Draft Test Case and Test Data generation
+- Test Case review, folders, tags and requirement links
+- CSV/XLSX/JSON import and CSV export
+- Screenshot OCR-assisted Test Case import
+- Playwright and Cypress code generation
+- Restricted local Playwright execution, logs, cancellation and screenshots
+- Optional API observation and safe GET/HEAD/OPTIONS checks
+- Bug Reports and ZIP evidence export
+- HTML/PDF Test Summary export
+- Confirmed GET load test
+- npm Version Center
 
-## จงใจยังไม่ทำใน V0.1
+## Current Boundaries
 
-AI / OpenAI / Claude API · Cypress · Selenium · Authentication · Supabase · Database ·
-Cloudflare · Docker · Redis · Queue · Payment · User Account · SaaS ·
-Jira / GitHub / GitLab integration
+- Cypress is generated but not executed by the local runner.
+- Explorer records interaction hints but does not automatically click every tab, dialog, accordion or dropdown.
+- Projects and evidence are stored in browser local storage and do not sync between devices.
+- There is no hosted account, cloud Project database, queue or multi-user service.
+- Generated output is rule-based and must be reviewed by a Tester.
+- Public/online URL policy is not production-ready against DNS rebinding.
 
-## ขั้นถัดไปที่โครงสร้างรองรับไว้แล้ว
+## Planned
 
-### 1. Playwright Generator
+### Approved UI-state exploration
 
-เพิ่ม `packages/generators/src/playwright/generatePlaywrightSpec.ts`
-รับ `TestCase[]` แล้ว map `TestStep` เป็นโค้ด (ตารางการ map อยู่ใน README ของโฟลเดอร์นั้น)
-**ไม่ต้องแก้ `packages/explorer` เลย**
+Add explicit opt-in execution for safe tabs, accordions and dialogs. Actions must use structured roles/attributes, preserve same-origin policy and remain blocked when they appear destructive.
 
-### 2. Cypress Generator
+### Cypress local runner
 
-รูปแบบเดียวกับข้อ 1 เพราะ `TestCase` ไม่ผูกกับ framework ใด
+Add Cypress execution only after defining the same cancellation, limits, logging, secret redaction and command-whitelist guarantees used by the Playwright runner.
 
-### 3. Online Version
+### Reporting and large suites
 
-- เปลี่ยนเป็น `LAZYSCOUT_MODE=public` (มีอยู่แล้ว)
-- เพิ่ม DNS resolution + ตรวจ IP จริง ใน `checkTargetUrl` — ดู [SAFETY.md](SAFETY.md)
-- ตอนนั้นค่อยพิจารณา job queue เพราะการ crawl ใช้เวลานาน
+Improve report layouts, accessibility and performance for large Test Case collections without changing the underlying Test Case model.
 
-### 4. สิ่งที่ Explorer ยังไม่ทำ
+### Hosted architecture preparation
 
-- ไม่คลิกปุ่มเพื่อเปิด tab / modal / menu (MVP เดินด้วย link เท่านั้นเพื่อความปลอดภัย)
-  ถ้าจะเพิ่ม ต้องคลิกเฉพาะ element ที่ `destructive === false` และเก็บ page state แยกจาก URL
-- ไม่รองรับหน้าที่ต้อง login (ยังไม่มีการจัดการ session)
+Before any online service, add authentication, authorization, job isolation, DNS/IP resolution, redirect validation, rate limits, network egress controls, encrypted storage and a documented retention policy.

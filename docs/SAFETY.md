@@ -28,13 +28,13 @@ unsubscribe, cancel subscription, archive, publish, approve, reject,
 
 ## 2. ขอบเขตการ crawl
 
-| ข้อจำกัด        | ค่า      | บังคับที่                      |
-| --------------- | -------- | ------------------------------ |
-| จำนวนหน้าสูงสุด | 20       | `exploreWebsite` + `config.limits` |
-| ความลึกสูงสุด   | 3        | เดียวกัน                       |
-| timeout ต่อหน้า | 20 วินาที | `page.goto`                    |
-| timeout ทั้ง job| 120 วินาที| ตรวจทุกครั้งก่อนเปิดหน้าใหม่    |
-| กันวนลูป        | `Set` ของ URL ที่ normalize แล้ว + ตรวจ URL หลัง redirect ซ้ำ |
+| ข้อจำกัด         | ค่า                                                           | บังคับที่                          |
+| ---------------- | ------------------------------------------------------------- | ---------------------------------- |
+| จำนวนหน้าสูงสุด  | 20                                                            | `exploreWebsite` + `config.limits` |
+| ความลึกสูงสุด    | 3                                                             | เดียวกัน                           |
+| timeout ต่อหน้า  | 20 วินาที                                                     | `page.goto`                        |
+| timeout ทั้ง job | 120 วินาที                                                    | ตรวจทุกครั้งก่อนเปิดหน้าใหม่       |
+| กันวนลูป         | `Set` ของ URL ที่ normalize แล้ว + ตรวจ URL หลัง redirect ซ้ำ |
 
 ## 3. SSRF
 
@@ -47,7 +47,7 @@ unsubscribe, cancel subscription, archive, publish, approve, reject,
 `packages/core/src/url/checkTargetUrl.ts` โดยรับ `UrlPolicy` เข้ามา
 
 ```ts
-LOCAL_QA_POLICY   // MVP: อนุญาต localhost + private IP (จุดประสงค์หลักของ local QA tool)
+LOCAL_QA_POLICY // MVP: อนุญาต localhost + private IP (จุดประสงค์หลักของ local QA tool)
 PUBLIC_SAAS_POLICY // online version: บล็อก localhost, private IP, metadata
 ```
 
@@ -68,3 +68,28 @@ LAZYSCOUT_MODE=public npm run dev:server
 1. resolve DNS แล้วตรวจ IP จริงทุกตัวที่ได้
 2. ตรวจซ้ำหลัง redirect ทุกครั้ง
 3. จำกัด rate ต่อผู้ใช้ และแยก browser ไปรันในเครื่อง/คอนเทนเนอร์ที่ไม่มีสิทธิ์เข้าเครือข่ายภายใน
+
+## 4. Automation runner
+
+- Structured Test Steps เป็น input หลักของ runner
+- Source ที่แก้ใน editor ถูก parse เป็น Playwright statement ที่ whitelist ไว้ ไม่ได้ส่งเข้า `eval` หรือ `new Function`
+- รองรับเฉพาะ navigation, locator ที่กำหนด, click, fill, select, wait ที่มี limit และ assertions
+- statement ที่ไม่รู้จักจะ fail closed
+- ก่อน click จะตรวจ locator name, aria-label, title, name, id และ visible text เพื่อ block action ที่ดู destructive
+- จำกัดจำนวน steps, source size, timeout ต่อ action และจำนวน log lines
+- logs และ error ผ่าน shared redaction utility
+
+## 5. API และ Load Test
+
+- API observations เก็บ method, URL ที่ redact แล้ว, status, duration และ content type โดยไม่เก็บ request/response body
+- API Check รันอัตโนมัติเฉพาะ GET, HEAD และ OPTIONS
+- POST, PUT, PATCH และ DELETE เป็น observation-only และต้องให้ Tester ตรวจด้วยเครื่องมือที่เหมาะสม
+- Load Test ส่ง GET เท่านั้น มี hard limits และต้องยืนยันว่ามีสิทธิ์ทดสอบ target
+
+## 6. Credentials และ artifacts
+
+- Project Settings credentials อยู่ใน memory และหายเมื่อ refresh
+- environment variables เป็นวิธีที่แนะนำสำหรับ runner
+- Projects, results, screenshots และ Bug Reports อยู่ใน browser localStorage ซึ่งไม่ใช่ encrypted vault
+- screenshot, trace, video, HAR, API dump และ Bug evidence อาจมีข้อมูลอ่อนไหว ต้อง redact ก่อนแชร์
+- directory ของ artifacts ทั่วไปถูกเพิ่มไว้ใน `.gitignore` แต่ผู้ใช้ยังต้องตรวจ `git status` และ `git diff --cached` ก่อน push

@@ -12,7 +12,5 @@ export async function openInBrowser(url: string): Promise<void> {
     const child = spawn(command as string, args as string[], { stdio: 'ignore', detached: true })
     child.on('error', () => undefined)
     child.unref()
-  } catch {
-
-  }
+  } catch {}
 }

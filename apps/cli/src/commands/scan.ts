@@ -1,6 +1,7 @@
 import { writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { exploreWebsite } from '@lazyscout/explorer'
+import { redactUrl } from '@lazyscout/core'
 import { exportTestCasesToCsv, generateTestCases, generateTestData } from '@lazyscout/generators'
 
 export type ScanOptions = {
@@ -12,7 +13,7 @@ export type ScanOptions = {
 }
 
 export async function runScan(options: ScanOptions): Promise<void> {
-  console.log(`กำลังสำรวจ ${options.url} ...`)
+  console.log(`กำลังสำรวจ ${redactUrl(options.url)} ...`)
 
   const result = await exploreWebsite(options.url, {
     ...(options.maxPages !== undefined ? { maxPages: options.maxPages } : {}),

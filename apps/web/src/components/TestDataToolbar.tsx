@@ -67,8 +67,8 @@ export function TestDataToolbar({
       </div>
 
       <p className="w-full text-xs text-slate-500">
-        Showing {visibleCount} of {totalCount} rows · Generated values are examples only.
-        Replace them with real test data before use · CSV export includes Test Cases and Test Data together.
+        Showing {visibleCount} of {totalCount} rows · Generated values are examples only. Replace them with real test
+        data before use · CSV export includes Test Cases and Test Data together.
       </p>
     </div>
   )

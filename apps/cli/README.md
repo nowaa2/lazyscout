@@ -1,118 +1,88 @@
 # LazyScout
 
-เครื่องมือช่วย Software Tester วิเคราะห์เว็บไซต์แล้วสร้าง **Draft Test Case** และ **Test Data**
-อัตโนมัติ พร้อม export เป็น CSV เปิดใน Excel / Google Sheets ได้ทันที
+LazyScout is a local-first QA assistant that explores web applications, drafts test cases, and generates automation code for Playwright and Cypress.
 
-**ทำงานในเครื่องคุณเอง** — ไม่ต้องสมัครสมาชิก ไม่ต้องล็อกอิน ไม่ส่งข้อมูลออกไปไหน
-จึงสแกน `http://localhost` และระบบภายในองค์กรได้
+> Stop rewriting QA work.
 
-```bash
-npx lazyscout
-```
+## Quick Start
 
----
-
-## ใช้งาน
-
-### เปิดหน้าเว็บ (แนะนำ)
+Requires Node.js 20 or newer and Chrome, Edge or Playwright Chromium.
 
 ```bash
-npx lazyscout
+npx lazyscout@latest
 ```
 
-เปิดหน้าจอที่ `http://localhost:4321` ให้อัตโนมัติ → ใส่ URL → กด **Analyze Website**
-→ แก้ไข test case ในตาราง → **Export CSV**
+LazyScout starts its UI on `http://localhost:4321` and opens it automatically.
 
-### โหมดบรรทัดคำสั่ง (เหมาะกับ CI)
-
-```bash
-npx lazyscout scan http://localhost:5173
-npx lazyscout scan https://example.com --max-pages 10 --csv report.csv --json raw.json
-```
-
-| ตัวเลือก | ความหมาย |
-| --- | --- |
-| `--csv <ไฟล์>` | บันทึก test case + test data เป็น CSV (ค่าเริ่มต้น `lazyscout-testcases.csv`) |
-| `--json <ไฟล์>` | บันทึกผลดิบทั้งหมด (page model + test case + test data) |
-| `--max-pages <n>` | จำนวนหน้าสูงสุด (ค่าเริ่มต้น 20) |
-| `--max-depth <n>` | ความลึกสูงสุด (ค่าเริ่มต้น 3) |
-| `--port <n>` | พอร์ตของหน้าเว็บ (ค่าเริ่มต้น 4321) |
-| `--no-open` | ไม่ต้องเปิดเบราว์เซอร์ให้อัตโนมัติ |
-
----
-
-## ได้อะไรออกมา
-
-**Test Cases** — สร้างจากสิ่งที่ตรวจพบจริงบนหน้าเว็บ
-
-```
-TC-LOGIN-001  positive/ready         Login page displays required controls
-TC-LOGIN-002  validation/needs-review  Email is required
-TC-LOGIN-003  validation/needs-review  Password is required
-TC-LOGIN-004  positive/needs-data    Submit Login form with valid data
-TC-LOGIN-005  positive/ready         Navigate to Register
-```
-
-**Test Data** — ค่าที่ควรผ่าน/ควรถูกปฏิเสธของแต่ละช่องกรอก
-
-```
-TD-LOGIN-001  Email     email     required  qa.tester@example.com  invalid-email
-TD-LOGIN-002  Password  password  required  Passw0rd!23            123
-```
-
-**CSV** — ไฟล์เดียวมีทั้งสองส่วน มี UTF-8 BOM ภาษาไทยไม่เพี้ยนใน Excel
-
-```
-TC_ID, Module, Title, Preconditions, Test_Steps, Expected_Result, Type, Priority, Automation_Status, Source_URL
-```
-
----
-
-## ความปลอดภัย
-
-เครื่องมือนี้ออกแบบให้ยิงใส่ระบบที่กำลังพัฒนาได้อย่างปลอดภัย
-
-- **ไม่คลิกปุ่มและไม่ submit form** — เดินทางด้วยลิงก์ (`href`) เท่านั้น จึงไม่เปลี่ยนแปลงข้อมูลของระบบ
-- **ตรวจพบ action อันตราย แต่ไม่แตะ** — Delete, Payment, Logout ฯลฯ จะถูกบันทึกเป็น test case แบบ `manual` ให้ทดสอบด้วยมือ
-- **สำรวจเฉพาะ origin เดียวกัน** ไม่ออกไปโดเมนอื่น
-- จำกัด 20 หน้า / ลึก 3 ชั้น / มี timeout และกันการวนลูป
-
-## ไม่เดา expected result
-
-ถ้าระบบไม่มีหลักฐานว่า behavior จริงคืออะไร จะไม่แต่งขึ้นมาเอง แต่จะเขียนว่า
-
-> Verify that the result is displayed according to application requirements (needs review by tester).
-
-แล้วตั้งสถานะเป็น `needs-review` — **ผลลัพธ์คือ Draft ที่ Tester ต้องตรวจ ไม่ใช่ test case ที่ถูกต้อง 100%**
-
----
-
-## ความต้องการของระบบ
-
-- **Node.js 20 ขึ้นไป**
-- **Google Chrome หรือ Microsoft Edge** อย่างใดอย่างหนึ่ง (เครื่องส่วนใหญ่มีอยู่แล้ว)
-
-แพ็กเกจนี้ใช้ `playwright-core` จึงไม่ดาวน์โหลดเบราว์เซอร์ 150MB ตอนติดตั้ง แต่จะหาเบราว์เซอร์
-ในเครื่องคุณตามลำดับ: Chromium ของ Playwright → Chrome → Edge
-
-ถ้าไม่มีสักตัว ติดตั้งด้วย:
+If a supported browser is not installed:
 
 ```bash
 npx playwright install chromium
 ```
 
-> **Windows:** ถ้าใช้ `cmd.exe` รุ่นเก่าแล้วภาษาไทยแสดงไม่ถูก ให้พิมพ์ `chcp 65001` ก่อน
-> หรือใช้ Windows Terminal / PowerShell 7 ซึ่งรองรับ UTF-8 อยู่แล้ว
+## CLI scan
 
----
+```bash
+npx lazyscout@latest scan http://localhost:5173
+npx lazyscout@latest scan https://example.com --max-pages 10 --csv report.csv --json raw.json
+```
 
-## แผนในอนาคต
+| Option            | Purpose                                                |
+| ----------------- | ------------------------------------------------------ |
+| `--csv <file>`    | CSV output path; defaults to `lazyscout-testcases.csv` |
+| `--json <file>`   | Optional raw exploration output                        |
+| `--max-pages <n>` | Maximum pages; defaults to 20                          |
+| `--max-depth <n>` | Maximum same-origin link depth; defaults to 3          |
+| `--port <n>`      | Local UI port; defaults to 4321                        |
+| `--no-open`       | Start without opening the browser                      |
 
-โครงสร้างภายในแยก Test Case Model ออกจาก Playwright โดยสิ้นเชิง จึงเพิ่มสิ่งเหล่านี้ได้
-โดยไม่ต้องแก้ตัวสำรวจเว็บ:
+The current CLI command is `scan`; there is no `analyze` command.
 
-- `TestCase[]` → Playwright `.spec.ts`
-- `TestCase[]` → Cypress `.cy.ts`
+## Available Features
+
+- Playwright website and form exploration
+- UI control, visible dialog and interaction discovery
+- English/Thai Draft Test Cases and Test Data
+- Test Case review, folders, tags and requirement links
+- CSV/XLSX/JSON import and CSV export
+- Screenshot OCR-assisted import
+- Playwright and Cypress code generation
+- Local Playwright execution with restricted statements, logs and screenshots
+- Safe GET/HEAD/OPTIONS API checks
+- Bug Reports with ZIP evidence export
+- HTML/PDF Test Summary
+- Confirmed local GET load test
+
+Cypress is code generation only; the built-in local runner uses Playwright.
+
+## Local-first Data
+
+Browser automation runs on your machine. Projects, Test Cases, results, Bug Reports and screenshots are stored in the local browser. Credentials entered in Project Settings stay in memory for the current tab and are cleared on refresh. Environment variables are supported for local runner credentials.
+
+Version Center contacts npm Registry to check available releases. LazyScout has no hosted account or Project database in the current version.
+
+## Safety
+
+Scouting is same-origin, follows links and blocks destructive labels. Edited automation is interpreted through a Playwright statement whitelist; it is not executed as arbitrary JavaScript or shell source.
+
+> Never commit real test credentials, production data, browser authentication state, Playwright traces, screenshots, HAR files, or API dumps containing sensitive information.
+
+> Use synthetic test data whenever possible.
+
+> Review generated test cases and automation code before executing them against critical environments.
+
+Generated Test Cases are drafts, not a replacement for QA judgment. Use DEV, UAT, sandbox or another authorized test environment before production.
+
+## Documentation
+
+- [GitHub repository](https://github.com/nowaa2/lazyscout)
+- [Security policy](https://github.com/nowaa2/lazyscout/blob/main/SECURITY.md)
+- [Thai README](https://github.com/nowaa2/lazyscout/blob/main/README_TH.md)
+- [Issue tracker](https://github.com/nowaa2/lazyscout/issues)
+
+## Author
+
+Created by **nowzaa** — [GitHub profile](https://github.com/nowaa2)
 
 ## License
 

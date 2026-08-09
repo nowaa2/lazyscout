@@ -6,6 +6,8 @@ import './styles/index.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <LanguageProvider><App /></LanguageProvider>
+    <LanguageProvider>
+      <App />
+    </LanguageProvider>
   </StrictMode>
 )

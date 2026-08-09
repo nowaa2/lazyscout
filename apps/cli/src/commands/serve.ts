@@ -2,6 +2,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { buildApp } from '@lazyscout/server'
 import { openInBrowser } from '../openInBrowser.js'
+import { VERSION } from '../version.js'
 
 export type ServeOptions = {
   port?: number
@@ -13,7 +14,7 @@ const DEFAULT_PORT = 4321
 const WEB_DIR = join(dirname(fileURLToPath(import.meta.url)), 'web')
 
 export async function runServe(options: ServeOptions): Promise<void> {
-  const app = buildApp({ staticDir: WEB_DIR, logLevel: 'warn' })
+  const app = buildApp({ staticDir: WEB_DIR, logLevel: 'warn', appVersion: VERSION })
   const port = await listenOnFreePort(app, options.port ?? DEFAULT_PORT)
   const url = `http://localhost:${port}`
 

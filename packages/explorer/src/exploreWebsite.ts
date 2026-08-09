@@ -1,6 +1,15 @@
 import type { Browser, Page } from 'playwright-core'
-import type { ActionGraph, ApiObservation, ExploreIssue, ExploreOptions, ExploreResult, PageInfo, StateEdge, UrlPolicy } from '@lazyscout/core'
-import { LOCAL_QA_POLICY, checkTargetUrl, isCrawlableUrl, isSameOrigin, normalizeUrl } from '@lazyscout/core'
+import type {
+  ActionGraph,
+  ApiObservation,
+  ExploreIssue,
+  ExploreOptions,
+  ExploreResult,
+  PageInfo,
+  StateEdge,
+  UrlPolicy
+} from '@lazyscout/core'
+import { LOCAL_QA_POLICY, checkTargetUrl, isCrawlableUrl, isSameOrigin, normalizeUrl, redactUrl } from '@lazyscout/core'
 import { collectPageData } from './browser/domCollector.js'
 import { mapToPageModel } from './mapToPageModel.js'
 import { ExplorerError, toExploreIssue } from './errors.js'
@@ -61,7 +70,7 @@ export async function exploreWebsite(
       if (visited.has(item.url)) continue
       visited.add(item.url)
 
-    const result = await visitPage(page, item, config)
+      const result = await visitPage(page, item, config)
 
       if (result.kind === 'issue') {
         issues.push(result.issue)
@@ -113,7 +122,7 @@ export async function exploreWebsite(
 }
 
 function buildActionGraph(pages: PageInfo[]): ActionGraph {
-  const states = pages.flatMap((page) => page.state ? [page.state] : [])
+  const states = pages.flatMap((page) => (page.state ? [page.state] : []))
   const edges: StateEdge[] = []
   const visitedActionKeys: string[] = []
   const failedActionKeys: string[] = []
@@ -126,23 +135,50 @@ function buildActionGraph(pages: PageInfo[]): ActionGraph {
     for (const link of page.links) {
       if (!link.href || !link.accessibleName) continue
       const targetPage = pages.find((candidate) => candidate.url === link.href || candidate.finalUrl === link.href)
-      const action: StateEdge['action'] = { type: 'navigate', target: link.accessibleName, selector: link.cssSelector, safe: canFollowLink(link.href, link.accessibleName) }
+      const action: StateEdge['action'] = {
+        type: 'navigate',
+        target: link.accessibleName,
+        selector: link.cssSelector,
+        safe: canFollowLink(link.href, link.accessibleName)
+      }
       const key = `${fromStateId}|navigate|${link.cssSelector}`
-      const status = action.safe ? targetPage ? 'visited' : 'discovered' : 'blocked'
+      const status = action.safe ? (targetPage ? 'visited' : 'discovered') : 'blocked'
       edges.push({ fromStateId, toStateId: targetPage?.state?.id, action, status })
       if (status === 'visited') visitedActionKeys.push(key)
       if (status === 'blocked') blockedActionKeys.push(key)
     }
     for (const interaction of state.interactions) {
       const destructive = isDestructiveLabel(interaction.name)
-      const type = interaction.kind === 'tab' ? 'selectTab' : interaction.kind === 'accordion' ? 'expandAccordion' : interaction.kind === 'dropdown' ? 'openDropdown' : interaction.expanded ? 'closeDialog' : 'openModal'
+      const type =
+        interaction.kind === 'tab'
+          ? 'selectTab'
+          : interaction.kind === 'accordion'
+            ? 'expandAccordion'
+            : interaction.kind === 'dropdown'
+              ? 'openDropdown'
+              : interaction.expanded
+                ? 'closeDialog'
+                : 'openModal'
       const key = `${fromStateId}|${type}|${interaction.cssSelector}`
-      const action: StateEdge['action'] = { type, target: interaction.name, selector: interaction.cssSelector, safe: !destructive, reason: destructive ? 'Destructive action was discovered but not executed' : undefined }
+      const action: StateEdge['action'] = {
+        type,
+        target: interaction.name,
+        selector: interaction.cssSelector,
+        safe: !destructive,
+        reason: destructive ? 'Destructive action was discovered but not executed' : undefined
+      }
       edges.push({ fromStateId, action, status: destructive ? 'blocked' : 'discovered' })
       if (destructive) blockedActionKeys.push(key)
     }
   }
-  return { states, edges, visitedStateIds: states.map((state) => state.id), visitedActionKeys, failedActionKeys, blockedActionKeys }
+  return {
+    states,
+    edges,
+    visitedStateIds: states.map((state) => state.id),
+    visitedActionKeys,
+    failedActionKeys,
+    blockedActionKeys
+  }
 }
 
 type VisitResult = { kind: 'page'; page: PageInfo } | { kind: 'issue'; issue: ExploreIssue }
@@ -151,9 +187,26 @@ async function visitPage(page: Page, item: QueueItem, config: ExploreOptions): P
   try {
     const apiRequests: ApiObservation[] = []
     const requestStarted = new Map<string, number>()
-    const onRequest = (request: import('playwright-core').Request) => { if (request.resourceType() === 'xhr' || request.resourceType() === 'fetch') requestStarted.set(request.url(), Date.now()) }
-    const onResponse = (response: import('playwright-core').Response) => { const request = response.request(); if (request.resourceType() !== 'xhr' && request.resourceType() !== 'fetch') return; apiRequests.push({ id: `api-${apiRequests.length + 1}`, method: request.method(), url: request.url(), status: response.status(), durationMs: Date.now() - (requestStarted.get(request.url()) ?? Date.now()), resourceType: request.resourceType() as 'xhr' | 'fetch', sourceUrl: item.url, contentType: response.headers()['content-type'] }) }
-    page.on('request', onRequest); page.on('response', onResponse)
+    const onRequest = (request: import('playwright-core').Request) => {
+      if (request.resourceType() === 'xhr' || request.resourceType() === 'fetch')
+        requestStarted.set(request.url(), Date.now())
+    }
+    const onResponse = (response: import('playwright-core').Response) => {
+      const request = response.request()
+      if (request.resourceType() !== 'xhr' && request.resourceType() !== 'fetch') return
+      apiRequests.push({
+        id: `api-${apiRequests.length + 1}`,
+        method: request.method(),
+        url: redactUrl(request.url()),
+        status: response.status(),
+        durationMs: Date.now() - (requestStarted.get(request.url()) ?? Date.now()),
+        resourceType: request.resourceType() as 'xhr' | 'fetch',
+        sourceUrl: redactUrl(item.url),
+        contentType: response.headers()['content-type']
+      })
+    }
+    page.on('request', onRequest)
+    page.on('response', onResponse)
     const response = await page.goto(item.url, {
       waitUntil: 'domcontentloaded',
       timeout: config.pageTimeoutMs
@@ -167,16 +220,34 @@ async function visitPage(page: Page, item: QueueItem, config: ExploreOptions): P
       }
     }
 
-    await page.waitForLoadState('networkidle', { timeout: Math.min(config.pageTimeoutMs, 5_000) }).catch(() => undefined)
+    await page
+      .waitForLoadState('networkidle', { timeout: Math.min(config.pageTimeoutMs, 5_000) })
+      .catch(() => undefined)
     await page.waitForTimeout(config.waitAfterNavigationMs)
-    const challengeText = `${await page.title()} ${await page.locator('body').innerText().catch(() => '')}`.toLowerCase()
-    if (challengeText.includes('cloudflare') || challengeText.includes('checking your browser') || challengeText.includes('verify you are human') || challengeText.includes('just a moment')) {
-      return { kind: 'issue', issue: { url: item.url, code: 'cloudflare', message: 'พบ Cloudflare/browser challenge — หยุดที่หน้านี้และต้องให้ Tester ตรวจสอบด้วยตนเอง' } }
+    const challengeText = `${await page.title()} ${await page
+      .locator('body')
+      .innerText()
+      .catch(() => '')}`.toLowerCase()
+    if (
+      challengeText.includes('cloudflare') ||
+      challengeText.includes('checking your browser') ||
+      challengeText.includes('verify you are human') ||
+      challengeText.includes('just a moment')
+    ) {
+      return {
+        kind: 'issue',
+        issue: {
+          url: item.url,
+          code: 'cloudflare',
+          message: 'พบ Cloudflare/browser challenge — หยุดที่หน้านี้และต้องให้ Tester ตรวจสอบด้วยตนเอง'
+        }
+      }
     }
 
     const finalUrl = page.url()
     const raw = await page.evaluate(collectPageData)
-    page.off('request', onRequest); page.off('response', onResponse)
+    page.off('request', onRequest)
+    page.off('response', onResponse)
 
     return {
       kind: 'page',

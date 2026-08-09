@@ -1,6 +1,6 @@
 {
   "name": "lazyscout-monorepo",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "//": "root ของ monorepo — ไม่ publish ตัวที่ขึ้น npm คือ apps/cli (ชื่อ lazyscout)",
   "type": "module",
@@ -15,13 +15,18 @@
     "build:cli": "npm run build --workspace lazyscout",
     "build": "npm run build:packages && npm run build:server && npm run build:web && npm run build:cli",
     "typecheck": "npm run build:packages && npm run typecheck --workspace @lazyscout/server && npm run typecheck --workspace @lazyscout/web && npm run typecheck --workspace lazyscout",
+    "check:secrets": "node scripts/check-secrets.mjs",
+    "release:check": "npm run check:secrets && npm run format:check && npm run typecheck && npm test && npm run build && npm pack --dry-run --workspace lazyscout",
     "cli": "node apps/cli/dist/index.js",
     "dev:server": "npm run dev --workspace @lazyscout/server",
     "dev:web": "npm run dev --workspace @lazyscout/web",
-    "test": "npm run build:packages && vitest run",
-    "clean": "tsc -b --clean packages/core packages/explorer packages/generators"
+    "test": "npm run build:packages && vitest run --passWithNoTests",
+    "clean": "tsc -b --clean packages/core packages/explorer packages/generators",
+    "format": "prettier --write \"apps/**/*.{ts,tsx,css,json,mjs,md}\" \"packages/**/*.{ts,tsx,css,json,md}\" \"scripts/**/*.mjs\" \"fixtures/**/*.{mjs,md}\" \"docs/**/*.md\" \"*.{json,md,mjs}\"",
+    "format:check": "prettier --check \"apps/**/*.{ts,tsx,css,json,mjs,md}\" \"packages/**/*.{ts,tsx,css,json,md}\" \"scripts/**/*.mjs\" \"fixtures/**/*.{mjs,md}\" \"docs/**/*.md\" \"*.{json,md,mjs}\""
   },
   "devDependencies": {
+    "prettier": "^3.9.6",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
   }

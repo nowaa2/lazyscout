@@ -1,5 +1,3 @@
-
-
 export type TargetRef = {
   role?: string
   name?: string
@@ -60,14 +58,7 @@ export type ManualStep = {
 }
 
 export type TestStep =
-  | NavigateStep
-  | ClickStep
-  | FillStep
-  | SelectStep
-  | AssertVisibleStep
-  | AssertTextStep
-  | AssertUrlStep
-  | ManualStep
+  NavigateStep | ClickStep | FillStep | SelectStep | AssertVisibleStep | AssertTextStep | AssertUrlStep | ManualStep
 
 export type TestCaseType = 'positive' | 'negative' | 'validation'
 
@@ -79,6 +70,9 @@ export type TestCaseLanguage = 'th' | 'en'
 export type TestCase = {
   id: string
   module: string
+  folder?: string
+  tags?: string[]
+  requirements?: string[]
   title: string
   preconditions: string[]
   steps: TestStep[]
