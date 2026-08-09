@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="LazyScout is a local-first QA workspace that scouts websites, drafts Test Cases, and generates Playwright automation."
+    />
+    <meta name="theme-color" content="#111827" />
+    <title>LazyScout · Local-first QA workspace</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="page-glow glow-left"></div>
+    <div class="page-glow glow-right"></div>
+    <header class="site-header">
+      <a class="brand" href="#top" aria-label="LazyScout home">
+        <span class="brand-icon">LS</span>
+        <span>LazyScout</span>
+      </a>
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">Menu</button>
+      <nav id="site-nav" class="site-nav" aria-label="Main navigation">
+        <a href="#features">Features</a>
+        <a href="#quick-start">Quick start</a>
+        <a href="#docs">Docs</a>
+        <a href="https://github.com/nowaa2/lazyscout" target="_blank" rel="noreferrer">GitHub ↗</a>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="hero section-shell">
+        <div class="hero-copy">
+          <p class="eyebrow"><span></span> Local-first QA workspace</p>
+          <h1>Scout the UI.<br /><em>Keep the useful parts.</em></h1>
+          <p class="hero-lede">
+            Turn a website into reviewable Test Cases, Playwright starter code, local reports, and structured QA
+            evidence. Your projects stay on your machine.
+          </p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="#quick-start">Get started <span>→</span></a>
+            <a
+              class="button button-quiet"
+              href="https://www.npmjs.com/package/lazyscout"
+              target="_blank"
+              rel="noreferrer"
+            >
+              View on npm ↗
+            </a>
+          </div>
+          <div class="hero-proof">
+            <span><b>npm</b> package</span>
+            <span><b>Playwright</b> runner</span>
+            <span><b>Local</b> workspace</span>
+          </div>
+        </div>
+
+        <div class="product-preview" aria-label="LazyScout workspace preview">
+          <div class="preview-topbar">
+            <div class="window-dots"><i></i><i></i><i></i></div>
+            <div class="preview-address">localhost:4321</div>
+            <span class="preview-status">Local</span>
+          </div>
+          <div class="preview-body">
+            <aside class="preview-sidebar">
+              <div class="preview-logo">LS</div>
+              <span class="preview-new">＋ New Project</span>
+              <p>PROJECTS <b>2</b></p>
+              <div class="preview-project active">
+                <i></i><span>Storefront QA<small>shop.example.com</small></span>
+              </div>
+              <div class="preview-project">
+                <i></i><span>Account flows<small>Manual suite</small></span>
+              </div>
+              <p>FILES <b>4</b></p>
+              <div class="preview-file">◇ index</div>
+              <div class="preview-file">◇ checkout</div>
+              <div class="preview-file">◇ account</div>
+              <div class="preview-local">● Local workspace</div>
+            </aside>
+            <div class="preview-main">
+              <div class="preview-heading">
+                <div>
+                  <small>QA WORKSPACE / WEBSITE UI STATE EXPLORER</small>
+                  <h2>Storefront QA</h2>
+                </div>
+                <span>● Explorer ready</span>
+              </div>
+              <div class="preview-tabs">
+                <b>Overview</b><span>Test Cases <i>12</i></span
+                ><span>Automation</span><span>Scout Log</span>
+              </div>
+              <div class="preview-kpis">
+                <div><small>TEST CASES</small><b>12</b><span>Drafts ready to review</span></div>
+                <div><small>READY TO RUN</small><b>8</b><span>Playwright supported</span></div>
+                <div><small>NEEDS REVIEW</small><b>4</b><span>Check expected result</span></div>
+              </div>
+              <div class="preview-card">
+                <div class="preview-card-title"><span>Test Case status</span><small>Current project</small></div>
+                <div class="preview-bars">
+                  <div><span>Ready</span><i class="bar ready"></i><b>8</b></div>
+                  <div><span>Review</span><i class="bar review"></i><b>3</b></div>
+                  <div><span>Manual</span><i class="bar manual"></i><b>1</b></div>
+                </div>
+              </div>
+              <div class="preview-terminal"><span>›</span> lazyscout test --case TC-HOME-001 <b>✓ passed</b></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="features" class="section-shell feature-section">
+        <div class="section-intro">
+          <p class="eyebrow"><span></span> Built for practical QA</p>
+          <h2>A useful first draft, not a black box.</h2>
+          <p>
+            LazyScout automates repetitive discovery while keeping Test Case decisions, evidence, and execution under
+            your control.
+          </p>
+        </div>
+        <div class="feature-grid">
+          <article class="feature-card feature-card-wide">
+            <span class="feature-icon violet">⌁</span>
+            <div>
+              <h3>Scout a website safely</h3>
+              <p>
+                Discover same-origin pages, forms, controls, dialogs, and UI states with Playwright. Set page and depth
+                limits before you run.
+              </p>
+            </div>
+            <div class="feature-visual orbit-visual">
+              <i></i><i></i><i></i><b>Target<br />URL</b>
+            </div>
+          </article>
+          <article class="feature-card">
+            <span class="feature-icon cyan">✓</span>
+            <h3>Reviewable Test Cases</h3>
+            <p>Edit steps and expected results, reorder cases, add folders, tags, and Jira or GitLab references.</p>
+          </article>
+          <article class="feature-card">
+            <span class="feature-icon amber">›_</span>
+            <h3>Run Playwright locally</h3>
+            <p>
+              Choose the cases to run, inspect terminal-like logs, cancel safely, and save only screenshots you request.
+            </p>
+          </article>
+          <article class="feature-card">
+            <span class="feature-icon green">▣</span>
+            <h3>Keep evidence together</h3>
+            <p>Reports, screenshots, automation, bugs, CSV files, and logs live in one portable local workspace.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="quick-start" class="section-shell quick-start">
+        <div class="quick-copy">
+          <p class="eyebrow"><span></span> Quick start</p>
+          <h2>From zero to a QA workspace in one command.</h2>
+          <p>Requires Node.js 20 or newer. LazyScout runs locally and opens the workspace in your browser.</p>
+          <ol class="step-list">
+            <li>
+              <b>01</b><span>Run LazyScout with <code>npx</code></span>
+            </li>
+            <li><b>02</b><span>Create a Scout or empty Project</span></li>
+            <li><b>03</b><span>Review, edit, run, and export your Test Cases</span></li>
+          </ol>
+        </div>
+        <div class="command-stack">
+          <div class="command-card primary-command">
+            <div class="command-label">
+              <span>Run the latest version</span><small>No global install required</small>
+            </div>
+            <code><span>$</span> npx lazyscout@latest</code>
+            <button type="button" class="copy-button" data-copy="npx lazyscout@latest">Copy</button>
+          </div>
+          <div class="command-card">
+            <div class="command-label">
+              <span>Install globally</span><small>Use <code>lazyscout</code> anywhere</small>
+            </div>
+            <code><span>$</span> npm install -g lazyscout</code>
+            <button type="button" class="copy-button" data-copy="npm install -g lazyscout">Copy</button>
+          </div>
+          <div class="command-card">
+            <div class="command-label"><span>Use another workspace folder</span><small>Optional</small></div>
+            <code><span>$</span> lazyscout --workspace "D:\QA\LazyScout"</code>
+            <button type="button" class="copy-button" data-copy='lazyscout --workspace "D:\QA\LazyScout"'>Copy</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="section-shell workflow-section">
+        <div class="section-intro compact">
+          <p class="eyebrow"><span></span> Your workflow</p>
+          <h2>Everything stays understandable.</h2>
+        </div>
+        <div class="workflow">
+          <div>
+            <span>01</span><b>Scout</b>
+            <p>Map pages and controls.</p>
+          </div>
+          <i>→</i>
+          <div>
+            <span>02</span><b>Review</b>
+            <p>Edit Test Case drafts.</p>
+          </div>
+          <i>→</i>
+          <div>
+            <span>03</span><b>Run</b>
+            <p>Use Playwright locally.</p>
+          </div>
+          <i>→</i>
+          <div>
+            <span>04</span><b>Report</b>
+            <p>Share useful evidence.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="docs" class="section-shell docs-section">
+        <div class="docs-panel">
+          <div class="docs-sidebar">
+            <p>DOCUMENTATION</p>
+            <a class="active" href="#install">Installation</a>
+            <a href="#workspace">Workspace files</a>
+            <a href="#automation">Automation &amp; screenshots</a>
+            <a href="#safety">Safety</a>
+            <a href="#troubleshooting">Troubleshooting</a>
+          </div>
+          <div class="docs-content">
+            <article id="install">
+              <p class="eyebrow"><span></span> Documentation</p>
+              <h2>Install and launch</h2>
+              <p>Use <code>npx</code> for the newest public version without a permanent global installation.</p>
+              <pre><code>npx lazyscout@latest</code></pre>
+              <p>
+                LazyScout starts at <code>http://localhost:4321</code> and creates a local workspace before opening the
+                UI.
+              </p>
+            </article>
+            <article id="workspace">
+              <h3>Workspace files</h3>
+              <p>
+                Project data is stored on disk, not in a hosted database. Click <b>Local Workspace</b> in the app to
+                open it.
+              </p>
+              <pre><code>LazyScout/
+├── projects/&lt;project-id&gt;/
+│   ├── test-cases.csv
+│   ├── automation/
+│   ├── screenshots/
+│   ├── bugs/
+│   ├── reports/
+│   └── logs/
+└── backups/</code></pre>
+            </article>
+            <article id="automation">
+              <h3>Automation and screenshots</h3>
+              <p>
+                LazyScout generates Playwright and Cypress code. Local execution supports Playwright. A screenshot is
+                saved only when your Playwright code explicitly calls <code>page.screenshot()</code>.
+              </p>
+            </article>
+            <article id="safety">
+              <h3>Safety boundaries</h3>
+              <p>
+                Exploration stays within the target origin, avoids destructive actions, and uses local browser
+                execution. Review generated Test Cases before using them in critical environments.
+              </p>
+            </article>
+            <article id="troubleshooting">
+              <h3>Troubleshooting</h3>
+              <p>If no browser is available, install Playwright Chromium:</p>
+              <pre><code>npx playwright install chromium</code></pre>
+              <p>For the complete technical documentation, visit the repository.</p>
+              <a class="text-link" href="https://github.com/nowaa2/lazyscout#readme" target="_blank" rel="noreferrer"
+                >Open GitHub README ↗</a
+              >
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section-shell final-cta">
+        <div>
+          <p class="eyebrow"><span></span> Ready when you are</p>
+          <h2>Spend less time formatting spreadsheets.</h2>
+          <p>Start with the website you already need to test.</p>
+        </div>
+        <a class="button button-primary" href="#quick-start">Run LazyScout <span>→</span></a>
+      </section>
+    </main>
+
+    <footer class="site-footer section-shell">
+      <a class="brand" href="#top"><span class="brand-icon">LS</span><span>LazyScout</span></a>
+      <p>Local-first QA tooling for practical Test Case work.</p>
+      <div>
+        <a href="https://github.com/nowaa2/lazyscout" target="_blank" rel="noreferrer">GitHub</a
+        ><a href="https://www.npmjs.com/package/lazyscout" target="_blank" rel="noreferrer">npm</a
+        ><a href="https://github.com/nowaa2/lazyscout/blob/main/LICENSE" target="_blank" rel="noreferrer"
+          >MIT License</a
+        >
+      </div>
+    </footer>
+    <script src="./app.js"></script>
+  </body>
+</html>
