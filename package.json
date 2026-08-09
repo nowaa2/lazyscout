@@ -23,8 +23,8 @@
     "dev:web": "npm run dev --workspace @lazyscout/web",
     "test": "npm run build:packages && vitest run --passWithNoTests",
     "clean": "tsc -b --clean packages/core packages/explorer packages/generators",
-    "format": "prettier --write \"apps/**/*.{ts,tsx,js,css,json,mjs,md,html}\" \"packages/**/*.{ts,tsx,css,json,md}\" \"scripts/**/*.mjs\" \"fixtures/**/*.{mjs,md}\" \"docs/**/*.md\" \"*.{json,md,mjs}\"",
-    "format:check": "prettier --check \"apps/**/*.{ts,tsx,js,css,json,mjs,md,html}\" \"packages/**/*.{ts,tsx,css,json,md}\" \"scripts/**/*.mjs\" \"fixtures/**/*.{mjs,md}\" \"docs/**/*.md\" \"*.{json,md,mjs}\""
+    "format": "prettier --write \"apps/**/*.{ts,tsx,js,css,json,mjs,md,html}\" \"packages/**/*.{ts,tsx,css,json,md}\" \"scripts/**/*.mjs\" \"fixtures/**/*.{mjs,md}\" \"docs/**/*.md\" \"*.{json,jsonc,md,mjs}\"",
+    "format:check": "prettier --check \"apps/**/*.{ts,tsx,js,css,json,mjs,md,html}\" \"packages/**/*.{ts,tsx,css,json,md}\" \"scripts/**/*.mjs\" \"fixtures/**/*.{mjs,md}\" \"docs/**/*.md\" \"*.{json,jsonc,md,mjs}\""
   },
   "devDependencies": {
     "prettier": "^3.9.6",

@@ -1,18 +1,20 @@
 # LazyScout public site
 
-This folder is a build-free static landing page and documentation starter for Cloudflare Pages.
+This folder contains the build-free LazyScout landing page and documentation starter.
 
-## Cloudflare Pages configuration
+## Cloudflare Workers configuration
 
-| Setting                | Value       |
-| ---------------------- | ----------- |
-| Framework preset       | None        |
-| Root directory         | `apps/site` |
-| Build command          | `exit 0`    |
-| Build output directory | `public`    |
-| Production branch      | `main`      |
+Cloudflare's current Git workflow creates a Worker. The repository root contains `wrangler.jsonc`, which deploys only `apps/site/public` as static assets.
 
-Cloudflare Pages deploys the contents of `public` to `https://<project-name>.pages.dev`.
+| Setting           | Value                 |
+| ----------------- | --------------------- |
+| Project name      | `lazyscout`           |
+| Root directory    | `/`                   |
+| Build command     | Leave empty           |
+| Deploy command    | `npx wrangler deploy` |
+| Production branch | `main`                |
+
+The QA application, local project files, Playwright, and the API server are not deployed by this site.
 
 ## Local preview
 
