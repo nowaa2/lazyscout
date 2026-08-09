@@ -1,6 +1,6 @@
 # Roadmap
 
-## Available in 0.2
+## Available in 0.3
 
 - File-backed local Project workspaces and dashboard charts
 - Playwright same-origin Website Explorer
@@ -21,7 +21,7 @@
 
 - Cypress is generated but not executed by the local runner.
 - Explorer records interaction hints but does not automatically click every tab, dialog, accordion or dropdown.
-- Projects and evidence are stored in browser local storage and do not sync between devices.
+- Projects and evidence are stored in a local file workspace and do not sync between devices.
 - There is no hosted account, cloud Project database, queue or multi-user service.
 - Generated output is rule-based and must be reviewed by a Tester.
 - Public/online URL policy is not production-ready against DNS rebinding.

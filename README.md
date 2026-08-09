@@ -253,7 +253,7 @@ Real, reviewed product screenshots will be added under [`docs/images/`](docs/ima
 - The local runner executes Playwright only.
 - API replay is restricted to GET, HEAD and OPTIONS; state-changing methods are observation-only.
 - The load test is a small local GET runner, not a replacement for JMeter, k6 or a production load-testing platform.
-- Projects use browser local storage and do not sync between devices.
+- Projects are stored in a local file workspace and do not sync between devices.
 - `PUBLIC_SAAS_POLICY` does not yet resolve DNS or defend against DNS rebinding and must not be treated as production-ready hosted isolation.
 
 ## Repository Checks
