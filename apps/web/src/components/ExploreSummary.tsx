@@ -16,11 +16,11 @@ function ElementList({ title, elements }: { title: string; elements: UIElement[]
             {element.inputType && <span className="ml-1 text-xs text-slate-400">[{element.inputType}]</span>}
             {element.required && <span className="ml-1 text-xs text-rose-500">required</span>}
             {element.destructive && (
-              <span className="ml-1 text-xs font-semibold text-orange-600">ไม่คลิก (destructive)</span>
+              <span className="ml-1 text-xs font-semibold text-orange-600">Not clicked (destructive)</span>
             )}
           </li>
         ))}
-        {elements.length > 12 && <li className="text-xs text-slate-400">… และอีก {elements.length - 12} รายการ</li>}
+        {elements.length > 12 && <li className="text-xs text-slate-400">… and {elements.length - 12} more</li>}
       </ul>
     </div>
   )
@@ -72,16 +72,18 @@ export function ExploreSummary({ result }: { result: AnalyzeResponse }) {
   return (
     <div className="card">
       <div className="card-title flex items-center justify-between">
-        <span>ผลการสำรวจเว็บไซต์</span>
+        <span>Website exploration results</span>
         <span className="text-xs font-normal text-slate-500">
-          {result.stats.pagesVisited} หน้า · {(result.stats.durationMs / 1000).toFixed(1)} วินาที
-          {result.stats.limitReached !== 'none' && ` · หยุดเพราะ ${result.stats.limitReached}`}
+          {result.stats.pagesVisited} pages · {(result.stats.durationMs / 1000).toFixed(1)} seconds
+          {result.stats.limitReached !== 'none' && ` · stopped: ${result.stats.limitReached}`}
         </span>
       </div>
 
       {result.issues.length > 0 && (
         <div className="border-b border-amber-200 bg-amber-50 px-4 py-2">
-          <p className="text-xs font-semibold text-amber-800">หน้าที่เปิดไม่สำเร็จ ({result.issues.length})</p>
+          <p className="text-xs font-semibold text-amber-800">
+            Pages that could not be opened ({result.issues.length})
+          </p>
           <ul className="mt-1 space-y-0.5">
             {result.issues.slice(0, 5).map((issue, index) => (
               <li key={index} className="truncate text-xs text-amber-700">

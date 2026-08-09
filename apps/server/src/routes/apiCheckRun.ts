@@ -9,7 +9,8 @@ export function registerApiCheckRunRoute(app: FastifyInstance): void {
   app.post('/api/api-check/run', async (request, reply) => {
     const body = request.body as Partial<ApiCheckRunRequest>
     const check = body.apiCheck
-    if (!check?.url) return reply.status(400).send({ error: { code: 'invalid-api-check', message: 'ไม่พบ API Check' } })
+    if (!check?.url)
+      return reply.status(400).send({ error: { code: 'invalid-api-check', message: 'API Check was not found.' } })
     const target = checkTargetUrl(check.url, config.urlPolicy)
     if (!target.ok) return reply.status(400).send({ error: { code: target.code, message: target.message } })
     const method = check.method.toUpperCase()
@@ -25,7 +26,7 @@ export function registerApiCheckRunRoute(app: FastifyInstance): void {
       return reply.send({
         status: 'needs-auth',
         durationMs: 0,
-        message: 'API นี้ต้องใช้ token ตั้งค่า LAZYSCOUT_API_TOKEN ก่อนรัน'
+        message: 'This API requires a token. Set LAZYSCOUT_API_TOKEN before running it.'
       })
     const started = Date.now()
     try {

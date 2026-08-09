@@ -21,8 +21,8 @@ export function toApiError(error: unknown): { status: number; body: ApiErrorResp
     body: {
       error: {
         code: 'internal-error',
-        message: 'เกิดข้อผิดพลาดภายในระบบระหว่างวิเคราะห์เว็บไซต์',
-        hint: 'ลองใหม่อีกครั้ง หรือดู log ของเซิร์ฟเวอร์เพื่อหาสาเหตุ'
+        message: 'An internal error occurred while analyzing the website.',
+        hint: 'Try again, or review the server logs for more details.'
       }
     }
   }

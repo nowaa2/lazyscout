@@ -12,7 +12,7 @@ export function registerAnalyzeRoute(app: FastifyInstance): void {
 
     if (typeof body.url !== 'string' || !body.url.trim()) {
       return reply.status(400).send({
-        error: { code: 'invalid-url', message: 'กรุณาระบุ URL ที่ต้องการวิเคราะห์' }
+        error: { code: 'invalid-url', message: 'Provide a URL to analyze.' }
       })
     }
 
@@ -36,8 +36,8 @@ export function registerAnalyzeRoute(app: FastifyInstance): void {
         const firstIssue = result.issues[0]
         throw new ExplorerError(
           firstIssue?.code ?? 'navigation-failed',
-          firstIssue?.message ?? 'เปิดเว็บไซต์ไม่สำเร็จ',
-          'ตรวจสอบว่า URL ถูกต้องและเว็บไซต์กำลังทำงานอยู่'
+          firstIssue?.message ?? 'Could not open the website.',
+          'Check that the URL is correct and the website is available.'
         )
       }
 

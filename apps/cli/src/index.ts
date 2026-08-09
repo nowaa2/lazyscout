@@ -90,7 +90,7 @@ async function main(): Promise<void> {
     case 'scan': {
       const url = positionals[1]
       if (!url) {
-        console.error('ต้องระบุ URL เช่น: npx lazyscout scan http://localhost:5173')
+        console.error('A URL is required. Example: npx lazyscout scan http://localhost:5173')
         process.exitCode = 1
         return
       }
@@ -105,7 +105,7 @@ async function main(): Promise<void> {
     }
 
     default:
-      console.error(`ไม่รู้จักคำสั่ง "${command}" — ดูวิธีใช้ด้วย: npx lazyscout --help`)
+      console.error(`Unknown command "${command}". Run npx lazyscout --help for usage.`)
       process.exitCode = 1
   }
 }

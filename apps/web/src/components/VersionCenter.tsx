@@ -99,7 +99,7 @@ export function VersionCenter() {
           </div>
 
           <div className="version-list" aria-label="Published LazyScout versions">
-            {info.versions.map((item) => {
+            {info.versions.slice(0, 3).map((item) => {
               const isCurrent = item.version === info.currentVersion
               const isPending = item.version === pendingVersion
               const isInstalling = item.version === installingVersion

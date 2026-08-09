@@ -216,7 +216,7 @@ async function visitPage(page: Page, item: QueueItem, config: ExploreOptions): P
     if (status !== undefined && status >= 400) {
       return {
         kind: 'issue',
-        issue: { url: item.url, code: 'http-error', message: `เซิร์ฟเวอร์ตอบกลับ HTTP ${status}` }
+        issue: { url: item.url, code: 'http-error', message: `The server returned HTTP ${status}.` }
       }
     }
 

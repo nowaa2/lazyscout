@@ -2,7 +2,7 @@
 
 All notable changes to LazyScout are documented in this file.
 
-## [0.3.0] - Unreleased
+## [0.3.1] - 2026-08-09
 
 ### Added
 
@@ -16,6 +16,9 @@ All notable changes to LazyScout are documented in this file.
 
 - Browser `localStorage` is limited to lightweight UI preferences
 - Playwright screenshots are captured only when edited code explicitly calls `page.screenshot()`
+- Project deletion switches the interface immediately and safely waits for pending writes
+- Server, CLI, API, URL validation, Explorer messages, and hardcoded English UI copy are in English
+- Version Center shows the latest three published releases
 
 ## [0.2.0] - 2026-08-09
 

@@ -1,8 +1,8 @@
 {
   "name": "lazyscout-monorepo",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
-  "//": "root ของ monorepo — ไม่ publish ตัวที่ขึ้น npm คือ apps/cli (ชื่อ lazyscout)",
+  "//": "Monorepo root. The published npm package is apps/cli (lazyscout).",
   "type": "module",
   "workspaces": [
     "packages/*",

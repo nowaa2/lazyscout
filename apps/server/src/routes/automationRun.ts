@@ -37,11 +37,17 @@ export function registerAutomationRunRoute(app: FastifyInstance, workspaceRoot: 
     const framework = body.framework ?? 'playwright'
     const runId = body.runId || crypto.randomUUID()
     if (!testCase || !Array.isArray(testCase.steps))
-      return reply.status(400).send({ error: { code: 'invalid-test-case', message: 'ไม่พบ Test Case ที่ต้องการรัน' } })
+      return reply
+        .status(400)
+        .send({ error: { code: 'invalid-test-case', message: 'The requested Test Case was not found.' } })
     if (testCase.steps.length > MAX_STEPS)
-      return reply.status(400).send({ error: { code: 'run-limit', message: 'จำนวน steps เกินขีดจำกัด ' + MAX_STEPS } })
+      return reply
+        .status(400)
+        .send({ error: { code: 'run-limit', message: 'Step count exceeds the limit of ' + MAX_STEPS } })
     if (typeof body.code === 'string' && body.code.length > MAX_SOURCE_LENGTH)
-      return reply.status(400).send({ error: { code: 'source-limit', message: 'Generated source มีขนาดใหญ่เกินไป' } })
+      return reply
+        .status(400)
+        .send({ error: { code: 'source-limit', message: 'Generated source exceeds the size limit.' } })
     const logs: AutomationRunResponse['logs'] = []
     const secretValues = [
       secrets?.email,

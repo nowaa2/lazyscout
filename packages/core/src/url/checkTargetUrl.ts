@@ -34,7 +34,7 @@ export function isCloudMetadataHostname(hostname: string): boolean {
 export function checkTargetUrl(rawUrl: string, policy: UrlPolicy = LOCAL_QA_POLICY): UrlCheckResult {
   const trimmed = rawUrl.trim()
   if (!trimmed) {
-    return { ok: false, code: 'invalid-url', message: 'กรุณาใส่ URL ที่ต้องการวิเคราะห์' }
+    return { ok: false, code: 'invalid-url', message: 'Provide a URL to analyze.' }
   }
 
   const withProtocol = /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed) ? trimmed : `http://${trimmed}`
@@ -43,35 +43,35 @@ export function checkTargetUrl(rawUrl: string, policy: UrlPolicy = LOCAL_QA_POLI
   try {
     url = new URL(withProtocol)
   } catch {
-    return { ok: false, code: 'invalid-url', message: 'รูปแบบ URL ไม่ถูกต้อง' }
+    return { ok: false, code: 'invalid-url', message: 'The URL format is invalid.' }
   }
 
   if (!policy.allowedProtocols.includes(url.protocol)) {
     return {
       ok: false,
       code: 'blocked-url',
-      message: `รองรับเฉพาะ ${policy.allowedProtocols.join(', ')} เท่านั้น (ได้รับ ${url.protocol})`
+      message: `Only ${policy.allowedProtocols.join(', ')} is supported (received ${url.protocol}).`
     }
   }
 
   if (!url.hostname) {
-    return { ok: false, code: 'invalid-url', message: 'URL ไม่มีชื่อโฮสต์' }
+    return { ok: false, code: 'invalid-url', message: 'The URL has no hostname.' }
   }
 
   if (url.username || url.password) {
-    return { ok: false, code: 'blocked-url', message: 'ไม่อนุญาตให้ใส่ credentials ไว้ใน URL' }
+    return { ok: false, code: 'blocked-url', message: 'Credentials in URLs are not allowed.' }
   }
 
   if (!policy.allowCloudMetadata && isCloudMetadataHostname(url.hostname)) {
-    return { ok: false, code: 'blocked-url', message: 'ไม่อนุญาตให้เข้าถึง cloud metadata endpoint' }
+    return { ok: false, code: 'blocked-url', message: 'Cloud metadata endpoints are not allowed.' }
   }
 
   if (!policy.allowLoopback && isLoopbackHostname(url.hostname)) {
-    return { ok: false, code: 'blocked-url', message: 'ไม่อนุญาตให้เข้าถึง localhost' }
+    return { ok: false, code: 'blocked-url', message: 'Localhost is not allowed.' }
   }
 
   if (!policy.allowPrivateNetwork && isPrivateHostname(url.hostname)) {
-    return { ok: false, code: 'blocked-url', message: 'ไม่อนุญาตให้เข้าถึงเครือข่ายภายใน (private IP)' }
+    return { ok: false, code: 'blocked-url', message: 'Private network addresses are not allowed.' }
   }
 
   return { ok: true, url }

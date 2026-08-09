@@ -12,7 +12,7 @@ const pkg = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'))
 try {
   await access(webDist)
 } catch {
-  console.error('ไม่พบ apps/web/dist — ให้รัน "npm run build" จาก root ของ repo แทน')
+  console.error('apps/web/dist was not found. Run "npm run build" from the repository root.')
   process.exit(1)
 }
 
@@ -36,4 +36,4 @@ await build({
 
 await cp(webDist, join(outDir, 'web'), { recursive: true })
 
-console.log(`build เสร็จแล้ว: ${outDir}`)
+console.log(`Build completed: ${outDir}`)

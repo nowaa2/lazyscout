@@ -136,15 +136,27 @@ export function useProjects() {
   }
 
   async function deleteProject(id: string) {
+    const removedIndex = projects.findIndex((project) => project.id === id)
+    const removedProject = projects[removedIndex]
+    if (!removedProject) return
+
+    const remainingProjects = projects.filter((project) => project.id !== id)
     deletingProjectIds.current.add(id)
+    setProjects(remainingProjects)
+    if (activeProjectId === id) setActiveProjectId(remainingProjects[0]?.id)
+
     try {
       await (pendingWrites.current.get(id) ?? Promise.resolve())
       await deleteWorkspaceProject(id)
       removeLegacyProject(id)
-      setProjects((current) => current.filter((project) => project.id !== id))
-      if (activeProjectId === id) setActiveProjectId(undefined)
     } catch (error) {
       deletingProjectIds.current.delete(id)
+      setProjects((current) => {
+        if (current.some((project) => project.id === id)) return current
+        const insertAt = Math.min(removedIndex, current.length)
+        return [...current.slice(0, insertAt), removedProject, ...current.slice(insertAt)]
+      })
+      if (activeProjectId === id) setActiveProjectId(id)
       setWorkspaceError(error instanceof Error ? error.message : String(error))
     }
   }

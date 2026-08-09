@@ -71,7 +71,7 @@ TD_ID, Module, Field, Input_Type, Required, Valid_Value, Invalid_Value, Note, So
 ## GET /api/health
 
 ```json
-{ "status": "ok", "version": "0.3.0", "workspaceRoot": "C:\\Users\\Example\\LazyScout" }
+{ "status": "ok", "version": "0.3.1", "workspaceRoot": "C:\\Users\\Example\\LazyScout" }
 ```
 
 ## GET /api/versions
@@ -81,7 +81,7 @@ TD_ID, Module, Field, Input_Type, Required, Valid_Value, Invalid_Value, Note, So
 ```json
 {
   "packageName": "lazyscout",
-  "currentVersion": "0.3.0",
+  "currentVersion": "0.3.1",
   "latestVersion": "0.2.0",
   "updateAvailable": false,
   "registryAvailable": true,

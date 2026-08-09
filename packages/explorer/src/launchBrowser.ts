@@ -2,7 +2,7 @@ import { chromium, type Browser } from 'playwright-core'
 import { ExplorerError } from './errors.js'
 
 const CANDIDATES = [
-  { channel: undefined, label: 'Chromium ของ Playwright' },
+  { channel: undefined, label: 'Playwright Chromium' },
   { channel: 'chrome', label: 'Google Chrome' },
   { channel: 'msedge', label: 'Microsoft Edge' }
 ] as const

@@ -8,7 +8,7 @@ export function registerExportCsvRoute(app: FastifyInstance): void {
 
     if (!Array.isArray(body.testCases) || body.testCases.length === 0) {
       return reply.status(400).send({
-        error: { code: 'empty-export', message: 'ไม่มี test case สำหรับ export' }
+        error: { code: 'empty-export', message: 'There are no Test Cases to export.' }
       })
     }
 
