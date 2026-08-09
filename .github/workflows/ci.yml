@@ -21,6 +21,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # The recorder tests drive a real browser.
+      - name: Install Chromium
+        run: npx playwright-core install --with-deps --no-progress chromium
+
       - name: Check for committed secrets
         run: npm run check:secrets
 
