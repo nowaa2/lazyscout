@@ -1,4 +1,4 @@
-import type { Browser, Page } from 'playwright-core'
+import type { Page } from 'playwright-core'
 import type {
   ActionGraph,
   ApiObservation,
@@ -6,6 +6,7 @@ import type {
   ExploreOptions,
   ExploreResult,
   PageInfo,
+  PageState,
   StateEdge,
   UrlPolicy
 } from '@lazyscout/core'
@@ -21,7 +22,12 @@ export const DEFAULT_EXPLORE_OPTIONS: ExploreOptions = {
   maxDepth: 3,
   pageTimeoutMs: 20_000,
   totalTimeoutMs: 120_000,
-  waitAfterNavigationMs: 750
+  waitAfterNavigationMs: 750,
+  maxStatesPerPage: 8,
+  maxActionsPerState: 8,
+  maxTotalStates: 80,
+  actionTimeoutMs: 2_000,
+  stateDiscoveryTimeoutMs: 350
 }
 
 type QueueItem = { url: string; depth: number }
@@ -44,13 +50,21 @@ export async function exploreWebsite(
   const issues: ExploreIssue[] = []
   const visited = new Set<string>()
   const queue: QueueItem[] = [{ url: entryUrl, depth: 0 }]
+  const actionGraph: ActionGraph = {
+    states: [],
+    edges: [],
+    visitedStateIds: [],
+    visitedActionKeys: [],
+    failedActionKeys: [],
+    blockedActionKeys: []
+  }
   let urlsSkipped = 0
   let limitReached: ExploreResult['stats']['limitReached'] = 'none'
 
-  const { browser, label: browserLabel }: { browser: Browser; label: string } = await launchBrowser()
+  const launched = await launchBrowser()
+  const { context, label: browserLabel } = launched
 
   try {
-    const context = await browser.newContext({ viewport: { width: 1366, height: 900 } })
     context.setDefaultTimeout(config.pageTimeoutMs)
     const page = await context.newPage()
 
@@ -84,6 +98,8 @@ export async function exploreWebsite(
       }
       visited.add(finalKey)
       pages.push(result.page)
+      addState(actionGraph, result.page.state)
+      await discoverSafeStates(page, result.page, config, origin, actionGraph)
 
       if (item.depth >= config.maxDepth) {
         if (result.page.links.length > 0) limitReached = limitReached === 'none' ? 'max-depth' : limitReached
@@ -102,8 +118,10 @@ export async function exploreWebsite(
       }
     }
   } finally {
-    await browser.close().catch(() => undefined)
+    await launched.close().catch(() => undefined)
   }
+
+  addNavigationEdges(pages, actionGraph)
 
   return {
     startUrl: entryUrl,
@@ -117,68 +135,138 @@ export async function exploreWebsite(
       durationMs: Date.now() - startedAt,
       limitReached
     },
-    actionGraph: buildActionGraph(pages)
+    actionGraph
   }
 }
 
-function buildActionGraph(pages: PageInfo[]): ActionGraph {
-  const states = pages.flatMap((page) => (page.state ? [page.state] : []))
-  const edges: StateEdge[] = []
-  const visitedActionKeys: string[] = []
-  const failedActionKeys: string[] = []
-  const blockedActionKeys: string[] = []
-
+function addNavigationEdges(pages: PageInfo[], graph: ActionGraph): void {
   for (const page of pages) {
-    const state = page.state
-    if (!state) continue
-    const fromStateId = state.id
+    const source = page.state
+    if (!source) continue
     for (const link of page.links) {
       if (!link.href || !link.accessibleName) continue
-      const targetPage = pages.find((candidate) => candidate.url === link.href || candidate.finalUrl === link.href)
-      const action: StateEdge['action'] = {
-        type: 'navigate',
+      const safe = canFollowLink(link.href, link.accessibleName)
+      const target = pages.find((candidate) => candidate.finalUrl === link.href || candidate.url === link.href)?.state
+      const action = {
+        id: `${source.id}|navigate|${link.cssSelector}`,
+        type: 'navigate' as const,
+        description: `Navigate to “${link.accessibleName}”`,
         target: link.accessibleName,
         selector: link.cssSelector,
-        safe: canFollowLink(link.href, link.accessibleName)
+        locator: { role: link.role, name: link.accessibleName },
+        safe,
+        reason: safe ? undefined : 'Unsafe link was discovered but not opened'
       }
-      const key = `${fromStateId}|navigate|${link.cssSelector}`
-      const status = action.safe ? (targetPage ? 'visited' : 'discovered') : 'blocked'
-      edges.push({ fromStateId, toStateId: targetPage?.state?.id, action, status })
-      if (status === 'visited') visitedActionKeys.push(key)
-      if (status === 'blocked') blockedActionKeys.push(key)
-    }
-    for (const interaction of state.interactions) {
-      const destructive = isDestructiveLabel(interaction.name)
-      const type =
-        interaction.kind === 'tab'
-          ? 'selectTab'
-          : interaction.kind === 'accordion'
-            ? 'expandAccordion'
-            : interaction.kind === 'dropdown'
-              ? 'openDropdown'
-              : interaction.expanded
-                ? 'closeDialog'
-                : 'openModal'
-      const key = `${fromStateId}|${type}|${interaction.cssSelector}`
-      const action: StateEdge['action'] = {
-        type,
-        target: interaction.name,
-        selector: interaction.cssSelector,
-        safe: !destructive,
-        reason: destructive ? 'Destructive action was discovered but not executed' : undefined
-      }
-      edges.push({ fromStateId, action, status: destructive ? 'blocked' : 'discovered' })
-      if (destructive) blockedActionKeys.push(key)
+      addEdge(graph, source.id, target?.id, action, safe && target ? 'visited' : safe ? 'discovered' : 'blocked')
+      if (!safe) graph.blockedActionKeys.push(action.id)
     }
   }
+}
+
+function addState(graph: ActionGraph, state: PageState | undefined): void {
+  if (!state || graph.states.some((candidate) => candidate.id === state.id)) return
+  graph.states.push(state)
+  graph.visitedStateIds.push(state.id)
+}
+
+async function discoverSafeStates(
+  page: Page,
+  source: PageInfo,
+  config: ExploreOptions,
+  origin: string,
+  graph: ActionGraph
+): Promise<void> {
+  const initial = source.state
+  if (!initial || graph.states.length >= config.maxTotalStates) return
+  const sourceUrl = source.finalUrl
+  const interactions = initial.interactions.slice(0, config.maxActionsPerState)
+  let statesForPage = 1
+
+  for (const interaction of interactions) {
+    if (statesForPage >= config.maxStatesPerPage || graph.states.length >= config.maxTotalStates) break
+    const action = actionFromInteraction(initial.id, interaction)
+    const actionKey = action.id
+    if (graph.visitedActionKeys.includes(actionKey) || graph.failedActionKeys.includes(actionKey)) continue
+
+    if (!action.safe) {
+      addEdge(graph, initial.id, undefined, action, 'blocked')
+      graph.blockedActionKeys.push(actionKey)
+      continue
+    }
+
+    try {
+      await page.locator(interaction.cssSelector).click({ timeout: config.actionTimeoutMs })
+      await page.waitForTimeout(config.stateDiscoveryTimeoutMs)
+      if (!isSameOrigin(page.url(), origin)) {
+        addEdge(
+          graph,
+          initial.id,
+          undefined,
+          { ...action, safe: false, reason: 'Action left the approved origin' },
+          'blocked'
+        )
+        graph.blockedActionKeys.push(actionKey)
+        continue
+      }
+      const raw = await page.evaluate(collectPageData)
+      const observed = mapToPageModel(raw, {
+        url: page.url(),
+        finalUrl: page.url(),
+        depth: source.depth,
+        statusCode: source.statusCode
+      }).state
+      if (!observed) continue
+      addState(graph, observed)
+      addEdge(graph, initial.id, observed.id, action, 'visited')
+      graph.visitedActionKeys.push(actionKey)
+      if (observed.id !== initial.id) statesForPage += 1
+    } catch (error) {
+      addEdge(graph, initial.id, undefined, action, 'failed')
+      graph.failedActionKeys.push(actionKey)
+    } finally {
+      await page
+        .goto(sourceUrl, { waitUntil: 'domcontentloaded', timeout: config.pageTimeoutMs })
+        .catch(() => undefined)
+      await page.waitForTimeout(Math.min(config.waitAfterNavigationMs, 300))
+    }
+  }
+}
+
+function actionFromInteraction(stateId: string, interaction: PageState['interactions'][number]): StateEdge['action'] {
+  const type =
+    interaction.kind === 'tab'
+      ? 'selectTab'
+      : interaction.kind === 'accordion'
+        ? 'expandAccordion'
+        : interaction.kind === 'dropdown'
+          ? 'openDropdown'
+          : interaction.expanded
+            ? 'closeDialog'
+            : 'openModal'
+  const destructive = isDestructiveLabel(interaction.name)
+  const description = `${type === 'selectTab' ? 'Select' : type === 'expandAccordion' ? 'Expand' : 'Open'} “${interaction.name}”`
   return {
-    states,
-    edges,
-    visitedStateIds: states.map((state) => state.id),
-    visitedActionKeys,
-    failedActionKeys,
-    blockedActionKeys
+    id: `${stateId}|${type}|${interaction.cssSelector}`,
+    type,
+    description,
+    target: interaction.name,
+    selector: interaction.cssSelector,
+    locator: { role: interaction.role, name: interaction.name },
+    safe: !destructive,
+    reason: destructive ? 'Destructive action was discovered but not executed' : undefined
   }
+}
+
+function addEdge(
+  graph: ActionGraph,
+  fromStateId: string,
+  toStateId: string | undefined,
+  action: StateEdge['action'],
+  status: StateEdge['status']
+): void {
+  const id = `${fromStateId}|${action.id}|${toStateId ?? status}`
+  if (graph.edges.some((edge) => edge.id === id)) return
+  graph.edges.push({ id, fromStateId, toStateId, action, status })
 }
 
 type VisitResult = { kind: 'page'; page: PageInfo } | { kind: 'issue'; issue: ExploreIssue }

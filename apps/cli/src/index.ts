@@ -45,7 +45,8 @@ npx lazyscout scan https://example.com --max-pages 10 --csv report.csv
 
 Explorer Behavior
 LazyScout only explores URLs within the same origin.
-It currently follows links only and does not click buttons or submit forms.
+It follows links and tries a small, safe set of UI controls such as tabs and dialogs.
+It never submits forms or fills credentials automatically.
 `
 
 async function main(): Promise<void> {

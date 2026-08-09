@@ -7,13 +7,52 @@ document.addEventListener('click', (event) => {
 })
 document.querySelectorAll('[data-tabs]').forEach((tabs) => {
   tabs.addEventListener('click', (event) => {
-    const button = event.target.closest('[data-tab]'); if (!button) return
+    const button = event.target.closest('[data-tab]')
+    if (!button) return
     tabs.querySelectorAll('[data-tab]').forEach((item) => item.classList.toggle('active', item === button))
     const root = tabs.parentElement
-    root.querySelectorAll('[data-panel]').forEach((panel) => panel.classList.toggle('hidden', panel.dataset.panel !== button.dataset.tab))
+    root
+      .querySelectorAll('[data-panel]')
+      .forEach((panel) => panel.classList.toggle('hidden', panel.dataset.panel !== button.dataset.tab))
   })
 })
-document.querySelectorAll('[data-accordion]').forEach((item) => item.addEventListener('click', () => item.toggleAttribute('open')))
+document
+  .querySelectorAll('[data-accordion]')
+  .forEach((item) => item.addEventListener('click', () => item.toggleAttribute('open')))
+const loginForm = document.querySelector('form[aria-label="Login form"]')
+if (loginForm)
+  loginForm.addEventListener('submit', (event) => {
+    const password = document.querySelector('#password')
+    const error = document.querySelector('#login-error')
+    if (password?.value === '123456789') return
+    event.preventDefault()
+    password?.setAttribute('aria-invalid', 'true')
+    if (error) {
+      error.textContent = 'Invalid password. Try the demo password 123456789.'
+      error.classList.remove('hidden')
+    }
+  })
 const apiStatus = document.querySelector('[data-api-status]')
-if (apiStatus) fetch('/api/health.json').then((response) => response.json()).then((data) => { apiStatus.textContent = `API ${data.status.toUpperCase()} · ${data.service}` }).catch(() => { apiStatus.textContent = 'API unavailable' })
-if (location.pathname === '/dashboard' && !apiStatus) { const status = document.createElement('span'); status.className = 'pill'; status.textContent = 'Checking API…'; document.querySelector('.dashboard-head > div')?.append(status); fetch('/api/health.json').then((response) => response.json()).then((data) => { status.textContent = `API ${data.status.toUpperCase()} · ${data.service}` }).catch(() => { status.textContent = 'API unavailable' }) }
+if (apiStatus)
+  fetch('/api/health.json')
+    .then((response) => response.json())
+    .then((data) => {
+      apiStatus.textContent = `API ${data.status.toUpperCase()} · ${data.service}`
+    })
+    .catch(() => {
+      apiStatus.textContent = 'API unavailable'
+    })
+if (location.pathname === '/dashboard' && !apiStatus) {
+  const status = document.createElement('span')
+  status.className = 'pill'
+  status.textContent = 'Checking API…'
+  document.querySelector('.dashboard-head > div')?.append(status)
+  fetch('/api/health.json')
+    .then((response) => response.json())
+    .then((data) => {
+      status.textContent = `API ${data.status.toUpperCase()} · ${data.service}`
+    })
+    .catch(() => {
+      status.textContent = 'API unavailable'
+    })
+}

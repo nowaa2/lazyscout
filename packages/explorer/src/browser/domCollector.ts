@@ -145,6 +145,11 @@ export function collectPageData(): RawPageData {
   function isCollectable(el: Element): boolean {
     if (el.closest('[aria-hidden="true"]')) return false
     if (el instanceof HTMLInputElement && el.type === 'hidden') return false
+    if (el instanceof HTMLElement) {
+      const style = window.getComputedStyle(el)
+      if (el.hidden || style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return false
+      if (el.getClientRects().length === 0) return false
+    }
     return true
   }
 
@@ -201,26 +206,51 @@ export function collectPageData(): RawPageData {
     textareas: collect('textarea', 'textarea', 'textbox'),
     selects: collect('select', 'select', 'combobox'),
     forms,
-    visibleDialogs: Array.from(document.querySelectorAll('[role="dialog"], dialog[open], [aria-modal="true"]'))
+    visibleDialogs: Array.from(
+      document.querySelectorAll(
+        '[role="dialog"], dialog[open], [aria-modal="true"], .modal-backdrop:not(.hidden), .modal:not(.hidden), .drawer:not(.hidden)'
+      )
+    )
       .filter(isCollectable)
-      .map((element) => accessibleName(element) || cleanText(element.textContent).slice(0, 120))
+      .map(
+        (element) =>
+          accessibleName(element) ||
+          cleanText(element.querySelector('h1, h2, h3')?.textContent) ||
+          cleanText(element.textContent).slice(0, 120)
+      )
       .filter(Boolean)
       .slice(0, 20),
     interactions: Array.from(
-      document.querySelectorAll('[role="tab"], [role="tablist"] [aria-controls], [aria-expanded], select')
+      document.querySelectorAll(
+        '[role="tab"], [role="tablist"] [aria-controls], [aria-expanded], [aria-haspopup], [data-toggle], [data-bs-toggle], [data-modal], [data-drawer], [data-tab], details[data-accordion], select'
+      )
     )
       .filter(isCollectable)
       .map((element) => {
         const role = attr(element, 'role') || (element instanceof HTMLSelectElement ? 'combobox' : 'button')
         const expanded = element.getAttribute('aria-expanded')
-        const kind: 'dialog' | 'tab' | 'accordion' | 'dropdown' =
-          role === 'tab'
+        const popup = element.getAttribute('aria-haspopup')
+        const toggle = element.getAttribute('data-toggle') || element.getAttribute('data-bs-toggle')
+        const dataModal = element.hasAttribute('data-modal')
+        const dataDrawer = element.hasAttribute('data-drawer')
+        const dataTab = element.hasAttribute('data-tab')
+        const accordion = element.matches('details[data-accordion]')
+        const kind: 'dialog' | 'tab' | 'accordion' | 'dropdown' | 'drawer' | 'popover' =
+          role === 'tab' || dataTab
             ? 'tab'
-            : element instanceof HTMLSelectElement
-              ? 'dropdown'
-              : element.matches('[aria-expanded]')
-                ? 'accordion'
-                : 'dialog'
+            : dataDrawer
+              ? 'drawer'
+              : popup === 'dialog' || toggle === 'modal' || dataModal
+                ? 'dialog'
+                : popup === 'menu' || popup === 'listbox' || toggle === 'dropdown'
+                  ? 'dropdown'
+                  : accordion
+                    ? 'accordion'
+                    : element instanceof HTMLSelectElement
+                      ? 'dropdown'
+                      : element.matches('[aria-expanded]')
+                        ? 'accordion'
+                        : 'dialog'
         return {
           kind,
           name: accessibleName(element),
@@ -236,6 +266,13 @@ export function collectPageData(): RawPageData {
       .filter(isCollectable)
       .map((element) => cleanText(element.textContent))
       .filter(Boolean)
-      .slice(0, 30)
+      .slice(0, 30),
+    validationMessages: Array.from(
+      document.querySelectorAll('[role="alert"], [aria-invalid="true"], .error, .errors, .invalid-feedback')
+    )
+      .filter(isCollectable)
+      .map((element) => cleanText(element.textContent))
+      .filter(Boolean)
+      .slice(0, 20)
   }
 }

@@ -22,7 +22,8 @@ export function fingerprintState(input: Omit<PageState, 'fingerprint' | 'id'>): 
       expanded,
       visible
     })),
-    stateContent: [...input.stateContent].sort()
+    stateContent: [...input.stateContent].sort(),
+    validationMessages: [...input.validationMessages].sort()
   })
   let hash = 2166136261
   for (let index = 0; index < canonical.length; index += 1) {

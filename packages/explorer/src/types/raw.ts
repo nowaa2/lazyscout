@@ -37,6 +37,7 @@ export type RawPageData = {
   selects: RawElement[]
   forms: RawForm[]
   visibleDialogs: string[]
+  validationMessages: string[]
   interactions: UIInteraction[]
   stateContent: string[]
 }

@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify'
-import type { ApiCheck, AnalyzeRequest, AnalyzeResponse } from '@lazyscout/core'
+import type { ActionGraph, ApiCheck, AnalyzeRequest, AnalyzeResponse, PageState, TestCase } from '@lazyscout/core'
 import { checkTargetUrl, redactSensitiveText } from '@lazyscout/core'
 import { ExplorerError, exploreWebsite } from '@lazyscout/explorer'
 import { generateTestCases, generateTestData } from '@lazyscout/generators'
@@ -41,7 +41,10 @@ export function registerAnalyzeRoute(app: FastifyInstance): void {
         )
       }
 
-      const testCases = generateTestCases(result.pages, { language: body.language ?? 'en' })
+      const testCases = [
+        ...generateTestCases(result.pages, { language: body.language ?? 'en' }),
+        ...generateStateFlowTestCases(result.actionGraph)
+      ]
       const runEvents = [
         {
           timestamp: new Date(Date.now() - result.stats.durationMs).toISOString(),
@@ -71,6 +74,37 @@ export function registerAnalyzeRoute(app: FastifyInstance): void {
             message: `${interaction.kind}: ${interaction.name}`
           }))
         ]),
+        ...result.actionGraph.states.map((state) => ({
+          timestamp: state.discoveredAt,
+          eventType: 'state-discovered' as const,
+          currentUrl: state.url,
+          currentStateId: state.id,
+          result: 'passed' as const,
+          message: `State observed: ${state.name || state.title || state.url}`
+        })),
+        ...result.actionGraph.edges.map((edge) => ({
+          timestamp: new Date().toISOString(),
+          eventType:
+            edge.status === 'blocked'
+              ? ('action-blocked' as const)
+              : edge.status === 'failed'
+                ? ('action-failed' as const)
+                : edge.status === 'visited'
+                  ? ('action-executed' as const)
+                  : ('transition-discovered' as const),
+          currentUrl: result.actionGraph.states.find((state) => state.id === edge.fromStateId)?.url,
+          currentStateId: edge.fromStateId,
+          action: edge.action,
+          result:
+            edge.status === 'blocked'
+              ? ('blocked' as const)
+              : edge.status === 'failed'
+                ? ('failed' as const)
+                : edge.status === 'visited'
+                  ? ('passed' as const)
+                  : ('warning' as const),
+          message: edge.action.description
+        })),
         ...result.issues.map((issue) => ({
           timestamp: new Date().toISOString(),
           eventType: 'error' as const,
@@ -109,6 +143,55 @@ export function registerAnalyzeRoute(app: FastifyInstance): void {
       return reply.status(status).send(errorBody)
     }
   })
+}
+
+function generateStateFlowTestCases(graph: ActionGraph): TestCase[] {
+  const states = new Map(graph.states.map((state) => [state.id, state]))
+  let sequence = 1
+  return graph.edges.flatMap((edge) => {
+    if (edge.status !== 'visited' || !edge.toStateId || edge.fromStateId === edge.toStateId) return []
+    const target = states.get(edge.toStateId)
+    const source = states.get(edge.fromStateId)
+    if (!target || !source) return []
+    const observation = expectedObservation(target)
+    const id = `TC-FLOW-${String(sequence).padStart(3, '0')}`
+    sequence += 1
+    return [
+      {
+        id,
+        module: 'FLOW',
+        tags: ['state-flow'],
+        title: `${edge.action.description} reaches ${target.name}`,
+        preconditions: [`The application is available at ${source.url}`],
+        steps: [
+          { type: 'navigate' as const, url: source.url },
+          {
+            type: 'click' as const,
+            target: {
+              role: edge.action.locator?.role,
+              name: edge.action.locator?.name,
+              cssSelector: edge.action.selector
+            }
+          }
+        ],
+        expectedResult: observation ?? 'Observed state requires tester review before automation.',
+        type: target.type === 'validation' || target.type === 'error' ? 'validation' : 'positive',
+        priority: 'medium',
+        automationStatus: observation ? 'ready' : 'needs-review',
+        sourceUrl: source.url,
+        notes: observation
+          ? 'Generated from an observed UI state transition.'
+          : 'Explorer observed a new UI state but no stable assertion text.'
+      }
+    ]
+  })
+}
+
+function expectedObservation(state: PageState): string | undefined {
+  if (state.visibleDialogs[0]) return `Dialog "${state.visibleDialogs[0]}" is visible.`
+  if (state.validationMessages[0]) return `Validation message "${state.validationMessages[0]}" is visible.`
+  if (state.headings[0]) return `Heading "${state.headings[0]}" is visible.`
+  return undefined
 }
 
 function buildApiChecks(pages: AnalyzeResponse['pages']): ApiCheck[] {

@@ -11,13 +11,13 @@ import { checkTargetUrl, redactSensitiveText, redactUrl } from '@lazyscout/core'
 import { isDestructiveLabel, launchBrowser } from '@lazyscout/explorer'
 import type { Locator, Page } from 'playwright-core'
 import { config } from '../config.js'
-import { saveRunLog } from '../workspace.js'
+import { browserProfileDirectory, saveRunLog } from '../workspace.js'
 
 const MAX_STEPS = 100
 const MAX_LOGS = 250
 const MAX_SOURCE_LENGTH = 200_000
 const STEP_TIMEOUT_MS = 20_000
-type ActiveRun = { browser?: Awaited<ReturnType<typeof launchBrowser>>['browser']; stopped: boolean }
+type ActiveRun = { close?: () => Promise<void>; stopped: boolean }
 const activeRuns = new Map<string, ActiveRun>()
 
 export function registerAutomationRunRoute(app: FastifyInstance, workspaceRoot: string): void {
@@ -27,7 +27,7 @@ export function registerAutomationRunRoute(app: FastifyInstance, workspaceRoot: 
     const active = activeRuns.get(runId)
     if (!active) return reply.send({ stopped: false })
     active.stopped = true
-    await active.browser?.close().catch(() => undefined)
+    await active.close?.().catch(() => undefined)
     return reply.send({ stopped: true })
   })
   app.post('/api/automation/run', async (request, reply) => {
@@ -93,15 +93,16 @@ export function registerAutomationRunRoute(app: FastifyInstance, workspaceRoot: 
     }
     const active: ActiveRun = { stopped: false }
     activeRuns.set(runId, active)
-    let browser: Awaited<ReturnType<typeof launchBrowser>>['browser'] | undefined
+    let close: (() => Promise<void>) | undefined
     let page: Page | undefined
     const capturedScreenshots: AutomationScreenshot[] = []
     try {
-      const launched = await launchBrowser()
-      browser = launched.browser
-      active.browser = browser
+      const profile = body.projectId ? await browserProfileDirectory(workspaceRoot, body.projectId) : undefined
+      const launched = await launchBrowser({ userDataDir: profile })
+      close = launched.close
+      active.close = close
       if (active.stopped) throw new Error('Run stopped by user')
-      const context = await browser.newContext({ viewport: { width: 1366, height: 900 } })
+      const { context } = launched
       context.setDefaultTimeout(STEP_TIMEOUT_MS)
       page = await context.newPage()
       if (typeof body.code === 'string' && body.code.trim()) {
@@ -147,7 +148,7 @@ export function registerAutomationRunRoute(app: FastifyInstance, workspaceRoot: 
       })
     } finally {
       activeRuns.delete(runId)
-      await browser?.close().catch(() => undefined)
+      await close?.().catch(() => undefined)
     }
   })
 }
@@ -401,6 +402,12 @@ function parseEditedLocator(page: Page, expression: string): { locator: Locator;
     const role = parseStringLiteral(roleMatch[1])
     const name = parseStringLiteral(roleMatch[2])
     return { locator: page.getByRole(role as any, { name }), label: name }
+  }
+
+  const roleOnlyMatch = expression.match(new RegExp(`^page\\.getByRole\\((${STRING_LITERAL})\\)$`))
+  if (roleOnlyMatch) {
+    const role = parseStringLiteral(roleOnlyMatch[1])
+    return { locator: page.getByRole(role as any), label: role }
   }
 
   for (const [method, create] of [

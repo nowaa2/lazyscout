@@ -1,4 +1,11 @@
-import { fingerprintState, stateId, type FormInfo, type PageInfo, type UIElement } from '@lazyscout/core'
+import {
+  fingerprintState,
+  stateId,
+  type FormInfo,
+  type PageInfo,
+  type PageState,
+  type UIElement
+} from '@lazyscout/core'
 import type { RawElement, RawForm, RawPageData } from './types/raw.js'
 import { isDestructiveLabel } from './safety.js'
 
@@ -31,16 +38,7 @@ export function mapToPageModel(
   const textareas = raw.textareas.map(toUIElement)
   const selects = raw.selects.map(toUIElement)
   const controls = [...links, ...buttons, ...inputs, ...textareas, ...selects]
-  const stateInput = {
-    url: meta.finalUrl,
-    title: raw.title,
-    visibleDialogs: raw.visibleDialogs,
-    headings: raw.headings,
-    controls,
-    interactions: raw.interactions,
-    stateContent: raw.stateContent
-  }
-  const fingerprint = fingerprintState(stateInput)
+  const state = createPageState(raw, meta.finalUrl, controls)
   return {
     url: meta.url,
     finalUrl: meta.finalUrl,
@@ -55,6 +53,36 @@ export function mapToPageModel(
     selects,
     forms: raw.forms.map(toFormInfo),
     apiRequests: meta.apiRequests ?? [],
-    state: { id: stateId(meta.finalUrl, fingerprint), ...stateInput, fingerprint }
+    state
   }
+}
+
+export function createPageState(raw: RawPageData, url: string, controls: UIElement[]): PageState {
+  const stateInput: Omit<PageState, 'id' | 'fingerprint'> = {
+    url,
+    title: raw.title,
+    name: stateName(raw, url),
+    type: stateType(raw),
+    discoveredAt: new Date().toISOString(),
+    visibleDialogs: raw.visibleDialogs,
+    headings: raw.headings,
+    controls,
+    interactions: raw.interactions,
+    stateContent: raw.stateContent,
+    validationMessages: raw.validationMessages
+  }
+  const fingerprint = fingerprintState(stateInput)
+  return { id: stateId(url, fingerprint), ...stateInput, fingerprint }
+}
+
+function stateName(raw: RawPageData, url: string): string {
+  if (raw.visibleDialogs[0]) return raw.visibleDialogs[0]
+  if (raw.validationMessages[0]) return raw.validationMessages[0]
+  return raw.title || new URL(url).pathname || 'Page'
+}
+
+function stateType(raw: RawPageData): PageState['type'] {
+  if (raw.visibleDialogs.length) return 'dialog'
+  if (raw.validationMessages.length) return 'validation'
+  return 'page'
 }

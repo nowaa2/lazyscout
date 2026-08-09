@@ -3,6 +3,7 @@ import { generateCypressTest, generatePlaywrightTest } from '@lazyscout/generato
 import type { ProjectSecrets, TestCase } from '../types'
 import { getWorkspaceAutomation, runAutomation, saveWorkspaceAutomation, stopAutomation } from '../api/client'
 import { CodeEditor } from './CodeEditor'
+import { QaGuidance } from './QaGuidance'
 
 type Framework = 'playwright' | 'cypress'
 type RunStatus = 'passed' | 'failed' | 'pending'
@@ -292,6 +293,13 @@ export function GeneratedTests({
           )}
         </div>
       </div>
+      <QaGuidance
+        sourceUrl={selected?.sourceUrl}
+        onUse={(code) => {
+          setDraftCode(code)
+          setEditing(true)
+        }}
+      />
       <div className="automation-layout">
         <aside className="automation-case-list">
           <div className="automation-filter-head">

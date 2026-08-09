@@ -1,5 +1,5 @@
 export type UIElementKind = 'link' | 'button' | 'input' | 'textarea' | 'select'
-export type UIInteractionKind = 'dialog' | 'tab' | 'accordion' | 'dropdown'
+export type UIInteractionKind = 'dialog' | 'tab' | 'accordion' | 'dropdown' | 'drawer' | 'popover'
 export type UIInteraction = {
   kind: UIInteractionKind
   name: string
@@ -75,15 +75,25 @@ export type ApiObservation = {
 }
 
 export type ExplorerActionType =
-  'navigate' | 'click' | 'openModal' | 'closeDialog' | 'selectTab' | 'expandAccordion' | 'openDropdown'
+  'navigate' | 'click' | 'openModal' | 'closeDialog' | 'selectTab' | 'expandAccordion' | 'openDropdown' | 'other'
 export type ExplorerAction = {
+  id: string
   type: ExplorerActionType
+  description: string
   target?: string
   selector?: string
+  locator?: {
+    role?: string
+    name?: string
+    label?: string
+    placeholder?: string
+    testId?: string
+  }
   safe: boolean
   reason?: string
 }
 export type StateEdge = {
+  id: string
   fromStateId: string
   toStateId?: string
   action: ExplorerAction
@@ -103,8 +113,12 @@ export type RunEvent = {
     | 'run-started'
     | 'page-discovered'
     | 'state-discovered'
+    | 'state-revisited'
+    | 'transition-discovered'
     | 'action-discovered'
+    | 'action-executed'
     | 'action-blocked'
+    | 'action-failed'
     | 'run-completed'
     | 'error'
   currentUrl?: string
@@ -120,12 +134,16 @@ export type PageState = {
   id: string
   url: string
   title: string
+  name: string
+  type: 'page' | UIInteractionKind | 'validation' | 'loading' | 'success' | 'error' | 'unknown'
   fingerprint: string
   visibleDialogs: string[]
   headings: string[]
   controls: UIElement[]
   interactions: UIInteraction[]
   stateContent: string[]
+  validationMessages: string[]
+  discoveredAt: string
 }
 
 export type ExploreIssueCode =
@@ -157,6 +175,11 @@ export type ExploreOptions = {
 
   totalTimeoutMs: number
   waitAfterNavigationMs: number
+  maxStatesPerPage: number
+  maxActionsPerState: number
+  maxTotalStates: number
+  actionTimeoutMs: number
+  stateDiscoveryTimeoutMs: number
 }
 
 export type ExploreStats = {
