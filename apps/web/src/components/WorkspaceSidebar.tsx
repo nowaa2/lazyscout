@@ -85,7 +85,11 @@ export function WorkspaceSidebar({
               </form>
             ) : (
               <>
-                <button type="button" onClick={() => onSelect(project.id)} title={project.name}>
+                <button
+                  type="button"
+                  onClick={() => onSelect(project.id)}
+                  title={project.targetUrl ? `${project.name}\n${project.targetUrl}` : project.name}
+                >
                   <span className="project-icon">◈</span>
                   <span className="project-copy">
                     <b>{project.name}</b>

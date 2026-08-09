@@ -342,20 +342,26 @@ body {
   .project-item > button:first-child {
     @apply flex min-w-0 flex-1 items-center gap-2 px-2 py-2 text-left;
   }
+  /* A flex child defaults to min-width:auto and refuses to shrink below its
+     content, so truncate on the text inside does nothing until the wrapper is
+     allowed to shrink. A project named after a long URL overflowed the bar. */
+  .project-copy {
+    @apply block min-w-0 flex-1;
+  }
   .project-item b {
     @apply block truncate text-xs font-medium text-slate-200;
   }
   .project-item small {
-    @apply block max-w-[145px] truncate text-[9px] text-slate-500;
+    @apply block truncate text-[9px] text-slate-500;
   }
   .project-icon {
-    @apply text-blue-400;
+    @apply shrink-0 text-blue-400;
   }
   .project-more {
     @apply px-2 text-slate-500 hover:text-red-300;
   }
   .project-actions {
-    @apply relative;
+    @apply relative shrink-0;
   }
   .project-action-menu {
     @apply absolute right-0 z-30 mt-1 min-w-24 rounded-lg border border-slate-700 bg-slate-900 p-1 shadow-xl;
@@ -386,8 +392,11 @@ body {
   .file-item {
     @apply flex items-center gap-2 rounded px-2 py-1.5 text-xs text-slate-400;
   }
+  .file-name {
+    @apply min-w-0 flex-1 truncate;
+  }
   .file-item small {
-    @apply ml-auto text-[9px] text-slate-600;
+    @apply ml-auto shrink-0 text-[9px] text-slate-600;
   }
   .sidebar-bottom {
     @apply mt-auto border-t border-slate-800 px-2 pt-3 text-[10px] leading-5 text-slate-500;
@@ -860,10 +869,13 @@ body {
     @apply flex items-center justify-between gap-3;
   }
   .workspace-copy {
-    @apply min-w-0 cursor-pointer border-0 bg-transparent p-0 text-left text-inherit;
+    @apply min-w-0 flex-1 cursor-pointer border-0 bg-transparent p-0 text-left text-inherit;
+  }
+  .workspace-copy b {
+    @apply truncate;
   }
   .workspace-language-row small {
-    @apply mt-1 block max-w-[150px] truncate text-[9px] text-slate-400;
+    @apply mt-1 block truncate text-[9px] text-slate-400;
   }
   .language-circle {
     @apply flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-[10px] font-semibold shadow-sm transition hover:scale-105 hover:border-indigo-300;
