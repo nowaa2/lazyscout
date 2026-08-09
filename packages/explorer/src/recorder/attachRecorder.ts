@@ -116,8 +116,19 @@ export async function attachRecorder(
 
   // Tracked separately from the step list: a trailing navigation becomes an
   // assertion rather than another navigate step.
+  // addInitScript does not reach the first document of a popup opened with
+  // window.open(): Playwright creates the page object after that document has
+  // already started. An SSO consent window would therefore record nothing.
+  // The binding is present regardless, so evaluating the script by hand closes
+  // the gap. The script marks the document, so this never attaches twice.
+  const inject = (page: Page): void => {
+    void page.evaluate(recorderInitScript).catch(() => undefined)
+  }
+
   const watchPage = (page: Page): void => {
     sawPage = true
+    inject(page)
+    page.on('domcontentloaded', () => inject(page))
     page.on('framenavigated', (frame) => {
       if (frame !== page.mainFrame()) return
       const url = frame.url()

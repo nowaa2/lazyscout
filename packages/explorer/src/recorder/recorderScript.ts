@@ -9,12 +9,16 @@
  * {{TEST_PASSWORD}} placeholder.
  */
 export function recorderInitScript(): void {
-  const scope = window as unknown as {
-    __lazyscoutRecord?: (event: unknown) => Promise<void>
-    __lazyscoutRecorderReady?: boolean
-  }
-  if (scope.__lazyscoutRecorderReady) return
-  scope.__lazyscoutRecorderReady = true
+  const scope = window as unknown as { __lazyscoutRecord?: (event: unknown) => Promise<void> }
+  // Marked on the document, not the window. window.open() creates a popup on
+  // about:blank and keeps the same window object when it navigates, so a
+  // window-level flag would survive into the real document and make this
+  // script return before attaching any listener. Every SSO popup would then
+  // record nothing. A document is replaced on navigation, so it is the
+  // correct scope for "already attached".
+  const marker = document as unknown as { __lazyscoutRecorderReady?: boolean }
+  if (marker.__lazyscoutRecorderReady) return
+  marker.__lazyscoutRecorderReady = true
 
   const CLICKABLE =
     'a,button,input,select,textarea,[role="button"],[role="link"],[role="tab"],[role="menuitem"],[role="checkbox"],[role="radio"],[role="option"]'
@@ -159,6 +163,56 @@ export function recorderInitScript(): void {
     true
   )
 
+  // A text field only fires 'change' when it loses focus, so a value typed
+  // into the last field before the window is closed would never be recorded.
+  // 'input' is debounced as a backstop; the dedupe on the Node side collapses
+  // the two into one step.
+  const pendingFlush = new WeakMap<Element, ReturnType<typeof setTimeout>>()
+
+  const flushField = (element: Element): void => {
+    const timer = pendingFlush.get(element)
+    if (timer !== undefined) {
+      clearTimeout(timer)
+      pendingFlush.delete(element)
+    }
+    const tag = element.tagName.toLowerCase()
+    if (tag === 'textarea') {
+      send({
+        kind: 'fill',
+        target: targetOf(element),
+        value: (element as HTMLTextAreaElement).value.slice(0, 200),
+        url: location.href
+      })
+      return
+    }
+    if (tag !== 'input') return
+    const input = element as HTMLInputElement
+    const type = inputType(element)
+    if (NON_TEXT_INPUTS.includes(type)) return
+    if (type === 'password') {
+      send({ kind: 'fill', target: targetOf(element), value: '', secret: true, url: location.href })
+      return
+    }
+    send({ kind: 'fill', target: targetOf(element), value: input.value.slice(0, 200), url: location.href })
+  }
+
+  document.addEventListener(
+    'input',
+    (event) => {
+      const element = event.target instanceof Element ? event.target : null
+      if (!element) return
+      const tag = element.tagName.toLowerCase()
+      if (tag !== 'input' && tag !== 'textarea') return
+      const existing = pendingFlush.get(element)
+      if (existing !== undefined) clearTimeout(existing)
+      pendingFlush.set(
+        element,
+        setTimeout(() => flushField(element), 400)
+      )
+    },
+    true
+  )
+
   document.addEventListener(
     'change',
     (event) => {
@@ -178,29 +232,15 @@ export function recorderInitScript(): void {
         return
       }
 
-      if (tag === 'textarea') {
-        send({
-          kind: 'fill',
-          target: targetOf(element),
-          value: (element as HTMLTextAreaElement).value.slice(0, 200),
-          url: location.href
-        })
-        return
-      }
-
-      if (tag !== 'input') return
-      const input = element as HTMLInputElement
-      const type = inputType(element)
-      if (NON_TEXT_INPUTS.includes(type)) return
-
-      if (type === 'password') {
-        // The typed value is deliberately not read.
-        send({ kind: 'fill', target: targetOf(element), value: '', secret: true, url: location.href })
-        return
-      }
-
-      send({ kind: 'fill', target: targetOf(element), value: input.value.slice(0, 200), url: location.href })
+      flushField(element)
     },
     true
   )
+
+  // Last line of defence: commit whatever is still pending before the document
+  // goes away, which covers closing the window straight after typing.
+  window.addEventListener('pagehide', () => {
+    const active = document.activeElement
+    if (active) flushField(active)
+  })
 }
