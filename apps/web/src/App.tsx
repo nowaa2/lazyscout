@@ -26,6 +26,7 @@ import { LoadTest } from './components/LoadTest'
 import { ScoutNotice } from './components/ScoutNotice'
 import { ApiError, downloadTestCasesCsv } from './api/client'
 import { useAnalyze } from './hooks/useAnalyze'
+import { useClickFilter } from './hooks/useClickFilter'
 import { useTestCases } from './hooks/useTestCases'
 import { useTestData } from './hooks/useTestData'
 import { useProjects } from './hooks/useProjects'
@@ -62,6 +63,7 @@ export default function App() {
   } = useProjects()
   const activeProject = projects.find((project) => project.id === activeProjectId)
   const { secrets, saveSecrets, clearSecrets } = useProjectSecrets(activeProjectId)
+  const { filter: clickFilter, blockedKeywords, save: saveClickFilter } = useClickFilter(activeProjectId)
   const result = activeProject?.result ?? analysisResult
   const {
     testCases,
@@ -172,7 +174,15 @@ export default function App() {
     includeApiChecks: boolean,
     waitAfterNavigationMs: number
   ) {
-    const analyzed = await analyze(url, maxPages, maxDepth, language, includeApiChecks, waitAfterNavigationMs)
+    const analyzed = await analyze(
+      url,
+      maxPages,
+      maxDepth,
+      language,
+      includeApiChecks,
+      waitAfterNavigationMs,
+      blockedKeywords
+    )
     if (analyzed) {
       saveProject(url, analyzed, undefined, activeProject?.targetUrl ? undefined : activeProjectId)
       const controls = analyzed.pages.reduce(
@@ -319,6 +329,7 @@ export default function App() {
                   testCases={testCases}
                   projectId={activeProjectId}
                   secrets={secrets}
+                  blockedKeywords={blockedKeywords}
                   onRunStatus={(id, status) => setExecutionStatuses((current) => ({ ...current, [id]: status }))}
                   onRunResult={(id, result) => {
                     setRunResults((current) => ({
@@ -514,6 +525,8 @@ export default function App() {
             onClear={clearSecrets}
             onClose={() => setSettingsOpen(false)}
             onSaveRecording={handleSaveRecording}
+            clickFilter={clickFilter}
+            onChangeClickFilter={saveClickFilter}
           />
         )}
         {screenshotOpen && (

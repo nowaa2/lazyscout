@@ -74,6 +74,25 @@ describe('RecorderSessions', () => {
     expect(second.steps).toEqual(first.steps)
   }, 60_000)
 
+  it('forgets a finished session once it is discarded', async () => {
+    const sessions = new RecorderSessions(launchHeadless)
+    await sessions.start(PROJECT, 'about:blank')
+    await sessions.stop(PROJECT)
+
+    expect((await sessions.discard(PROJECT)).status).toBe('idle')
+    expect(sessions.state(PROJECT).status).toBe('idle')
+    expect(sessions.state(PROJECT).steps).toEqual([])
+  }, 60_000)
+
+  it('discarding closes a recording that is still running', async () => {
+    const sessions = new RecorderSessions(launchHeadless)
+    await sessions.start(PROJECT, 'about:blank')
+
+    await sessions.discard(PROJECT)
+    expect(sessions.isRunning(PROJECT)).toBe(false)
+    expect(sessions.state(PROJECT).status).toBe('idle')
+  }, 60_000)
+
   it('stopping an unknown Project is a no-op', async () => {
     const sessions = new RecorderSessions(launchHeadless)
     expect((await sessions.stop('never-started')).status).toBe('idle')

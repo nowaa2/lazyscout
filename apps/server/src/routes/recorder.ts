@@ -63,6 +63,10 @@ export function registerRecorderRoutes(
     reply.send(await sessions.stop(request.params.projectId))
   )
 
+  app.delete<{ Params: { projectId: string } }>('/api/recorder/:projectId', async (request, reply) =>
+    reply.send(await sessions.discard(request.params.projectId))
+  )
+
   app.addHook('onClose', async () => {
     await sessions.closeAll()
   })

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { RecorderState } from '../types'
-import { getRecorderState, startRecorder, stopRecorder } from '../api/client'
+import { discardRecorder, getRecorderState, startRecorder, stopRecorder } from '../api/client'
 
 const POLL_INTERVAL_MS = 1000
 /** Stop polling rather than hammering a server that is not answering. */
@@ -21,7 +21,9 @@ export function useRecorder(projectId?: string) {
   const [dismissed, setDismissed] = useState(false)
 
   // Reopening the panel must find a recording that is still running, otherwise
-  // Start would fail with recorder-busy and the browser would be orphaned.
+  // Start would fail with recorder-busy and the browser would be orphaned. A
+  // session that already finished is dropped instead: showing its steps again
+  // would offer to save a Test Case that was saved on the previous visit.
   useEffect(() => {
     if (!projectId) return
     let active = true
@@ -30,7 +32,11 @@ export function useRecorder(projectId?: string) {
     setDismissed(false)
     void getRecorderState(projectId)
       .then((next) => {
-        if (active && next.status !== 'idle') setState(next)
+        if (next.status === 'stopped') {
+          void discardRecorder(projectId).catch(() => undefined)
+          return
+        }
+        if (active && next.status === 'recording') setState(next)
       })
       .catch(() => undefined)
     return () => {
@@ -106,6 +112,9 @@ export function useRecorder(projectId?: string) {
     setState(idle(projectId ?? ''))
     setError(undefined)
     setDismissed(false)
+    // The server keeps the finished session until it is told the steps are
+    // dealt with; without this the next Start would replay the old recording.
+    if (projectId) void discardRecorder(projectId).catch(() => undefined)
   }, [projectId])
 
   return { state, recording, busy, error, start, stop, reset }

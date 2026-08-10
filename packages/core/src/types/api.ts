@@ -9,6 +9,8 @@ export type AnalyzeRequest = {
   language?: TestCaseLanguage
   includeApiChecks?: boolean
   waitAfterNavigationMs?: number
+  /** Labels the Project refuses to click. Empty or absent means nothing is blocked. */
+  blockedKeywords?: string[]
 }
 
 export type AnalyzeResponse = {
@@ -57,6 +59,8 @@ export type AutomationRunRequest = {
   secrets?: ProjectSecrets
   runId?: string
   projectId?: string
+  /** Labels the Project refuses to click. Empty or absent means nothing is blocked. */
+  blockedKeywords?: string[]
 }
 export type AutomationLog = {
   timestamp: string

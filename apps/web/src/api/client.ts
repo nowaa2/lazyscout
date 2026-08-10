@@ -133,12 +133,13 @@ export async function runAutomation(
   secrets?: ProjectSecrets,
   runId?: string,
   projectId?: string,
+  blockedKeywords?: string[],
   signal?: AbortSignal
 ): Promise<AutomationRunResponse> {
   const response = await fetch('/api/automation/run', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ testCase, framework, code, secrets, runId, projectId }),
+    body: JSON.stringify({ testCase, framework, code, secrets, runId, projectId, blockedKeywords }),
     signal
   })
   if (!response.ok) throw await toApiError(response)
@@ -183,6 +184,10 @@ export async function getRecorderState(projectId: string): Promise<RecorderState
 
 export async function stopRecorder(projectId: string): Promise<RecorderState> {
   return requestJson<RecorderState>(`/api/recorder/${encodeURIComponent(projectId)}/stop`, { method: 'POST' })
+}
+
+export async function discardRecorder(projectId: string): Promise<RecorderState> {
+  return requestJson<RecorderState>(`/api/recorder/${encodeURIComponent(projectId)}`, { method: 'DELETE' })
 }
 
 export async function openWorkspaceFolder(): Promise<void> {

@@ -2,6 +2,27 @@
 
 All notable changes to LazyScout are documented in this file.
 
+## [0.3.3] - 2026-08-10
+
+### Changed
+
+- The bot now clicks every control it finds. The built-in list of "destructive" words was blocking ordinary navigation — `publish`, `approve`, `archive`, `send`, `บันทึก` and `ยกเลิก` cut off most of an application behind a login
+- A Project decides for itself what must never be clicked, through a Click filter in Project Settings. It is off by default, takes one word per line, and offers the old list as a starting point
+- The filter applies to Explorer, generated Test Cases and Automation runs alike
+
+### Fixed
+
+- Recording a flow: after saving or discarding a recording, reopening Project Settings showed the finished recording again and offered to save it as a second Test Case. The server now forgets a session once it is dealt with
+- Edited automation source rejected `page.getByRole('button', { name: 'Login' })`. Single-quoted strings — the form Playwright documents — matched nothing in the parser, so only the double-quoted code LazyScout generates itself would run
+- `page.getByTestId("…")` was missing from the edited-source parser
+- `.first()`, `.last()` and `.nth(n)` are accepted after a locator, so a selector that resolves to several elements can be narrowed
+- An unsupported locator now explains which forms are accepted instead of only naming the expression it rejected
+
+### Repository
+
+- Regression tests for the locator resolver covering CSS, `data-testid`, role, single-quoted and malformed input, including a check that a malformed locator is never executed as code
+- Locator tracing behind `LAZYSCOUT_DEBUG_LOCATOR=1`, redacted through the existing secret filter
+
 ## [0.3.2] - 2026-08-09
 
 ### Added

@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import type { ActionGraph, ApiCheck, AnalyzeRequest, AnalyzeResponse, PageState, TestCase } from '@lazyscout/core'
 import { checkTargetUrl, redactSensitiveText } from '@lazyscout/core'
-import { ExplorerError, exploreWebsite } from '@lazyscout/explorer'
+import { ExplorerError, exploreWebsite, normalizeBlockedKeywords } from '@lazyscout/explorer'
 import { generateTestCases, generateTestData } from '@lazyscout/generators'
 import { clamp, config } from '../config.js'
 import { toApiError } from '../toApiError.js'
@@ -27,7 +27,8 @@ export function registerAnalyzeRoute(app: FastifyInstance): void {
         {
           maxPages: clamp(body.maxPages, 1, config.limits.maxPages, config.limits.maxPages),
           maxDepth: clamp(body.maxDepth, 0, config.limits.maxDepth, config.limits.maxDepth),
-          waitAfterNavigationMs: clamp(body.waitAfterNavigationMs, 0, 5000, 750)
+          waitAfterNavigationMs: clamp(body.waitAfterNavigationMs, 0, 5000, 750),
+          blockedKeywords: normalizeBlockedKeywords(body.blockedKeywords)
         },
         config.urlPolicy
       )

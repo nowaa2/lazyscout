@@ -10,6 +10,12 @@ export { LOCAL_QA_POLICY, PUBLIC_SAAS_POLICY } from './url/policy.js'
 export { checkTargetUrl, isPrivateHostname, isLoopbackHostname, isCloudMetadataHostname } from './url/checkTargetUrl.js'
 export { normalizeUrl, isSameOrigin, isCrawlableUrl, moduleNameFromUrl } from './url/normalizeUrl.js'
 export { redactSensitiveText, redactUrl } from './security/redact.js'
+export {
+  isBlockedLabel,
+  normalizeBlockedKeywords,
+  SUGGESTED_BLOCK_KEYWORDS,
+  MAX_BLOCK_KEYWORDS
+} from './safety/blocklist.js'
 
 export { describeStep, describeSteps, describeTarget } from './testcase/describeStep.js'
 export {

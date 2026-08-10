@@ -8,7 +8,7 @@ import type {
   TestStep
 } from '@lazyscout/core'
 import { checkTargetUrl, redactSensitiveText, redactUrl } from '@lazyscout/core'
-import { isDestructiveLabel, launchBrowser } from '@lazyscout/explorer'
+import { isBlockedLabel, launchBrowser, normalizeBlockedKeywords } from '@lazyscout/explorer'
 import type { Locator, Page } from 'playwright-core'
 import { config } from '../config.js'
 import { browserProfileDirectory, saveRunLog } from '../workspace.js'
@@ -34,6 +34,7 @@ export function registerAutomationRunRoute(app: FastifyInstance, workspaceRoot: 
     const body = request.body as Partial<AutomationRunRequest>
     const testCase = body.testCase
     const secrets = body.secrets
+    const blockedKeywords = normalizeBlockedKeywords(body.blockedKeywords)
     const framework = body.framework ?? 'playwright'
     const runId = body.runId || crypto.randomUUID()
     if (!testCase || !Array.isArray(testCase.steps))
@@ -107,14 +108,14 @@ export function registerAutomationRunRoute(app: FastifyInstance, workspaceRoot: 
       page = await context.newPage()
       if (typeof body.code === 'string' && body.code.trim()) {
         addLog('info', 'Running edited automation source')
-        await executeEditedCode(page, body.code, testCase.id, capturedScreenshots, addLog, secrets)
+        await executeEditedCode(page, body.code, testCase.id, capturedScreenshots, addLog, blockedKeywords, secrets)
         if (active.stopped) throw new Error('Run stopped by user')
         addLog('pass', '✓ edited source completed')
       } else
         for (const step of testCase.steps) {
           if (active.stopped) throw new Error('Run stopped by user')
           const stepStarted = Date.now()
-          await executeStep(page, step, addLog, secrets)
+          await executeStep(page, step, addLog, blockedKeywords, secrets)
           if (active.stopped) throw new Error('Run stopped by user')
           addLog('pass', `✓ ${step.type}`, Date.now() - stepStarted)
         }
@@ -130,6 +131,7 @@ export function registerAutomationRunRoute(app: FastifyInstance, workspaceRoot: 
       })
     } catch (error) {
       const message = redactSensitiveText(error instanceof Error ? error.message : String(error), secretValues)
+      debugLocator('StepFailed', { testCaseId: testCase.id, url: page?.url(), error: message })
       if (active.stopped) {
         addLog('warn', 'Run stopped by user', Date.now() - started)
         await persistLog('stopped')
@@ -157,12 +159,14 @@ function withScreenshotStatus(screenshots: AutomationScreenshot[], status: 'pass
   return screenshots.map((screenshot) => ({ ...screenshot, status }))
 }
 
-async function executeEditedCode(
+/** Exported for tests: this is the statement layer every edited line goes through. */
+export async function executeEditedCode(
   page: Page,
   source: string,
   testCaseId: string,
   capturedScreenshots: AutomationScreenshot[],
   addLog: (level: 'info' | 'pass' | 'fail' | 'warn', message: string) => void,
+  blockedKeywords: readonly string[],
   projectSecrets?: ProjectSecrets
 ): Promise<void> {
   const lines = source.split(/\r?\n/)
@@ -203,7 +207,7 @@ async function executeEditedCode(
     const clickMatch = line.match(/^await (page\..+)\.click\(\)$/)
     if (clickMatch) {
       const target = parseEditedLocator(page, clickMatch[1])
-      await ensureSafeClick(target.locator, target.label)
+      await ensureSafeClick(target.locator, target.label, blockedKeywords)
       addLog('info', `→ Clicking ${target.label}`)
       await target.locator.click()
       continue
@@ -386,15 +390,47 @@ async function captureRequestedScreenshot(
   }
 }
 
-const STRING_LITERAL = '"(?:\\\\.|[^"\\\\])*"'
+/** Playwright's own docs and the recorder both use single quotes, so accept either. */
+const STRING_LITERAL = `(?:"(?:\\\\.|[^"\\\\])*"|'(?:\\\\.|[^'\\\\])*')`
 
 function parseStringLiteral(value: string): string {
-  const parsed = JSON.parse(value) as unknown
+  const quote = value[0]
+  if (quote !== '"' && quote !== "'") throw new Error('Edited Playwright arguments must be quoted strings')
+  // JSON only knows double quotes, so a single-quoted literal is re-quoted first.
+  const asJson = quote === '"' ? value : `"${value.slice(1, -1).replace(/\\'/g, "'").replace(/"/g, '\\"')}"`
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(asJson)
+  } catch {
+    throw new Error('Edited Playwright arguments must be quoted strings')
+  }
   if (typeof parsed !== 'string') throw new Error('Edited Playwright arguments must be strings')
   return parsed
 }
 
-function parseEditedLocator(page: Page, expression: string): { locator: Locator; label: string } {
+/** `.first()`, `.last()` and `.nth(n)` are how a tester narrows a strict-mode match. */
+const INDEX_SUFFIX = /\.(first|last|nth)\((\d{0,4})\)$/
+
+function applyIndexSuffix(expression: string): { base: string; pick?: (locator: Locator) => Locator } {
+  const match = expression.match(INDEX_SUFFIX)
+  if (!match) return { base: expression }
+  const base = expression.slice(0, match.index)
+  if (match[1] === 'first') return { base, pick: (target) => target.first() }
+  if (match[1] === 'last') return { base, pick: (target) => target.last() }
+  if (!match[2]) return { base: expression }
+  const index = Number(match[2])
+  return { base, pick: (target) => target.nth(index) }
+}
+
+/** Exported for tests: the edited-source parser is the only place a locator arrives as text. */
+export function parseEditedLocator(page: Page, expression: string): { locator: Locator; label: string } {
+  debugLocator('EditedSource', { expression })
+  const { base, pick } = applyIndexSuffix(expression)
+  const resolved = resolveLocatorExpression(page, base)
+  return pick ? { locator: pick(resolved.locator), label: resolved.label } : resolved
+}
+
+function resolveLocatorExpression(page: Page, expression: string): { locator: Locator; label: string } {
   const roleMatch = expression.match(
     new RegExp(`^page\\.getByRole\\((${STRING_LITERAL}),\\s*\\{\\s*name:\\s*(${STRING_LITERAL})\\s*\\}\\)$`)
   )
@@ -414,6 +450,7 @@ function parseEditedLocator(page: Page, expression: string): { locator: Locator;
     ['getByLabel', (value: string) => page.getByLabel(value)],
     ['getByPlaceholder', (value: string) => page.getByPlaceholder(value)],
     ['getByText', (value: string) => page.getByText(value)],
+    ['getByTestId', (value: string) => page.getByTestId(value)],
     ['locator', (value: string) => page.locator(value)]
   ] as const) {
     const match = expression.match(new RegExp(`^page\\.${method}\\((${STRING_LITERAL})\\)$`))
@@ -423,12 +460,17 @@ function parseEditedLocator(page: Page, expression: string): { locator: Locator;
     }
   }
 
-  throw new Error(`Unsupported Playwright locator: ${expression.slice(0, 120)}`)
+  throw new Error(
+    `Unsupported locator: ${expression.slice(0, 120)}\n` +
+      'Expected page.getByRole("button", { name: "Login" }), page.getByLabel/getByPlaceholder/getByText/getByTestId("…") ' +
+      'or page.locator("css"), optionally followed by .first(), .last() or .nth(n).'
+  )
 }
 async function executeStep(
   page: Page,
   step: TestStep,
   addLog: (level: 'info' | 'pass' | 'fail' | 'warn', message: string) => void,
+  blockedKeywords: readonly string[],
   secrets?: ProjectSecrets
 ): Promise<void> {
   switch (step.type) {
@@ -444,7 +486,7 @@ async function executeStep(
     case 'click': {
       const name = step.target.name ?? step.target.text ?? step.target.cssSelector ?? 'target'
       const target = locator(page, step.target)
-      await ensureSafeClick(target, name)
+      await ensureSafeClick(target, name, blockedKeywords)
       addLog('info', 'Control found: ' + name)
       addLog('info', '→ Clicking ' + name)
       await target.click()
@@ -498,7 +540,23 @@ function resolveSecret(value: string, projectSecrets?: ProjectSecrets): string {
   if (secret === undefined && value in secrets) throw new Error('Required secret is not configured for ' + value)
   return secret ?? value
 }
-function locator(page: Page, target: TargetRef): Locator {
+/** Exported for tests: every recorded and generated step resolves through here. */
+export function locator(page: Page, target: TargetRef): Locator {
+  debugLocator('Resolver', {
+    strategy:
+      target.role && target.name
+        ? 'role'
+        : target.label
+          ? 'label'
+          : target.placeholder
+            ? 'placeholder'
+            : target.text
+              ? 'text'
+              : 'css',
+    role: target.role,
+    name: target.name,
+    cssSelector: target.cssSelector
+  })
   if (target.role && target.name) return page.getByRole(target.role as any, { name: target.name })
   if (target.label) return page.getByLabel(target.label)
   if (target.placeholder) return page.getByPlaceholder(target.placeholder)
@@ -506,7 +564,24 @@ function locator(page: Page, target: TargetRef): Locator {
   return page.locator(target.cssSelector ?? '')
 }
 
-async function ensureSafeClick(target: Locator, fallbackLabel: string): Promise<void> {
+/** Off unless LAZYSCOUT_DEBUG_LOCATOR is set. Values are redacted; secrets never reach a locator anyway. */
+function debugLocator(stage: string, detail: Record<string, unknown>): void {
+  if (!process.env.LAZYSCOUT_DEBUG_LOCATOR) return
+  const safe = Object.fromEntries(
+    Object.entries(detail)
+      .filter(([, value]) => value !== undefined)
+      .map(([key, value]) => [key, typeof value === 'string' ? redactSensitiveText(value) : value])
+  )
+  console.log(`[LazyScout:${stage}]`, safe)
+}
+
+async function ensureSafeClick(
+  target: Locator,
+  fallbackLabel: string,
+  blockedKeywords: readonly string[]
+): Promise<void> {
+  // A Project with no filter clicks everything, so skip five round-trips to the page.
+  if (blockedKeywords.length === 0) return
   const labels = await Promise.all([
     target.getAttribute('aria-label').catch(() => null),
     target.getAttribute('title').catch(() => null),
@@ -514,7 +589,7 @@ async function ensureSafeClick(target: Locator, fallbackLabel: string): Promise<
     target.getAttribute('id').catch(() => null),
     target.innerText().catch(() => '')
   ])
-  if (isDestructiveLabel(fallbackLabel, ...labels.map((value) => value ?? undefined))) {
-    throw new Error(`Blocked destructive action: ${fallbackLabel}`)
+  if (isBlockedLabel(blockedKeywords, fallbackLabel, ...labels.map((value) => value ?? undefined))) {
+    throw new Error(`Blocked by the Project click filter: ${fallbackLabel}`)
   }
 }

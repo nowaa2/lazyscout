@@ -85,6 +85,17 @@ export class RecorderSessions {
     return this.state(projectId)
   }
 
+  /**
+   * Forgets a session once the operator has saved or discarded it, so reopening
+   * the panel starts a fresh recording instead of the previous one.
+   */
+  async discard(projectId: string): Promise<RecorderState> {
+    const session = this.sessions.get(projectId)
+    this.sessions.delete(projectId)
+    if (session) await this.finish(session)
+    return idleRecorderState(projectId)
+  }
+
   async closeAll(): Promise<void> {
     await Promise.all([...this.sessions.values()].map((session) => this.finish(session)))
     this.sessions.clear()

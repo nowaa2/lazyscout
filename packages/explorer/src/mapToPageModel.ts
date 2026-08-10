@@ -7,36 +7,38 @@ import {
   type UIElement
 } from '@lazyscout/core'
 import type { RawElement, RawForm, RawPageData } from './types/raw.js'
-import { isDestructiveLabel } from './safety.js'
+import { isBlockedLabel } from './safety.js'
 
-function toUIElement(raw: RawElement): UIElement {
+function toUIElement(raw: RawElement, keywords: readonly string[]): UIElement {
   return {
     ...raw,
-    destructive: isDestructiveLabel(raw.accessibleName, raw.text, raw.name, raw.id)
+    destructive: isBlockedLabel(keywords, raw.accessibleName, raw.text, raw.name, raw.id)
   }
 }
 
-function toFormInfo(raw: RawForm): FormInfo {
+function toFormInfo(raw: RawForm, keywords: readonly string[]): FormInfo {
   return {
     id: raw.id,
     name: raw.name,
     action: raw.action,
     method: raw.method,
     accessibleName: raw.accessibleName,
-    fields: raw.fields.map(toUIElement),
-    submitButtons: raw.submitButtons.map(toUIElement)
+    fields: raw.fields.map((field) => toUIElement(field, keywords)),
+    submitButtons: raw.submitButtons.map((button) => toUIElement(button, keywords))
   }
 }
 
 export function mapToPageModel(
   raw: RawPageData,
-  meta: { url: string; finalUrl: string; depth: number; statusCode?: number; apiRequests?: PageInfo['apiRequests'] }
+  meta: { url: string; finalUrl: string; depth: number; statusCode?: number; apiRequests?: PageInfo['apiRequests'] },
+  blockedKeywords: readonly string[] = []
 ): PageInfo {
-  const links = raw.links.map(toUIElement)
-  const buttons = raw.buttons.map(toUIElement)
-  const inputs = raw.inputs.map(toUIElement)
-  const textareas = raw.textareas.map(toUIElement)
-  const selects = raw.selects.map(toUIElement)
+  const toElement = (element: RawElement) => toUIElement(element, blockedKeywords)
+  const links = raw.links.map(toElement)
+  const buttons = raw.buttons.map(toElement)
+  const inputs = raw.inputs.map(toElement)
+  const textareas = raw.textareas.map(toElement)
+  const selects = raw.selects.map(toElement)
   const controls = [...links, ...buttons, ...inputs, ...textareas, ...selects]
   const state = createPageState(raw, meta.finalUrl, controls)
   return {
@@ -51,7 +53,7 @@ export function mapToPageModel(
     inputs,
     textareas,
     selects,
-    forms: raw.forms.map(toFormInfo),
+    forms: raw.forms.map((form) => toFormInfo(form, blockedKeywords)),
     apiRequests: meta.apiRequests ?? [],
     state
   }

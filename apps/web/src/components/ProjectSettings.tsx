@@ -2,6 +2,8 @@ import { useState } from 'react'
 import type { ProjectSecrets, TestStep } from '../types'
 import { openWorkspaceAuthSession } from '../api/client'
 import { RecorderPanel } from './RecorderPanel'
+import { ClickFilterPanel } from './ClickFilterPanel'
+import type { ClickFilter } from '../hooks/useClickFilter'
 
 type Props = {
   projectName?: string
@@ -12,6 +14,8 @@ type Props = {
   onClear: () => void
   onClose: () => void
   onSaveRecording?: (steps: TestStep[], title: string, sourceUrl: string) => void
+  clickFilter: ClickFilter
+  onChangeClickFilter: (filter: ClickFilter) => void
 }
 
 export function ProjectSettings({
@@ -22,7 +26,9 @@ export function ProjectSettings({
   onSave,
   onClear,
   onClose,
-  onSaveRecording
+  onSaveRecording,
+  clickFilter,
+  onChangeClickFilter
 }: Props) {
   const [draft, setDraft] = useState<ProjectSecrets>(secrets)
   const update = (key: keyof ProjectSecrets, value: string) =>
@@ -118,6 +124,7 @@ export function ProjectSettings({
             </button>
           </div>
         )}
+        <ClickFilterPanel filter={clickFilter} onChange={onChangeClickFilter} />
         {projectId && targetUrl && onSaveRecording && (
           <RecorderPanel projectId={projectId} targetUrl={targetUrl} onSaveRecording={onSaveRecording} />
         )}

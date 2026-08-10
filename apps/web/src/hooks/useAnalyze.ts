@@ -17,7 +17,8 @@ export function useAnalyze() {
     maxDepth: number,
     language: TestCaseLanguage = 'en',
     includeApiChecks = false,
-    waitAfterNavigationMs = 750
+    waitAfterNavigationMs = 750,
+    blockedKeywords: string[] = []
   ) {
     setState({ status: 'loading', result: null, error: null })
     try {
@@ -27,7 +28,8 @@ export function useAnalyze() {
         maxDepth,
         language,
         includeApiChecks,
-        waitAfterNavigationMs
+        waitAfterNavigationMs,
+        blockedKeywords
       })
       setState({ status: 'success', result, error: null })
       return result

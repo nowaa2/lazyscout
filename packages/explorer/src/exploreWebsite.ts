@@ -15,7 +15,7 @@ import { collectPageData } from './browser/domCollector.js'
 import { mapToPageModel } from './mapToPageModel.js'
 import { ExplorerError, toExploreIssue } from './errors.js'
 import { launchBrowser } from './launchBrowser.js'
-import { canFollowLink, isDestructiveLabel } from './safety.js'
+import { canFollowLink, isBlockedLabel } from './safety.js'
 
 export const DEFAULT_EXPLORE_OPTIONS: ExploreOptions = {
   maxPages: 20,
@@ -27,7 +27,8 @@ export const DEFAULT_EXPLORE_OPTIONS: ExploreOptions = {
   maxActionsPerState: 8,
   maxTotalStates: 80,
   actionTimeoutMs: 2_000,
-  stateDiscoveryTimeoutMs: 350
+  stateDiscoveryTimeoutMs: 350,
+  blockedKeywords: []
 }
 
 type QueueItem = { url: string; depth: number }
@@ -84,7 +85,7 @@ export async function exploreWebsite(
       if (visited.has(item.url)) continue
       visited.add(item.url)
 
-      const result = await visitPage(page, item, config)
+      const result = await visitPage(page, item, config, config.blockedKeywords)
 
       if (result.kind === 'issue') {
         issues.push(result.issue)
@@ -107,7 +108,7 @@ export async function exploreWebsite(
       }
 
       for (const link of result.page.links) {
-        if (!canFollowLink(link.href, link.accessibleName)) continue
+        if (!canFollowLink(link.href, link.accessibleName, config.blockedKeywords)) continue
         if (!isSameOrigin(link.href!, origin) || !isCrawlableUrl(link.href!)) {
           urlsSkipped++
           continue
@@ -121,7 +122,7 @@ export async function exploreWebsite(
     await launched.close().catch(() => undefined)
   }
 
-  addNavigationEdges(pages, actionGraph)
+  addNavigationEdges(pages, actionGraph, config.blockedKeywords)
 
   return {
     startUrl: entryUrl,
@@ -139,13 +140,13 @@ export async function exploreWebsite(
   }
 }
 
-function addNavigationEdges(pages: PageInfo[], graph: ActionGraph): void {
+function addNavigationEdges(pages: PageInfo[], graph: ActionGraph, keywords: readonly string[]): void {
   for (const page of pages) {
     const source = page.state
     if (!source) continue
     for (const link of page.links) {
       if (!link.href || !link.accessibleName) continue
-      const safe = canFollowLink(link.href, link.accessibleName)
+      const safe = canFollowLink(link.href, link.accessibleName, keywords)
       const target = pages.find((candidate) => candidate.finalUrl === link.href || candidate.url === link.href)?.state
       const action = {
         id: `${source.id}|navigate|${link.cssSelector}`,
@@ -155,7 +156,7 @@ function addNavigationEdges(pages: PageInfo[], graph: ActionGraph): void {
         selector: link.cssSelector,
         locator: { role: link.role, name: link.accessibleName },
         safe,
-        reason: safe ? undefined : 'Unsafe link was discovered but not opened'
+        reason: safe ? undefined : 'Link matched the Project click filter and was not opened'
       }
       addEdge(graph, source.id, target?.id, action, safe && target ? 'visited' : safe ? 'discovered' : 'blocked')
       if (!safe) graph.blockedActionKeys.push(action.id)
@@ -184,7 +185,7 @@ async function discoverSafeStates(
 
   for (const interaction of interactions) {
     if (statesForPage >= config.maxStatesPerPage || graph.states.length >= config.maxTotalStates) break
-    const action = actionFromInteraction(initial.id, interaction)
+    const action = actionFromInteraction(initial.id, interaction, config.blockedKeywords)
     const actionKey = action.id
     if (graph.visitedActionKeys.includes(actionKey) || graph.failedActionKeys.includes(actionKey)) continue
 
@@ -209,12 +210,16 @@ async function discoverSafeStates(
         continue
       }
       const raw = await page.evaluate(collectPageData)
-      const observed = mapToPageModel(raw, {
-        url: page.url(),
-        finalUrl: page.url(),
-        depth: source.depth,
-        statusCode: source.statusCode
-      }).state
+      const observed = mapToPageModel(
+        raw,
+        {
+          url: page.url(),
+          finalUrl: page.url(),
+          depth: source.depth,
+          statusCode: source.statusCode
+        },
+        config.blockedKeywords
+      ).state
       if (!observed) continue
       addState(graph, observed)
       addEdge(graph, initial.id, observed.id, action, 'visited')
@@ -232,7 +237,11 @@ async function discoverSafeStates(
   }
 }
 
-function actionFromInteraction(stateId: string, interaction: PageState['interactions'][number]): StateEdge['action'] {
+function actionFromInteraction(
+  stateId: string,
+  interaction: PageState['interactions'][number],
+  keywords: readonly string[]
+): StateEdge['action'] {
   const type =
     interaction.kind === 'tab'
       ? 'selectTab'
@@ -243,7 +252,7 @@ function actionFromInteraction(stateId: string, interaction: PageState['interact
           : interaction.expanded
             ? 'closeDialog'
             : 'openModal'
-  const destructive = isDestructiveLabel(interaction.name)
+  const blocked = isBlockedLabel(keywords, interaction.name)
   const description = `${type === 'selectTab' ? 'Select' : type === 'expandAccordion' ? 'Expand' : 'Open'} “${interaction.name}”`
   return {
     id: `${stateId}|${type}|${interaction.cssSelector}`,
@@ -252,8 +261,8 @@ function actionFromInteraction(stateId: string, interaction: PageState['interact
     target: interaction.name,
     selector: interaction.cssSelector,
     locator: { role: interaction.role, name: interaction.name },
-    safe: !destructive,
-    reason: destructive ? 'Destructive action was discovered but not executed' : undefined
+    safe: !blocked,
+    reason: blocked ? 'Action matched the Project click filter and was not executed' : undefined
   }
 }
 
@@ -271,7 +280,12 @@ function addEdge(
 
 type VisitResult = { kind: 'page'; page: PageInfo } | { kind: 'issue'; issue: ExploreIssue }
 
-async function visitPage(page: Page, item: QueueItem, config: ExploreOptions): Promise<VisitResult> {
+async function visitPage(
+  page: Page,
+  item: QueueItem,
+  config: ExploreOptions,
+  keywords: readonly string[]
+): Promise<VisitResult> {
   try {
     const apiRequests: ApiObservation[] = []
     const requestStarted = new Map<string, number>()
@@ -339,13 +353,17 @@ async function visitPage(page: Page, item: QueueItem, config: ExploreOptions): P
 
     return {
       kind: 'page',
-      page: mapToPageModel(raw, {
-        url: item.url,
-        finalUrl,
-        depth: item.depth,
-        statusCode: status,
-        apiRequests
-      })
+      page: mapToPageModel(
+        raw,
+        {
+          url: item.url,
+          finalUrl,
+          depth: item.depth,
+          statusCode: status,
+          apiRequests
+        },
+        keywords
+      )
     }
   } catch (error) {
     return { kind: 'issue', issue: toExploreIssue(item.url, error) }

@@ -180,6 +180,8 @@ export type ExploreOptions = {
   maxTotalStates: number
   actionTimeoutMs: number
   stateDiscoveryTimeoutMs: number
+  /** Labels the Project refuses to click. Empty means the explorer clicks anything it finds. */
+  blockedKeywords: string[]
 }
 
 export type ExploreStats = {

@@ -1412,6 +1412,21 @@ body {
   .recorder-actions {
     @apply flex gap-2;
   }
+  .click-filter-panel {
+    @apply w-[calc(100%-3rem)] border-amber-200 bg-amber-50 text-amber-900;
+  }
+  .settings-toggle {
+    @apply flex w-full cursor-pointer items-start gap-2 pt-1 text-[11px] font-semibold;
+  }
+  .settings-toggle input {
+    @apply mt-px h-3.5 w-3.5 shrink-0 accent-amber-600;
+  }
+  .click-filter-input {
+    @apply w-full rounded-lg border border-amber-200 bg-white px-2.5 py-1.5 font-mono text-[11px] text-slate-900 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100;
+  }
+  .click-filter-help {
+    @apply text-[11px] leading-4 text-amber-700;
+  }
   .settings-grid {
     @apply grid gap-4 p-6 sm:grid-cols-2;
   }

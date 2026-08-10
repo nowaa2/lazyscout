@@ -14,12 +14,14 @@ export function GeneratedTests({
   testCases,
   projectId = 'active',
   secrets,
+  blockedKeywords,
   onRunStatus,
   onRunResult
 }: {
   testCases: TestCase[]
   projectId?: string
   secrets?: ProjectSecrets
+  blockedKeywords?: string[]
   onRunStatus?: (id: string, status: RunStatus) => void
   onRunResult?: (id: string, result: Pick<RunResult, 'status' | 'logs' | 'screenshot' | 'screenshots'>) => void
 }) {
@@ -151,7 +153,16 @@ export function GeneratedTests({
     const controller = new AbortController()
     activeRunRef.current = { runId, controller }
     try {
-      const result = await runAutomation(testCase, framework, source, secrets, runId, projectId, controller.signal)
+      const result = await runAutomation(
+        testCase,
+        framework,
+        source,
+        secrets,
+        runId,
+        projectId,
+        blockedKeywords,
+        controller.signal
+      )
       onRunStatus?.(
         testCase.id,
         result.status === 'passed' ? 'passed' : result.status === 'failed' ? 'failed' : 'pending'

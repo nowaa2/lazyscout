@@ -10,16 +10,24 @@ type Props = {
   onSaveRecording: (steps: TestStep[], title: string, sourceUrl: string) => void
 }
 
+const DEFAULT_TITLE = 'Recorded login'
+
 export function RecorderPanel({ projectId, targetUrl, onSaveRecording }: Props) {
   const { state, recording, busy, error, start, stop, reset } = useRecorder(projectId)
-  const [title, setTitle] = useState('Recorded login')
+  const [title, setTitle] = useState(DEFAULT_TITLE)
 
   const steps = state.steps
   const finished = state.status === 'stopped' && steps.length > 0
 
+  // The next recording is a new Test Case, so nothing from the saved one is kept.
+  const clear = () => {
+    reset()
+    setTitle(DEFAULT_TITLE)
+  }
+
   const save = () => {
     onSaveRecording(steps, title.trim() || 'Recorded flow', state.startUrl || targetUrl)
-    reset()
+    clear()
   }
 
   return (
@@ -72,7 +80,7 @@ export function RecorderPanel({ projectId, targetUrl, onSaveRecording }: Props) 
             <button type="button" className="btn btn-primary" onClick={save}>
               Save as Test Case
             </button>
-            <button type="button" className="btn btn-secondary" onClick={reset}>
+            <button type="button" className="btn btn-secondary" onClick={clear}>
               Discard
             </button>
           </div>
