@@ -56,6 +56,7 @@ export default function App() {
     deleteProject,
     renameProject,
     updateProjectResult,
+    updateProjectTestCaseLanguage,
     workspaceRoot,
     workspaceError,
     loading: projectsLoading,
@@ -64,7 +65,9 @@ export default function App() {
   const activeProject = projects.find((project) => project.id === activeProjectId)
   const { secrets, saveSecrets, clearSecrets } = useProjectSecrets(activeProjectId)
   const { filter: clickFilter, blockedKeywords, save: saveClickFilter } = useClickFilter(activeProjectId)
-  const result = activeProject?.result ?? analysisResult
+  const rawResult = activeProject?.result ?? analysisResult
+  // Test Case content is saved exactly as generated or edited. The UI language must never rewrite it.
+  const result = rawResult
   const {
     testCases,
     selectedIds,
@@ -87,6 +90,7 @@ export default function App() {
   const [dataSearch, setDataSearch] = useState('')
   const [dataModule, setDataModule] = useState('all')
   const [activeId, setActiveId] = useState<string>()
+  const [detailId, setDetailId] = useState<string>()
   const [editing, setEditing] = useState<TestCase | null>(null)
   const [exporting, setExporting] = useState(false)
   const [exportError, setExportError] = useState<string>()
@@ -129,6 +133,31 @@ export default function App() {
   const caseModules = useMemo(() => uniqueModules(testCases), [testCases])
   const dataModules = useMemo(() => uniqueModules(testData), [testData])
   const active = testCases.find((item) => item.id === activeId)
+
+  function updateTableCell(id: string, key: string, value: string) {
+    const current = testCases.find((item) => item.id === id)
+    if (!current) return
+    const updated = { ...current } as TestCase & Record<string, unknown>
+    if (key === 'preconditions' || key === 'tags')
+      updated[key] = value
+        .split(/\n|,/)
+        .map((item) => item.trim())
+        .filter(Boolean)
+    else if (key === 'steps') {
+      updated.steps = value
+        .split('\n')
+        .map((item) => item.trim())
+        .filter(Boolean)
+        .map((item) => {
+          try {
+            return JSON.parse(item)
+          } catch {
+            return { type: 'manual', description: item }
+          }
+        }) as TestCase['steps']
+    } else updated[key] = value
+    updateTestCase(id, updated)
+  }
   useEffect(() => {
     if (activeProjectId && result && activeProject?.result === result)
       updateProjectResult(activeProjectId, { ...result, testCases, testData })
@@ -172,7 +201,11 @@ export default function App() {
     maxDepth: number,
     language: Parameters<typeof analyze>[3],
     includeApiChecks: boolean,
-    waitAfterNavigationMs: number
+    waitAfterNavigationMs: number,
+    startPath?: string,
+    scopePath?: string,
+    mode?: Parameters<typeof analyze>[10],
+    debug?: boolean
   ) {
     const analyzed = await analyze(
       url,
@@ -182,10 +215,14 @@ export default function App() {
       includeApiChecks,
       waitAfterNavigationMs,
       blockedKeywords,
-      activeProjectId
+      activeProjectId,
+      startPath,
+      scopePath,
+      mode,
+      debug
     )
     if (analyzed) {
-      saveProject(url, analyzed, undefined, activeProject?.targetUrl ? undefined : activeProjectId)
+      saveProject(url, analyzed, undefined, activeProject?.targetUrl ? undefined : activeProjectId, language)
       const controls = analyzed.pages.reduce(
         (total, page) =>
           total +
@@ -210,8 +247,9 @@ export default function App() {
   }
 
   async function handleExport() {
-    const cases = selectedIds.length > 0 ? testCases.filter((item) => selectedIds.includes(item.id)) : visibleCases
-    if (cases.length === 0 && visibleData.length === 0) {
+    const cases = tab === 'testcases' ? visibleCases : []
+    const rows = tab === 'testdata' ? visibleData : []
+    if (cases.length === 0 && rows.length === 0) {
       setExportError('No data is available for export.')
       return
     }
@@ -219,12 +257,21 @@ export default function App() {
     setExporting(true)
     setExportError(undefined)
     try {
-      await downloadTestCasesCsv(cases, visibleData)
+      await downloadTestCasesCsv(cases, rows)
     } catch (err) {
       setExportError(err instanceof ApiError ? err.message : 'Could not export CSV.')
     } finally {
       setExporting(false)
     }
+  }
+
+  function importCasesForCurrentPage(imported: TestCase[]) {
+    const currentUrl = active?.sourceUrl ?? result?.startUrl
+    if (!currentUrl) {
+      addImportedTestCases(imported)
+      return
+    }
+    addImportedTestCases(imported.filter((testCase) => testCase.sourceUrl === currentUrl))
   }
 
   function handleAdd() {
@@ -296,7 +343,11 @@ export default function App() {
             <AnalyzeForm
               key={activeProjectId ?? 'new-project'}
               initialUrl={activeProject?.targetUrl}
+              initialLanguage={activeProject.testCaseLanguage}
               loading={status === 'loading'}
+              onLanguageChange={(language) =>
+                activeProjectId && updateProjectTestCaseLanguage(activeProjectId, language)
+              }
               onAnalyze={handleAnalyze}
             />
           )}
@@ -458,10 +509,14 @@ export default function App() {
                               activeId={activeId}
                               onToggleSelect={toggleSelected}
                               onToggleAll={setSelection}
-                              onOpen={(testCase) => setActiveId(testCase.id)}
+                              onOpen={(testCase) => {
+                                setActiveId(testCase.id)
+                                setDetailId(testCase.id)
+                              }}
                               onEdit={setEditing}
                               onDelete={deleteTestCase}
                               onReorder={reorderTestCases}
+                              onUpdateCell={updateTableCell}
                             />
                           </>
                         ) : (
@@ -513,8 +568,12 @@ export default function App() {
             }}
           />
         )}
-        {active && !editing && tab === 'testcases' && (
-          <TestCaseDetail testCase={active} onEdit={() => setEditing(active)} onClose={() => setActiveId(undefined)} />
+        {detailId && !editing && tab === 'testcases' && testCases.find((item) => item.id === detailId) && (
+          <TestCaseDetail
+            testCase={testCases.find((item) => item.id === detailId)!}
+            onEdit={() => setEditing(testCases.find((item) => item.id === detailId)!)}
+            onClose={() => setDetailId(undefined)}
+          />
         )}
         {settingsOpen && activeProject && (
           <ProjectSettings
@@ -533,8 +592,10 @@ export default function App() {
         {screenshotOpen && (
           <ScreenshotImporter
             sourceUrl={result?.startUrl ?? activeProject?.targetUrl ?? ''}
+            initialLanguage={activeProject?.testCaseLanguage}
+            onLanguageChange={(language) => activeProjectId && updateProjectTestCaseLanguage(activeProjectId, language)}
             existingCases={testCases}
-            onImport={addImportedTestCases}
+            onImport={importCasesForCurrentPage}
             onClose={() => setScreenshotOpen(false)}
           />
         )}
@@ -542,7 +603,7 @@ export default function App() {
           <TestCaseImporter
             sourceUrl={result?.startUrl ?? activeProject?.targetUrl ?? ''}
             existingCases={testCases}
-            onImport={addImportedTestCases}
+            onImport={importCasesForCurrentPage}
             onClose={() => setImportOpen(false)}
           />
         )}

@@ -4,7 +4,14 @@ import { homedir, platform } from 'node:os'
 import { basename, dirname, extname, isAbsolute, join, relative, resolve } from 'node:path'
 import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { promisify } from 'node:util'
-import type { AnalyzeResponse, AutomationLog, AutomationScreenshot, TestCase, TestDataRow } from '@lazyscout/core'
+import type {
+  AnalyzeResponse,
+  AutomationLog,
+  AutomationScreenshot,
+  TestCase,
+  TestCaseLanguage,
+  TestDataRow
+} from '@lazyscout/core'
 import { escapeCsvValue, exportTestCasesToCsv, TEST_DATA_CSV_COLUMNS, UTF8_BOM } from '@lazyscout/generators'
 
 const execFileAsync = promisify(execFile)
@@ -19,6 +26,7 @@ export type WorkspaceProject = {
   createdAt: string
   updatedAt: string
   mode?: 'scout' | 'empty'
+  testCaseLanguage?: TestCaseLanguage
   result: AnalyzeResponse
 }
 

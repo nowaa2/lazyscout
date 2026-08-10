@@ -20,10 +20,10 @@ export function ClickFilterPanel({ filter, onChange }: Props) {
 
   return (
     <div className="settings-notice settings-notice-stacked click-filter-panel">
-      <b>Click filter</b>
+      <b>Click safeguards {filter.enabled ? 'ON' : 'OFF'}</b>
       <span>
-        The bot clicks every control it finds. Turn this on to name the ones it must never click — Explorer skips them
-        and an Automation run stops instead of clicking.
+        Suggested destructive actions are blocked by default. Explorer skips them and an Automation run stops instead of
+        clicking. Sign-out actions are always blocked.
       </span>
 
       <label className="settings-toggle">

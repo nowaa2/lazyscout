@@ -1,8 +1,8 @@
 import type { FastifyInstance } from 'fastify'
 import type { ActionGraph, ApiCheck, AnalyzeRequest, AnalyzeResponse, PageState, TestCase } from '@lazyscout/core'
 import { checkTargetUrl, redactSensitiveText } from '@lazyscout/core'
-import { ExplorerError, exploreWebsite, normalizeBlockedKeywords } from '@lazyscout/explorer'
-import { generateTestCases, generateTestData } from '@lazyscout/generators'
+import { ExplorerError, exploreWithScope, normalizeBlockedKeywords } from '@lazyscout/explorer'
+import { generateTestCases, generateTestData, localizeThai } from '@lazyscout/generators'
 import { clamp, config } from '../config.js'
 import { toApiError } from '../toApiError.js'
 import { browserProfileDirectory } from '../workspace.js'
@@ -29,16 +29,28 @@ export function registerAnalyzeRoute(app: FastifyInstance, workspaceRoot: string
       : undefined
 
     try {
-      const result = await exploreWebsite(
+      const result = await exploreWithScope(
         check.url.toString(),
         {
-          maxPages: clamp(body.maxPages, 1, config.limits.maxPages, config.limits.maxPages),
-          maxDepth: clamp(body.maxDepth, 0, config.limits.maxDepth, config.limits.maxDepth),
+          startPath: body.startPath,
+          scopePath: body.scopePath,
+          mode: body.mode ?? 'site',
+          debug: body.debug ?? false,
+          limits: {
+            maxPages: clamp(body.maxPages, 1, config.limits.maxPages, config.limits.maxPages),
+            maxDepth: clamp(body.maxDepth, 0, config.limits.maxDepth, config.limits.maxDepth),
+            maxStates: 80,
+            maxActionsPerState: 8,
+            maxTotalActions: 200,
+            maxActionRetries: 2,
+            explorationTimeoutMs: 300_000
+          }
+        },
+        {
           waitAfterNavigationMs: clamp(body.waitAfterNavigationMs, 0, 5000, 750),
           blockedKeywords: normalizeBlockedKeywords(body.blockedKeywords),
           ...(browserProfileDir ? { browserProfileDir } : {})
-        },
-        config.urlPolicy
+        }
       )
 
       if (result.pages.length === 0) {
@@ -52,7 +64,9 @@ export function registerAnalyzeRoute(app: FastifyInstance, workspaceRoot: string
 
       const testCases = [
         ...generateTestCases(result.pages, { language: body.language ?? 'en' }),
-        ...generateStateFlowTestCases(result.actionGraph)
+        ...(body.language === 'th'
+          ? localizeThai(generateStateFlowTestCases(result.actionGraph))
+          : generateStateFlowTestCases(result.actionGraph))
       ]
       const runEvents = [
         {

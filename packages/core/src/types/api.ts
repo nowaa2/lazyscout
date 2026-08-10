@@ -1,4 +1,4 @@
-import type { ActionGraph, ExploreIssue, ExploreStats, PageInfo, RunEvent } from './page.js'
+import type { ActionGraph, ExploreIssue, ExploreStats, ExplorationMode, PageInfo, RunEvent } from './page.js'
 import type { TestCase, TestCaseLanguage } from './testcase.js'
 import type { TestDataRow } from './testdata.js'
 
@@ -13,6 +13,10 @@ export type AnalyzeRequest = {
   blockedKeywords?: string[]
   /** Explores with this Project's signed-in browser profile instead of a blank one. */
   projectId?: string
+  startPath?: string
+  scopePath?: string
+  mode?: ExplorationMode
+  debug?: boolean
 }
 
 export type AnalyzeResponse = {

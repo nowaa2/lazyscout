@@ -10,6 +10,45 @@ type RunStatus = 'passed' | 'failed' | 'pending'
 type RunResult = Awaited<ReturnType<typeof runAutomation>>
 type ActiveRun = { runId: string; controller: AbortController }
 
+function RunIcon({ stopped = false }: { stopped?: boolean }) {
+  return (
+    <svg className="run-button-icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+      {stopped ? (
+        <rect x="5.25" y="5.25" width="9.5" height="9.5" rx="2" fill="currentColor" />
+      ) : (
+        <path
+          d="M6.2 3.95a1.15 1.15 0 0 1 1.75-.97l7.05 5.03a1.2 1.2 0 0 1 0 1.98l-7.05 5.03a1.15 1.15 0 0 1-1.75-.97V3.95Z"
+          fill="currentColor"
+        />
+      )}
+    </svg>
+  )
+}
+
+function RunButton({
+  children,
+  stopped = false,
+  onClick,
+  disabled = false
+}: {
+  children: string
+  stopped?: boolean
+  onClick: () => void
+  disabled?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      className={`btn ${stopped ? 'btn-danger' : 'btn-dark'} run-button`}
+      onClick={onClick}
+      disabled={disabled}
+    >
+      <RunIcon stopped={stopped} />
+      <span>{children}</span>
+    </button>
+  )
+}
+
 export function GeneratedTests({
   testCases,
   projectId = 'active',
@@ -294,13 +333,11 @@ export function GeneratedTests({
             {selectedInFilter}/{filteredCases.length} selected
           </span>
           {running ? (
-            <button type="button" className="btn btn-danger" onClick={() => setStopConfirmOpen(true)}>
-              ■ Stop run
-            </button>
+            <RunButton stopped onClick={() => setStopConfirmOpen(true)}>
+              Stop run
+            </RunButton>
           ) : (
-            <button type="button" className="btn btn-dark" onClick={runAll}>
-              ▶ Run selected cases
-            </button>
+            <RunButton onClick={runAll}>Run selected cases</RunButton>
           )}
         </div>
       </div>
@@ -379,9 +416,9 @@ export function GeneratedTests({
               <button type="button" className="btn btn-primary" onClick={downloadCode}>
                 Save file
               </button>
-              <button type="button" className="btn btn-dark" onClick={runSelected} disabled={running || !selected}>
-                ▶ Run
-              </button>
+              <RunButton onClick={runSelected} disabled={running || !selected}>
+                Run
+              </RunButton>
             </div>
           </div>
           {editing ? (

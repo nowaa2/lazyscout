@@ -1,6 +1,6 @@
 import { writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
-import { exploreWebsite, exploreWithScope } from '@lazyscout/explorer'
+import { exploreWithScope } from '@lazyscout/explorer'
 import { redactUrl } from '@lazyscout/core'
 import type { ExplorationMode } from '@lazyscout/core'
 import { exportTestCasesToCsv, generateTestCases, generateTestData } from '@lazyscout/generators'
@@ -20,29 +20,21 @@ export type ScanOptions = {
 export async function runScan(options: ScanOptions): Promise<void> {
   console.log(`checking scan ${redactUrl(options.url)} ...`)
 
-  // Use scoped explorer when startPath, scopePath, or mode is specified
-  const useScoped = options.startPath || options.scopePath || options.mode || options.debug
-
-  const result = useScoped
-    ? await exploreWithScope(options.url, {
-        startPath: options.startPath,
-        scopePath: options.scopePath,
-        mode: options.mode ?? 'site',
-        debug: options.debug ?? false,
-        limits: {
-          maxPages: options.maxPages ?? 20,
-          maxDepth: options.maxDepth ?? 3,
-          maxStates: 80,
-          maxActionsPerState: 8,
-          maxTotalActions: 200,
-          maxActionRetries: 2,
-          explorationTimeoutMs: 300_000
-        }
-      })
-    : await exploreWebsite(options.url, {
-        ...(options.maxPages !== undefined ? { maxPages: options.maxPages } : {}),
-        ...(options.maxDepth !== undefined ? { maxDepth: options.maxDepth } : {})
-      })
+  const result = await exploreWithScope(options.url, {
+    startPath: options.startPath,
+    scopePath: options.scopePath,
+    mode: options.mode ?? 'site',
+    debug: options.debug ?? false,
+    limits: {
+      maxPages: options.maxPages ?? 20,
+      maxDepth: options.maxDepth ?? 3,
+      maxStates: 80,
+      maxActionsPerState: 8,
+      maxTotalActions: 200,
+      maxActionRetries: 2,
+      explorationTimeoutMs: 300_000
+    }
+  })
 
   const testCases = generateTestCases(result.pages)
   const testData = generateTestData(result.pages)

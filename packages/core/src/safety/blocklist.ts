@@ -64,6 +64,11 @@ export function isSessionEndingLabel(...labels: (string | undefined)[]): boolean
   return SESSION_ENDING_KEYWORDS.some((keyword) => haystack.includes(keyword.toLowerCase()))
 }
 
+/** Actions that must never be clicked automatically, regardless of project settings. */
+export function isUnsafeAutoClick(...labels: (string | undefined)[]): boolean {
+  return isSessionEndingLabel(...labels)
+}
+
 export const MAX_BLOCK_KEYWORDS = 100
 const MAX_KEYWORD_LENGTH = 80
 

@@ -13,6 +13,7 @@ import type {
   TestCase,
   TestDataRow
 } from '../types'
+import type { TestCaseLanguage } from '../types'
 
 export type WorkspaceProject = {
   id: string
@@ -21,6 +22,7 @@ export type WorkspaceProject = {
   createdAt: string
   updatedAt: string
   mode?: 'scout' | 'empty'
+  testCaseLanguage?: TestCaseLanguage
   result: AnalyzeResponse
 }
 

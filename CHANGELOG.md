@@ -2,6 +2,23 @@
 
 All notable changes to LazyScout are documented in this file.
 
+## [0.3.6] - 2026-08-11
+
+### Added
+
+- Project-level Test Case language preference. Scout and Screenshot imports remember the selected language per project without changing existing Test Case content.
+- Screenshot OCR line selection and draft preview before creating Test Cases from an image.
+- CSV exports retain the canonical Module, Requirements and Source URL fields so suites can be imported again without losing traceability data.
+
+### Changed
+
+- Web, API and CLI Scout flows now use the same scoped explorer behavior for page, scope and site exploration.
+- New Projects enable click safeguards with suggested destructive-action keywords by default.
+
+### Security
+
+- Session-ending controls such as Logout / Sign out / ออกจากระบบ are always blocked from automated clicks, including edited Playwright source.
+
 ## [0.3.3] - 2026-08-10
 
 ### Added

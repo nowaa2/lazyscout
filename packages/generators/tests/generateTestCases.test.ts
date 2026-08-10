@@ -91,4 +91,18 @@ describe('generateTestCases', () => {
     const navigation = testCases.find((testCase) => testCase.title === 'Navigate to Register')
     expect(navigation?.steps[1]).toEqual({ type: 'click', target: { role: 'link', name: 'Register' } })
   })
+
+  it('สร้างข้อความ Test Case ภาษาไทยครบทั้ง title, precondition, step, expected result และ note', () => {
+    const thaiCases = generateTestCases([loginPage], { language: 'th' })
+    const required = thaiCases.find((testCase) => testCase.title === 'Email เป็นข้อมูลที่จำเป็น')
+    const submit = thaiCases.find((testCase) => testCase.title === 'ส่ง Login ด้วยข้อมูลที่ถูกต้อง')
+    const destructive = thaiCases.find((testCase) => testCase.title.includes('Delete Account'))
+
+    expect(required?.preconditions[0]).toBe('ระบบพร้อมใช้งานที่ http://localhost:5173')
+    expect(required?.steps.some((step) => step.description === 'เว้นช่อง "Email" ว่างไว้')).toBe(true)
+    expect(required?.expectedResult).toContain('ข้อความแจ้งเตือน')
+    expect(required?.notes).toContain('หลักฐาน')
+    expect(submit?.preconditions).toContain('เตรียมข้อมูลทดสอบที่ถูกต้องแล้ว')
+    expect(destructive?.notes).toContain('การกระทำที่ทำลายข้อมูล')
+  })
 })

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { AnalyzeResponse } from '../types'
+import type { AnalyzeResponse, TestCaseLanguage } from '../types'
 import {
   deleteWorkspaceProject,
   getWorkspace,
@@ -93,7 +93,13 @@ export function useProjects() {
     return next
   }
 
-  function saveProject(targetUrl: string, result: AnalyzeResponse, name?: string, existingId?: string) {
+  function saveProject(
+    targetUrl: string,
+    result: AnalyzeResponse,
+    name?: string,
+    existingId?: string,
+    testCaseLanguage?: TestCaseLanguage
+  ) {
     const now = new Date().toISOString()
     const derivedId = `project-${encodeProjectId(targetUrl)}`
     const id = existingId ?? derivedId
@@ -105,6 +111,7 @@ export function useProjects() {
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
       mode: existing?.mode,
+      testCaseLanguage: testCaseLanguage ?? existing?.testCaseLanguage ?? 'en',
       result
     }
     deletingProjectIds.current.delete(id)
@@ -178,6 +185,14 @@ export function useProjects() {
     persist(project)
   }
 
+  function updateProjectTestCaseLanguage(id: string, testCaseLanguage: TestCaseLanguage) {
+    const existing = projects.find((project) => project.id === id)
+    if (!existing) return
+    const project = { ...existing, testCaseLanguage, updatedAt: new Date().toISOString() }
+    setProjects((current) => current.map((item) => (item.id === id ? project : item)))
+    persist(project)
+  }
+
   function openWorkspace() {
     void openWorkspaceFolder().catch((error) =>
       setWorkspaceError(error instanceof Error ? error.message : String(error))
@@ -193,6 +208,7 @@ export function useProjects() {
     deleteProject,
     renameProject,
     updateProjectResult,
+    updateProjectTestCaseLanguage,
     workspaceRoot,
     workspaceError,
     loading,

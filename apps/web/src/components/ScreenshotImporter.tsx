@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { createWorker } from 'tesseract.js'
-import type { TestCase } from '../types'
+import type { TestCase, TestCaseLanguage } from '../types'
 
 type Props = {
   sourceUrl: string
+  initialLanguage?: TestCaseLanguage
+  onLanguageChange?: (language: TestCaseLanguage) => void
   existingCases: TestCase[]
   onImport: (cases: TestCase[]) => void
   onClose: () => void
@@ -17,12 +19,28 @@ const patterns: Array<{ id: ImportPattern; title: string; description: string }>
   { id: 'manual', title: 'Manual checklist', description: 'Create a checklist for a Tester to review' }
 ]
 
-export function ScreenshotImporter({ sourceUrl, existingCases, onImport, onClose }: Props) {
+const TEST_CASE_LANGUAGE_STORAGE_KEY = 'lazyscout-test-case-language'
+
+function savedTestCaseLanguage(): TestCaseLanguage {
+  const savedLanguage = localStorage.getItem(TEST_CASE_LANGUAGE_STORAGE_KEY)
+  return savedLanguage === 'th' || savedLanguage === 'en' ? savedLanguage : 'en'
+}
+
+export function ScreenshotImporter({
+  sourceUrl,
+  initialLanguage,
+  onLanguageChange,
+  existingCases,
+  onImport,
+  onClose
+}: Props) {
   const [imageUrl, setImageUrl] = useState('')
   const [fileName, setFileName] = useState('')
   const [screenName, setScreenName] = useState('Screenshot screen')
   const [pattern, setPattern] = useState<ImportPattern>('visual')
+  const [language, setLanguage] = useState<TestCaseLanguage>(initialLanguage ?? savedTestCaseLanguage)
   const [ocrText, setOcrText] = useState('')
+  const [selectedOcrLines, setSelectedOcrLines] = useState<number[]>([])
   const [status, setStatus] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -40,7 +58,16 @@ export function ScreenshotImporter({ sourceUrl, existingCases, onImport, onClose
     const worker = await createWorker('tha+eng')
     try {
       const result = await worker.recognize(imageUrl)
-      setOcrText(result.data.text.trim())
+      const detectedText = result.data.text.trim()
+      setOcrText(detectedText)
+      setSelectedOcrLines(
+        detectedText
+          .split(/\r?\n/)
+          .map((line) => line.trim())
+          .filter((line) => line.length > 1)
+          .slice(0, 12)
+          .map((_, index) => index)
+      )
       setStatus('Reading complete. Review and edit the text before creating Test Cases.')
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'OCR failed.')
@@ -51,11 +78,14 @@ export function ScreenshotImporter({ sourceUrl, existingCases, onImport, onClose
   }
 
   function importCases() {
-    const lines = ocrText
+    const allLines = ocrText
       .split(/\r?\n/)
       .map((line) => line.trim())
       .filter((line) => line.length > 1)
       .slice(0, 12)
+    const lines = (
+      selectedOcrLines.length ? selectedOcrLines.map((index) => allLines[index]).filter(Boolean) : allLines
+    ).slice(0, 8)
     const module = 'SCREENSHOT'
     const used = new Set(existingCases.map((item) => item.id))
     let sequence = 1
@@ -69,16 +99,23 @@ export function ScreenshotImporter({ sourceUrl, existingCases, onImport, onClose
     const textSteps = lines.slice(0, 8).map((text) => ({
       type: 'assertText' as const,
       text,
-      description: `Verify that "${text}" is visible on the page`
+      description:
+        language === 'th' ? `ตรวจสอบว่าหน้าเว็บแสดงข้อความ "${text}"` : `Verify that "${text}" is visible on the page`
     }))
     const base = {
       module,
-      preconditions: ['Open the page that matches the screenshot reference'],
+      preconditions:
+        language === 'th'
+          ? ['เปิดหน้าที่ต้องการตรวจสอบให้ตรงกับภาพอ้างอิง']
+          : ['Open the page that matches the screenshot reference'],
       sourceUrl: sourceUrl || fileName,
       priority: 'medium' as const,
       automationStatus: 'needs-review' as const,
       type: 'validation' as const,
-      notes: `Created from ${fileName || 'reference'} · Review before production use`
+      notes:
+        language === 'th'
+          ? `สร้างจากภาพ ${fileName || 'อ้างอิง'} · โปรดตรวจทานก่อนนำไปใช้งานจริง`
+          : `Created from ${fileName || 'reference'} · Review before production use`
     }
     const imported: TestCase[] = []
 
@@ -86,26 +123,53 @@ export function ScreenshotImporter({ sourceUrl, existingCases, onImport, onClose
       imported.push({
         ...base,
         id: id(),
-        title: `${screenName} matches the screenshot reference`,
+        title:
+          language === 'th'
+            ? `ตรวจสอบว่า ${screenName} แสดงผลตรงตามภาพอ้างอิง`
+            : `${screenName} matches the screenshot reference`,
         steps: [
-          { type: 'navigate', url: sourceUrl || 'about:blank', description: 'Open the page to inspect' },
-          { type: 'manual', description: 'Compare layout, spacing, colors and element positions with the screenshot' }
+          {
+            type: 'navigate',
+            url: sourceUrl || 'about:blank',
+            description: language === 'th' ? 'เปิดหน้าที่ต้องการตรวจสอบ' : 'Open the page to inspect'
+          },
+          {
+            type: 'manual',
+            description:
+              language === 'th'
+                ? 'เปรียบเทียบโครงร่าง ระยะห่าง สี และตำแหน่งขององค์ประกอบกับภาพอ้างอิง'
+                : 'Compare layout, spacing, colors and element positions with the screenshot'
+          }
         ],
-        expectedResult: 'The page layout and visible elements match the screenshot reference.'
+        expectedResult:
+          language === 'th'
+            ? 'โครงร่างและองค์ประกอบที่มองเห็นบนหน้าเว็บตรงกับภาพอ้างอิง'
+            : 'The page layout and visible elements match the screenshot reference.'
       })
     }
     if (pattern === 'visual' || pattern === 'text') {
       imported.push({
         ...base,
         id: id(),
-        title: `${screenName} shows all important text`,
+        title:
+          language === 'th' ? `ตรวจสอบข้อความสำคัญทั้งหมดบน ${screenName}` : `${screenName} shows all important text`,
         steps: textSteps,
-        expectedResult: 'Important on-screen text is complete and readable.'
+        expectedResult:
+          language === 'th'
+            ? 'ข้อความสำคัญบนหน้าจอแสดงครบถ้วนและอ่านได้ชัดเจน'
+            : 'Important on-screen text is complete and readable.'
       })
     }
     onImport(imported)
     onClose()
   }
+
+  const detectedLines = ocrText
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 1)
+    .slice(0, 12)
+  const selectedCount = selectedOcrLines.length || detectedLines.length
 
   return (
     <div className="modern-modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
@@ -177,14 +241,75 @@ export function ScreenshotImporter({ sourceUrl, existingCases, onImport, onClose
             <input className="field mt-1" value={screenName} onChange={(event) => setScreenName(event.target.value)} />
           </label>
           <label className="field-label">
+            Test Case language
+            <select
+              className="field mt-1"
+              value={language}
+              onChange={(event) => {
+                const selectedLanguage = event.target.value as TestCaseLanguage
+                setLanguage(selectedLanguage)
+                localStorage.setItem(TEST_CASE_LANGUAGE_STORAGE_KEY, selectedLanguage)
+                onLanguageChange?.(selectedLanguage)
+              }}
+            >
+              <option value="en">English</option>
+              <option value="th">ไทย</option>
+            </select>
+          </label>
+          <label className="field-label">
             Text detected
             <textarea
               className="field screenshot-ocr"
               value={ocrText}
-              onChange={(event) => setOcrText(event.target.value)}
+              onChange={(event) => {
+                setOcrText(event.target.value)
+                setSelectedOcrLines([])
+              }}
               placeholder="Read text from the image, or type it yourself"
             />
           </label>
+          {detectedLines.length > 0 && (
+            <div className="import-preview">
+              <b>Choose OCR lines to create assertions ({selectedCount} selected)</b>
+              <table>
+                <tbody>
+                  {detectedLines.map((line, index) => {
+                    const checked = selectedOcrLines.length === 0 || selectedOcrLines.includes(index)
+                    return (
+                      <tr key={`${index}-${line}`}>
+                        <td>
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() =>
+                              setSelectedOcrLines((current) => {
+                                const selected =
+                                  current.length === 0 ? detectedLines.map((_, itemIndex) => itemIndex) : current
+                                return selected.includes(index)
+                                  ? selected.filter((itemIndex) => itemIndex !== index)
+                                  : [...selected, index]
+                              })
+                            }
+                          />
+                        </td>
+                        <td>{line}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <div className="import-summary">
+            <b>Draft preview</b>
+            <span>
+              {pattern === 'visual' || pattern === 'manual' ? '1 visual comparison case' : ''}
+              {pattern === 'visual' ? ' + ' : ''}
+              {pattern === 'visual' || pattern === 'text'
+                ? `1 text verification case with ${selectedCount} assertion(s)`
+                : ''}
+            </span>
+          </div>
           <p className="screenshot-status">{status}</p>
         </div>
         <footer className="modal-footer">

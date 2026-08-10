@@ -151,15 +151,26 @@ function FlowGraph({
   onState: (id: string) => void
   onEdge: (id: string) => void
 }) {
-  const columns = Math.max(1, Math.min(4, Math.ceil(Math.sqrt(states.length))))
-  const positions = new Map(
-    states.map((state, index) => [
-      state.id,
-      { x: 150 + (index % columns) * 260, y: 100 + Math.floor(index / columns) * 160 }
-    ])
-  )
-  const width = columns * 260 + 80
-  const height = Math.max(280, Math.ceil(states.length / columns) * 160 + 80)
+  const groups = [
+    ...new Map(states.map((state) => [state.url, states.filter((item) => item.url === state.url)])).values()
+  ]
+  const pageColumns = Math.max(1, Math.min(4, Math.ceil(Math.sqrt(groups.length))))
+  const groupRows = Math.ceil(groups.length / pageColumns)
+  const maxStatesPerGroup = Math.max(1, ...groups.map((group) => group.length))
+  const groupHeight = maxStatesPerGroup * 130 + 90
+  const positions = new Map<string, { x: number; y: number }>()
+  groups.forEach((group, groupIndex) => {
+    const groupColumn = groupIndex % pageColumns
+    const groupRow = Math.floor(groupIndex / pageColumns)
+    group.forEach((state, stateIndex) => {
+      positions.set(state.id, {
+        x: 150 + groupColumn * 300,
+        y: 115 + groupRow * groupHeight + stateIndex * 130
+      })
+    })
+  })
+  const width = pageColumns * 300 + 80
+  const height = Math.max(320, groupRows * groupHeight + 40)
   return (
     <div className="state-flow-canvas">
       <div className="flow-toolbar">
@@ -190,6 +201,20 @@ function FlowGraph({
               <path d="M0,0 L8,4 L0,8 Z" fill="#94a3b8" />
             </marker>
           </defs>
+          {groups.map((group, groupIndex) => {
+            const groupColumn = groupIndex % pageColumns
+            const groupRow = Math.floor(groupIndex / pageColumns)
+            const x = 20 + groupColumn * 300
+            const y = 35 + groupRow * groupHeight
+            return (
+              <g key={group[0].url} className="flow-page-group">
+                <rect x={x} y={y} width="260" height={groupHeight - 20} rx="14" />
+                <text x={x + 14} y={y + 22} className="flow-page-label">
+                  {truncate(new URL(group[0].url).pathname || '/', 30)}
+                </text>
+              </g>
+            )
+          })}
           {edges.map((edge) => {
             const from = positions.get(edge.fromStateId)
             const to = edge.toStateId ? positions.get(edge.toStateId) : undefined

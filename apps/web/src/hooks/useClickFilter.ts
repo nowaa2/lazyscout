@@ -1,29 +1,29 @@
 import { useCallback, useEffect, useState } from 'react'
-import { normalizeBlockedKeywords } from '@lazyscout/core'
+import { normalizeBlockedKeywords, SUGGESTED_BLOCK_KEYWORDS } from '@lazyscout/core'
 
 export type ClickFilter = { enabled: boolean; keywords: string[] }
 
-/** Off by default: the bot clicks whatever it finds until a Project says otherwise. */
-const OFF: ClickFilter = { enabled: false, keywords: [] }
+/** New Projects start conservatively; teams can tailor this list in Project settings. */
+const DEFAULT_FILTER: ClickFilter = { enabled: true, keywords: SUGGESTED_BLOCK_KEYWORDS }
 
 const storageKey = (projectId: string) => `lazyscout-click-filter:${projectId}`
 
 function read(projectId: string): ClickFilter {
   try {
     const stored = localStorage.getItem(storageKey(projectId))
-    if (!stored) return OFF
+    if (!stored) return DEFAULT_FILTER
     const parsed = JSON.parse(stored) as Partial<ClickFilter>
     return { enabled: parsed.enabled === true, keywords: normalizeBlockedKeywords(parsed.keywords) }
   } catch {
-    return OFF
+    return DEFAULT_FILTER
   }
 }
 
 export function useClickFilter(projectId?: string) {
-  const [filter, setFilter] = useState<ClickFilter>(OFF)
+  const [filter, setFilter] = useState<ClickFilter>(DEFAULT_FILTER)
 
   useEffect(() => {
-    setFilter(projectId ? read(projectId) : OFF)
+    setFilter(projectId ? read(projectId) : DEFAULT_FILTER)
   }, [projectId])
 
   const save = useCallback(

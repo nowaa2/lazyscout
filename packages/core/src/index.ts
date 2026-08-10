@@ -16,7 +16,8 @@ export {
   SUGGESTED_BLOCK_KEYWORDS,
   MAX_BLOCK_KEYWORDS,
   SESSION_ENDING_KEYWORDS,
-  isSessionEndingLabel
+  isSessionEndingLabel,
+  isUnsafeAutoClick
 } from './safety/blocklist.js'
 
 export { describeStep, describeSteps, describeTarget } from './testcase/describeStep.js'

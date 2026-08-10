@@ -5,17 +5,19 @@ export const UTF8_BOM = '﻿'
 
 export const CSV_COLUMNS = [
   'TC_ID',
-  'Module',
   'Folder',
-  'Tags',
-  'Requirements',
   'Title',
-  'Preconditions',
-  'Test_Steps',
-  'Expected_Result',
   'Type',
   'Priority',
+  'Test_Steps',
+  'Expected_Result',
   'Automation_Status',
+  'Preconditions',
+  'Notes',
+  'Tags',
+  // Canonical fields are retained after the visible table columns so exported suites can be imported losslessly.
+  'Module',
+  'Requirements',
   'Source_URL'
 ] as const
 
@@ -42,17 +44,18 @@ function toRow(values: string[]): string {
 function testCaseRow(testCase: TestCase): string {
   return toRow([
     testCase.id,
-    testCase.module,
-    testCase.folder ?? '',
-    (testCase.tags ?? []).join(', '),
-    (testCase.requirements ?? []).join(', '),
+    testCase.folder ?? testCase.module,
     testCase.title,
-    testCase.preconditions.join('\n'),
-    describeSteps(testCase.steps),
-    testCase.expectedResult,
     testCase.type,
     testCase.priority,
+    describeSteps(testCase.steps),
+    testCase.expectedResult,
     testCase.automationStatus,
+    testCase.preconditions.join('\n'),
+    testCase.notes ?? '',
+    (testCase.tags ?? []).join(', '),
+    testCase.module,
+    (testCase.requirements ?? []).join(', '),
     testCase.sourceUrl
   ])
 }

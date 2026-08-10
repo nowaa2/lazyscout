@@ -202,7 +202,7 @@ function normalizeRows(rows: RawRow[], existingCases: TestCase[], sourceUrl: str
         priority: priorityOf(valueOf(row, 'PRIORITY')),
         automationStatus: automationOf(valueOf(row, 'AUTOMATION_STATUS', 'AUTOMATION')),
         sourceUrl: valueOf(row, 'SOURCE_URL', 'SOURCE URL', 'URL') || sourceUrl || 'Imported file',
-        notes: 'Imported into LazyScout'
+        notes: valueOf(row, 'NOTES', 'NOTE') || 'Imported into LazyScout'
       } satisfies TestCase
     })
     .filter((testCase): testCase is TestCase => Boolean(testCase))

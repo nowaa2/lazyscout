@@ -1,4 +1,4 @@
-export { generateTestCases, DEFAULT_GENERATE_OPTIONS } from './testcases/generateTestCases.js'
+export { generateTestCases, localizeThai, DEFAULT_GENERATE_OPTIONS } from './testcases/generateTestCases.js'
 export type { GenerateOptions } from './testcases/generateTestCases.js'
 export { UNKNOWN_BEHAVIOUR } from './testcases/rules.js'
 export type { GeneratedTestCase, RuleContext } from './testcases/rules.js'

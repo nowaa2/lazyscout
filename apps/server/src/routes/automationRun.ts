@@ -7,7 +7,7 @@ import type {
   TargetRef,
   TestStep
 } from '@lazyscout/core'
-import { checkTargetUrl, redactSensitiveText, redactUrl } from '@lazyscout/core'
+import { checkTargetUrl, isUnsafeAutoClick, redactSensitiveText, redactUrl } from '@lazyscout/core'
 import { isBlockedLabel, launchBrowser, normalizeBlockedKeywords } from '@lazyscout/explorer'
 import type { Locator, Page } from 'playwright-core'
 import { config } from '../config.js'
@@ -580,8 +580,6 @@ async function ensureSafeClick(
   fallbackLabel: string,
   blockedKeywords: readonly string[]
 ): Promise<void> {
-  // A Project with no filter clicks everything, so skip five round-trips to the page.
-  if (blockedKeywords.length === 0) return
   const labels = await Promise.all([
     target.getAttribute('aria-label').catch(() => null),
     target.getAttribute('title').catch(() => null),
@@ -589,7 +587,9 @@ async function ensureSafeClick(
     target.getAttribute('id').catch(() => null),
     target.innerText().catch(() => '')
   ])
-  if (isBlockedLabel(blockedKeywords, fallbackLabel, ...labels.map((value) => value ?? undefined))) {
+  const values = [fallbackLabel, ...labels.map((value) => value ?? undefined)]
+  if (isUnsafeAutoClick(...values)) throw new Error(`Blocked by mandatory safety policy: ${fallbackLabel}`)
+  if (isBlockedLabel(blockedKeywords, ...values)) {
     throw new Error(`Blocked by the Project click filter: ${fallbackLabel}`)
   }
 }

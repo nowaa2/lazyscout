@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import { describeStep } from '@lazyscout/core'
 import type { TestCase } from '../types'
-import { AutomationBadge, PriorityBadge, TypeBadge } from './Badges'
 
 type Props = {
   testCases: TestCase[]
@@ -12,6 +12,165 @@ type Props = {
   onEdit: (testCase: TestCase) => void
   onDelete: (id: string) => void
   onReorder: (draggedId: string, targetId: string) => void
+  onUpdateCell: (id: string, key: string, value: string) => void
+}
+
+function EditableCell({
+  value,
+  editValue = value,
+  options,
+  multiline = false,
+  onSave
+}: {
+  value: string
+  editValue?: string
+  options?: string[]
+  multiline?: boolean
+  onSave: (value: string) => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(editValue)
+
+  useEffect(() => {
+    if (!editing) setDraft(editValue)
+  }, [editing, editValue])
+
+  if (!editing) {
+    return (
+      <span className="inline-edit-value" title="Double-click to edit" onDoubleClick={() => setEditing(true)}>
+        {value || '—'}
+      </span>
+    )
+  }
+
+  const save = () => {
+    setEditing(false)
+    if (draft !== editValue) onSave(draft)
+  }
+  const props = {
+    autoFocus: true,
+    value: draft,
+    onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
+      setDraft(event.target.value),
+    onBlur: save,
+    onKeyDown: (event: React.KeyboardEvent) => {
+      if (event.key === 'Enter') save()
+      if (event.key === 'Escape') {
+        setDraft(editValue)
+        setEditing(false)
+      }
+    },
+    onClick: (event: React.MouseEvent) => event.stopPropagation()
+  }
+
+  if (multiline && !options) {
+    return <textarea {...props} className="inline-edit-textarea" rows={5} />
+  }
+
+  return options ? (
+    <select {...props} className="inline-edit-input">
+      {options.map((option) => (
+        <option key={option}>{option}</option>
+      ))}
+    </select>
+  ) : (
+    <input {...props} className="inline-edit-input" />
+  )
+}
+
+function RichTextCell({ value, onSave }: { value: string; onSave: (value: string) => void }) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(value)
+  const selectionRef = useRef<Range | null>(null)
+  const editorRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!editing) setDraft(value)
+  }, [editing, value])
+
+  if (!editing) {
+    return (
+      <span
+        className="inline-edit-value"
+        title="Double-click to edit title"
+        onDoubleClick={() => setEditing(true)}
+        dangerouslySetInnerHTML={{ __html: value || '—' }}
+      />
+    )
+  }
+
+  const rememberSelection = () => {
+    const selection = window.getSelection()
+    if (selection?.rangeCount) selectionRef.current = selection.getRangeAt(0).cloneRange()
+  }
+  const restoreSelection = () => {
+    const selection = window.getSelection()
+    if (selectionRef.current && selection) {
+      selection.removeAllRanges()
+      selection.addRange(selectionRef.current)
+    }
+  }
+  const command = (name: string, valueArg?: string) => {
+    restoreSelection()
+    document.execCommand(name, false, valueArg)
+    editorRef.current?.focus()
+    rememberSelection()
+  }
+  const save = (element: HTMLDivElement) => {
+    setDraft(element.innerHTML)
+    setEditing(false)
+    onSave(element.innerHTML)
+  }
+
+  return (
+    <div className="rich-text-editor" onClick={(event) => event.stopPropagation()}>
+      <div className="rich-text-toolbar">
+        <button type="button" onMouseDown={() => rememberSelection()} onClick={() => command('bold')}>
+          B
+        </button>
+        <button type="button" onMouseDown={() => rememberSelection()} onClick={() => command('italic')}>
+          I
+        </button>
+        <input
+          type="color"
+          defaultValue="#1e293b"
+          onMouseDown={() => rememberSelection()}
+          onChange={(event) => command('foreColor', event.target.value)}
+          aria-label="Text color"
+        />
+        <select
+          defaultValue="3"
+          onMouseDown={() => rememberSelection()}
+          onChange={(event) => command('fontSize', event.target.value)}
+          aria-label="Text size"
+        >
+          <option value="2">Small</option>
+          <option value="3">Normal</option>
+          <option value="5">Large</option>
+          <option value="7">Huge</option>
+        </select>
+      </div>
+      <div
+        className="rich-text-content"
+        ref={editorRef}
+        contentEditable
+        suppressContentEditableWarning
+        dangerouslySetInnerHTML={{ __html: draft }}
+        onBlur={(event) => {
+          if (event.relatedTarget && editorRef.current?.parentElement?.contains(event.relatedTarget as Node)) return
+          save(event.currentTarget)
+        }}
+        onMouseUp={rememberSelection}
+        onKeyUp={rememberSelection}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') {
+            setDraft(value)
+            setEditing(false)
+          }
+        }}
+      />
+    </div>
+  )
 }
 
 export function TestCaseTable({
@@ -23,7 +182,8 @@ export function TestCaseTable({
   onOpen,
   onEdit,
   onDelete,
-  onReorder
+  onReorder,
+  onUpdateCell
 }: Props) {
   const [draggedId, setDraggedId] = useState<string>()
   const [dragOverId, setDragOverId] = useState<string>()
@@ -51,8 +211,8 @@ export function TestCaseTable({
   }
 
   return (
-    <div className="overflow-x-auto border border-slate-200">
-      <table className="w-full border-collapse">
+    <div className="test-case-table-scroll border border-slate-200">
+      <table className="test-case-table border-collapse" style={{ minWidth: '2200px', width: 'max-content' }}>
         <thead className="border-b border-slate-200 bg-slate-50">
           <tr>
             <th className="table-head w-10">Move</th>
@@ -69,8 +229,12 @@ export function TestCaseTable({
             <th className="table-head">Title</th>
             <th className="table-head w-24">Type</th>
             <th className="table-head w-24">Priority</th>
+            <th className="table-head w-56">Steps</th>
             <th className="table-head">Expected Result</th>
             <th className="table-head w-32">Automation</th>
+            <th className="table-head w-48">Preconditions</th>
+            <th className="table-head w-48">Notes</th>
+            <th className="table-head w-40">Tags</th>
             <th className="table-head w-28 text-center">Actions</th>
           </tr>
         </thead>
@@ -78,8 +242,6 @@ export function TestCaseTable({
           {testCases.map((testCase) => (
             <tr
               key={testCase.id}
-              draggable
-              onDragStart={() => setDraggedId(testCase.id)}
               onDragOver={(event) => {
                 event.preventDefault()
                 setDragOverId(testCase.id)
@@ -94,16 +256,14 @@ export function TestCaseTable({
                 setDraggedId(undefined)
                 setDragOverId(undefined)
               }}
-              onClick={() => {
-                setOpenActionId(undefined)
-                onOpen(testCase)
-              }}
-              className={`cursor-pointer border-b border-slate-100 hover:bg-blue-50 ${dragOverId === testCase.id ? 'bg-indigo-50 ring-2 ring-inset ring-indigo-300' : ''} ${
+              className={`border-b border-slate-100 hover:bg-blue-50 ${dragOverId === testCase.id ? 'bg-indigo-50 ring-2 ring-inset ring-indigo-300' : ''} ${
                 activeId === testCase.id ? 'bg-blue-50' : ''
               }`}
             >
               <td
                 className="table-cell drag-handle"
+                draggable
+                onDragStart={() => setDraggedId(testCase.id)}
                 onClick={(event) => event.stopPropagation()}
                 title="Drag to reorder"
               >
@@ -118,9 +278,14 @@ export function TestCaseTable({
                 />
               </td>
               <td className="table-cell font-mono text-xs">{testCase.id}</td>
-              <td className="table-cell">{testCase.folder ?? testCase.module}</td>
+              <td className="table-cell">
+                <EditableCell
+                  value={testCase.folder ?? testCase.module}
+                  onSave={(value) => onUpdateCell(testCase.id, 'folder', value)}
+                />
+              </td>
               <td className="table-cell font-medium text-slate-900">
-                {testCase.title}
+                <RichTextCell value={testCase.title} onSave={(value) => onUpdateCell(testCase.id, 'title', value)} />
                 {(testCase.tags?.length || testCase.requirements?.length) && (
                   <div className="mt-1 flex flex-wrap gap-1">
                     {testCase.tags?.slice(0, 3).map((tag) => (
@@ -137,14 +302,65 @@ export function TestCaseTable({
                 )}
               </td>
               <td className="table-cell">
-                <TypeBadge value={testCase.type} />
+                <EditableCell
+                  value={testCase.type}
+                  options={['positive', 'negative', 'validation']}
+                  onSave={(value) => onUpdateCell(testCase.id, 'type', value)}
+                />
               </td>
               <td className="table-cell">
-                <PriorityBadge value={testCase.priority} />
+                <EditableCell
+                  value={testCase.priority}
+                  options={['high', 'medium', 'low']}
+                  onSave={(value) => onUpdateCell(testCase.id, 'priority', value)}
+                />
               </td>
-              <td className="table-cell max-w-md text-slate-600">{testCase.expectedResult}</td>
+              <td className="table-cell min-w-56">
+                <RichTextCell
+                  value={testCase.steps.map((step, index) => `${index + 1}. ${describeStep(step)}`).join('\n')}
+                  onSave={(value) => onUpdateCell(testCase.id, 'steps', value)}
+                />
+                <button
+                  type="button"
+                  className="mt-2 rounded border border-indigo-200 bg-indigo-50 px-2 py-1 text-[10px] font-semibold text-indigo-700 hover:bg-indigo-100"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    onOpen(testCase)
+                  }}
+                >
+                  ดู Steps
+                </button>
+              </td>
+              <td className="table-cell max-w-md text-slate-600">
+                <RichTextCell
+                  value={testCase.expectedResult}
+                  onSave={(value) => onUpdateCell(testCase.id, 'expectedResult', value)}
+                />
+              </td>
               <td className="table-cell">
-                <AutomationBadge value={testCase.automationStatus} />
+                <EditableCell
+                  value={testCase.automationStatus}
+                  options={['ready', 'needs-data', 'needs-review', 'manual']}
+                  onSave={(value) => onUpdateCell(testCase.id, 'automationStatus', value)}
+                />
+              </td>
+              <td className="table-cell min-w-48">
+                <RichTextCell
+                  value={testCase.preconditions.join('\n')}
+                  onSave={(value) => onUpdateCell(testCase.id, 'preconditions', value)}
+                />
+              </td>
+              <td className="table-cell min-w-48">
+                <RichTextCell
+                  value={testCase.notes ?? ''}
+                  onSave={(value) => onUpdateCell(testCase.id, 'notes', value)}
+                />
+              </td>
+              <td className="table-cell min-w-40">
+                <EditableCell
+                  value={(testCase.tags ?? []).join(', ')}
+                  onSave={(value) => onUpdateCell(testCase.id, 'tags', value)}
+                />
               </td>
               <td className="table-cell text-center" onClick={(event) => event.stopPropagation()}>
                 <div className="action-menu-wrap" ref={openActionId === testCase.id ? actionMenuRef : undefined}>
@@ -159,6 +375,15 @@ export function TestCaseTable({
                   </button>
                   {openActionId === testCase.id && (
                     <div className="action-menu">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onOpen(testCase)
+                          setOpenActionId(undefined)
+                        }}
+                      >
+                        View Test Case
+                      </button>
                       <button
                         type="button"
                         onClick={() => {

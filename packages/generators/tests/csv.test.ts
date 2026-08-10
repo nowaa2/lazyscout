@@ -25,11 +25,17 @@ describe('exportTestCasesToCsv', () => {
     expect(csv.startsWith(UTF8_BOM)).toBe(true)
   })
 
-  it('มี header ครบ 10 คอลัมน์ตามสเปก', () => {
+  it('เรียง header ให้ตรงกับคอลัมน์ที่แสดงบนหน้า Test Case', () => {
     const header = csv.slice(UTF8_BOM.length).split('\r\n')[0]
     expect(header).toBe(
-      '"TC_ID","Module","Folder","Tags","Requirements","Title","Preconditions","Test_Steps","Expected_Result","Type","Priority","Automation_Status","Source_URL"'
+      '"TC_ID","Folder","Title","Type","Priority","Test_Steps","Expected_Result","Automation_Status","Preconditions","Notes","Tags","Module","Requirements","Source_URL"'
     )
+  })
+
+  it('ใช้ Module เป็น Folder เมื่อ Test Case ไม่มี Folder กำหนดไว้ และเก็บ canonical fields สำหรับ import กลับ', () => {
+    const row = csv.slice(UTF8_BOM.length).split('\r\n')[1]
+    expect(row).toContain('"LOGIN"')
+    expect(row).toContain('"http://localhost:5173/login"')
   })
 
   it('escape double quote และเก็บ comma / newline ไว้ในเซลล์เดียว', () => {

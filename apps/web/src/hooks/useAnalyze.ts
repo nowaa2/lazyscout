@@ -19,7 +19,11 @@ export function useAnalyze() {
     includeApiChecks = false,
     waitAfterNavigationMs = 750,
     blockedKeywords: string[] = [],
-    projectId?: string
+    projectId?: string,
+    startPath?: string,
+    scopePath?: string,
+    mode?: 'current-page' | 'scope' | 'site',
+    debug = false
   ) {
     setState({ status: 'loading', result: null, error: null })
     try {
@@ -31,7 +35,11 @@ export function useAnalyze() {
         includeApiChecks,
         waitAfterNavigationMs,
         blockedKeywords,
-        projectId
+        projectId,
+        startPath,
+        scopePath,
+        mode,
+        debug
       })
       setState({ status: 'success', result, error: null })
       return result
