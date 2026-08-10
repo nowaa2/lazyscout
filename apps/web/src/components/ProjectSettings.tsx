@@ -57,77 +57,79 @@ export function ProjectSettings({
             ×
           </button>
         </div>
-        <div className="settings-notice">
-          <b>Memory only</b>
-          <span>
-            Values stay in this browser tab, are cleared on refresh and are never written to Test Cases or logs.
-          </span>
-        </div>
-        <div className="settings-grid">
-          <label>
-            <span>Email</span>
-            <input
-              type="email"
-              value={draft.email ?? ''}
-              onChange={(event) => update('email', event.target.value)}
-              placeholder="Test email"
-              autoComplete="off"
-            />
-          </label>
-          <label>
-            <span>Username</span>
-            <input
-              value={draft.username ?? ''}
-              onChange={(event) => update('username', event.target.value)}
-              placeholder="Test username"
-              autoComplete="off"
-            />
-          </label>
-          <label>
-            <span>Password</span>
-            <input
-              type="password"
-              value={draft.password ?? ''}
-              onChange={(event) => update('password', event.target.value)}
-              placeholder="Test password"
-              autoComplete="off"
-            />
-          </label>
-          <label>
-            <span>API Token</span>
-            <input
-              type="password"
-              value={draft.apiToken ?? ''}
-              onChange={(event) => update('apiToken', event.target.value)}
-              placeholder="API token"
-              autoComplete="off"
-            />
-          </label>
-        </div>
-        <p className="settings-help">
-          Use <code>{'{{TEST_PASSWORD}}'}</code>, <code>{'{{TEST_EMAIL}}'}</code>, <code>{'{{TEST_USERNAME}}'}</code> or{' '}
-          <code>{'{{API_TOKEN}}'}</code> in a Test Case. Values are passed to the runner only while it runs.
-        </p>
-        {projectId && targetUrl && (
-          <div className="settings-notice settings-notice-stacked">
-            <b>Google / SSO session</b>
+        <div className="modal-body">
+          <div className="settings-notice">
+            <b>Memory only</b>
             <span>
-              Open a separate LazyScout browser, sign in manually, then close that browser. Future Automation runs use
-              its local session.
+              Values stay in this browser tab, are cleared on refresh and are never written to Test Cases or logs.
             </span>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={() => void openWorkspaceAuthSession(projectId, targetUrl)}
-            >
-              Open login browser
-            </button>
           </div>
-        )}
-        <ClickFilterPanel filter={clickFilter} onChange={onChangeClickFilter} />
-        {projectId && targetUrl && onSaveRecording && (
-          <RecorderPanel projectId={projectId} targetUrl={targetUrl} onSaveRecording={onSaveRecording} />
-        )}
+          <div className="settings-grid">
+            <label>
+              <span>Email</span>
+              <input
+                type="email"
+                value={draft.email ?? ''}
+                onChange={(event) => update('email', event.target.value)}
+                placeholder="Test email"
+                autoComplete="off"
+              />
+            </label>
+            <label>
+              <span>Username</span>
+              <input
+                value={draft.username ?? ''}
+                onChange={(event) => update('username', event.target.value)}
+                placeholder="Test username"
+                autoComplete="off"
+              />
+            </label>
+            <label>
+              <span>Password</span>
+              <input
+                type="password"
+                value={draft.password ?? ''}
+                onChange={(event) => update('password', event.target.value)}
+                placeholder="Test password"
+                autoComplete="off"
+              />
+            </label>
+            <label>
+              <span>API Token</span>
+              <input
+                type="password"
+                value={draft.apiToken ?? ''}
+                onChange={(event) => update('apiToken', event.target.value)}
+                placeholder="API token"
+                autoComplete="off"
+              />
+            </label>
+          </div>
+          <p className="settings-help">
+            Use <code>{'{{TEST_PASSWORD}}'}</code>, <code>{'{{TEST_EMAIL}}'}</code>, <code>{'{{TEST_USERNAME}}'}</code>{' '}
+            or <code>{'{{API_TOKEN}}'}</code> in a Test Case. Values are passed to the runner only while it runs.
+          </p>
+          {projectId && targetUrl && (
+            <div className="settings-notice settings-notice-stacked">
+              <b>Google / SSO session</b>
+              <span>
+                Open a separate LazyScout browser, sign in manually, then close that browser. Future Automation runs use
+                its local session.
+              </span>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => void openWorkspaceAuthSession(projectId, targetUrl)}
+              >
+                Open login browser
+              </button>
+            </div>
+          )}
+          <ClickFilterPanel filter={clickFilter} onChange={onChangeClickFilter} />
+          {projectId && targetUrl && onSaveRecording && (
+            <RecorderPanel projectId={projectId} targetUrl={targetUrl} onSaveRecording={onSaveRecording} />
+          )}
+        </div>
         <div className="modal-footer">
           <button
             type="button"

@@ -28,7 +28,8 @@ export const DEFAULT_EXPLORE_OPTIONS: ExploreOptions = {
   maxTotalStates: 80,
   actionTimeoutMs: 2_000,
   stateDiscoveryTimeoutMs: 350,
-  blockedKeywords: []
+  blockedKeywords: [],
+  maxNavigationProbesPerPage: 6
 }
 
 type QueueItem = { url: string; depth: number }
@@ -62,7 +63,9 @@ export async function exploreWebsite(
   let urlsSkipped = 0
   let limitReached: ExploreResult['stats']['limitReached'] = 'none'
 
-  const launched = await launchBrowser()
+  // A Project profile carries the cookies left by Open login browser, so the crawl
+  // starts on the signed-in application rather than bouncing back to the login page.
+  const launched = await launchBrowser(config.browserProfileDir ? { userDataDir: config.browserProfileDir } : {})
   const { context, label: browserLabel } = launched
 
   try {
@@ -71,12 +74,12 @@ export async function exploreWebsite(
 
     while (queue.length > 0) {
       if (pages.length >= config.maxPages) {
-        limitReached = 'max-pages'
+        limitReached = 'max-pages-reached'
         urlsSkipped += queue.length
         break
       }
       if (Date.now() - startedAt > config.totalTimeoutMs) {
-        limitReached = 'total-timeout'
+        limitReached = 'timeout-reached'
         urlsSkipped += queue.length
         break
       }
@@ -103,20 +106,35 @@ export async function exploreWebsite(
       await discoverSafeStates(page, result.page, config, origin, actionGraph)
 
       if (item.depth >= config.maxDepth) {
-        if (result.page.links.length > 0) limitReached = limitReached === 'none' ? 'max-depth' : limitReached
+        if (result.page.links.length > 0) limitReached = limitReached === 'none' ? 'max-depth-reached' : limitReached
         continue
+      }
+
+      const enqueue = (href: string | undefined): void => {
+        if (!href) return
+        if (!isSameOrigin(href, origin) || !isCrawlableUrl(href)) {
+          urlsSkipped++
+          return
+        }
+        const next = normalizeUrl(href)
+        if (visited.has(next) || queue.some((queued) => queued.url === next)) return
+        queue.push({ url: next, depth: item.depth + 1 })
       }
 
       for (const link of result.page.links) {
         if (!canFollowLink(link.href, link.accessibleName, config.blockedKeywords)) continue
-        if (!isSameOrigin(link.href!, origin) || !isCrawlableUrl(link.href!)) {
-          urlsSkipped++
-          continue
-        }
-        const next = normalizeUrl(link.href!)
-        if (visited.has(next) || queue.some((queued) => queued.url === next)) continue
-        queue.push({ url: next, depth: item.depth + 1 })
+        enqueue(link.href)
       }
+
+      await probeNavigationControls(
+        page,
+        result.page,
+        config,
+        origin,
+        actionGraph,
+        enqueue,
+        () => Date.now() - startedAt > config.totalTimeoutMs
+      )
     }
   } finally {
     await launched.close().catch(() => undefined)
@@ -234,6 +252,79 @@ async function discoverSafeStates(
         .catch(() => undefined)
       await page.waitForTimeout(Math.min(config.waitAfterNavigationMs, 300))
     }
+  }
+}
+
+/**
+ * A menu that routes without an `<a href>` — a button or a `role="button"` in an
+ * application shell — is invisible to link crawling, which is why exploring a
+ * signed-in application used to stop at the page it started on. Clicking one and
+ * keeping where it lands is the only way to reach the rest.
+ */
+async function probeNavigationControls(
+  page: Page,
+  source: PageInfo,
+  config: ExploreOptions,
+  origin: string,
+  graph: ActionGraph,
+  enqueue: (href: string | undefined) => void,
+  outOfTime: () => boolean
+): Promise<void> {
+  if (config.maxNavigationProbesPerPage <= 0) return
+  const sourceUrl = source.finalUrl
+  const sourceKey = normalizeUrl(sourceUrl)
+  const stateId = source.state?.id
+  const candidates = source.buttons
+    .filter((button) => button.accessibleName && !button.destructive && !button.disabled)
+    .slice(0, config.maxNavigationProbesPerPage)
+
+  for (const candidate of candidates) {
+    if (outOfTime()) break
+    const action: StateEdge['action'] = {
+      id: `${stateId ?? sourceKey}|navigate|${candidate.cssSelector}`,
+      type: 'navigate',
+      description: `Navigate by clicking “${candidate.accessibleName}”`,
+      target: candidate.accessibleName,
+      selector: candidate.cssSelector,
+      locator: { role: candidate.role, name: candidate.accessibleName },
+      safe: true
+    }
+    if (graph.visitedActionKeys.includes(action.id) || graph.failedActionKeys.includes(action.id)) continue
+
+    try {
+      if (normalizeUrl(page.url()) !== sourceKey) {
+        await page.goto(sourceUrl, { waitUntil: 'domcontentloaded', timeout: config.pageTimeoutMs })
+      }
+      await page.locator(candidate.cssSelector).click({ timeout: config.actionTimeoutMs })
+      await page.waitForTimeout(config.stateDiscoveryTimeoutMs)
+
+      const reached = page.url()
+      // Staying put means the control opened a dialog or a tab, which discoverSafeStates records.
+      if (normalizeUrl(reached) === sourceKey) continue
+      if (!isSameOrigin(reached, origin)) {
+        if (stateId)
+          addEdge(
+            graph,
+            stateId,
+            undefined,
+            { ...action, safe: false, reason: 'Action left the approved origin' },
+            'blocked'
+          )
+        graph.blockedActionKeys.push(action.id)
+        continue
+      }
+      enqueue(reached)
+      if (stateId) addEdge(graph, stateId, undefined, action, 'discovered')
+      graph.visitedActionKeys.push(action.id)
+    } catch {
+      if (stateId) addEdge(graph, stateId, undefined, action, 'failed')
+      graph.failedActionKeys.push(action.id)
+    }
+  }
+
+  // The crawl loop expects the page where it left it.
+  if (normalizeUrl(page.url()) !== sourceKey) {
+    await page.goto(sourceUrl, { waitUntil: 'domcontentloaded', timeout: config.pageTimeoutMs }).catch(() => undefined)
   }
 }
 

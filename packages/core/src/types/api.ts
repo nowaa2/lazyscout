@@ -11,6 +11,8 @@ export type AnalyzeRequest = {
   waitAfterNavigationMs?: number
   /** Labels the Project refuses to click. Empty or absent means nothing is blocked. */
   blockedKeywords?: string[]
+  /** Explores with this Project's signed-in browser profile instead of a blank one. */
+  projectId?: string
 }
 
 export type AnalyzeResponse = {

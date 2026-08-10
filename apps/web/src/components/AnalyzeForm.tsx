@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import type { TestCaseLanguage } from '../types'
+import type { ExplorationMode } from '@lazyscout/core'
 
 type Props = {
   loading: boolean
@@ -10,7 +11,11 @@ type Props = {
     maxDepth: number,
     language: TestCaseLanguage,
     includeApiChecks: boolean,
-    waitAfterNavigationMs: number
+    waitAfterNavigationMs: number,
+    startPath?: string,
+    scopePath?: string,
+    mode?: ExplorationMode,
+    debug?: boolean
   ) => void
 }
 
@@ -21,6 +26,10 @@ export function AnalyzeForm({ loading, initialUrl = '', onAnalyze }: Props) {
   const [language, setLanguage] = useState<TestCaseLanguage>('en')
   const [includeApiChecks, setIncludeApiChecks] = useState(false)
   const [waitAfterNavigationMs, setWaitAfterNavigationMs] = useState(750)
+  const [startPath, setStartPath] = useState('')
+  const [scopePath, setScopePath] = useState('')
+  const [mode, setMode] = useState<ExplorationMode>('site')
+  const [debug, setDebug] = useState(false)
   const targetHost = (() => {
     try {
       return new URL(initialUrl).hostname
@@ -32,7 +41,18 @@ export function AnalyzeForm({ loading, initialUrl = '', onAnalyze }: Props) {
   function handleSubmit(event: FormEvent) {
     event.preventDefault()
     if (!url.trim() || loading) return
-    onAnalyze(url.trim(), maxPages, maxDepth, language, includeApiChecks, waitAfterNavigationMs)
+    onAnalyze(
+      url.trim(),
+      maxPages,
+      maxDepth,
+      language,
+      includeApiChecks,
+      waitAfterNavigationMs,
+      startPath.trim() || undefined,
+      scopePath.trim() || undefined,
+      mode,
+      debug
+    )
   }
 
   return (
@@ -140,6 +160,84 @@ export function AnalyzeForm({ loading, initialUrl = '', onAnalyze }: Props) {
       <p className="mt-3 text-xs text-slate-500">
         Playwright stays within the same origin and avoids actions that can change or delete data.
       </p>
+
+      {/* Targeted Exploration */}
+      <div className="mt-3 border-t border-slate-100 pt-3">
+        <p className="text-xs font-semibold text-slate-700 mb-2">Targeted Exploration</p>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="field-label text-xs" htmlFor="start-path">
+              Start Path
+              <span className="text-slate-400 font-normal ml-1">(optional)</span>
+            </label>
+            <input
+              id="start-path"
+              className="field text-sm"
+              value={startPath}
+              onChange={(event) => setStartPath(event.target.value)}
+              placeholder="/admin/users"
+              autoComplete="off"
+              disabled={loading}
+            />
+            <p className="text-xs text-slate-400 mt-1">Where to continue exploring after login</p>
+          </div>
+          <div>
+            <label className="field-label text-xs" htmlFor="scope-path">
+              Scope Path
+              <span className="text-slate-400 font-normal ml-1">(optional)</span>
+            </label>
+            <input
+              id="scope-path"
+              className="field text-sm"
+              value={scopePath}
+              onChange={(event) => setScopePath(event.target.value)}
+              placeholder="/admin"
+              autoComplete="off"
+              disabled={loading}
+            />
+            <p className="text-xs text-slate-400 mt-1">Limits exploration to this section</p>
+          </div>
+        </div>
+        <div className="mt-3">
+          <label className="field-label text-xs">Explore</label>
+          <div className="flex gap-4 mt-1">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="radio"
+                name="explore-mode"
+                value="current-page"
+                checked={mode === 'current-page'}
+                onChange={() => setMode('current-page')}
+                disabled={loading}
+              />
+              Current page only
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="radio"
+                name="explore-mode"
+                value="scope"
+                checked={mode === 'scope'}
+                onChange={() => setMode('scope')}
+                disabled={loading}
+              />
+              This section
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="radio"
+                name="explore-mode"
+                value="site"
+                checked={mode === 'site'}
+                onChange={() => setMode('site')}
+                disabled={loading}
+              />
+              Entire site
+            </label>
+          </div>
+        </div>
+      </div>
+
       <div className="mt-3 flex flex-wrap items-center gap-4 border-t border-slate-100 pt-3 text-xs text-slate-600">
         <label className="m-0 flex items-center gap-2">
           <input
@@ -164,6 +262,16 @@ export function AnalyzeForm({ loading, initialUrl = '', onAnalyze }: Props) {
             disabled={loading}
           />{' '}
           ms
+        </label>
+        <label className="m-0 flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={debug}
+            onChange={(event) => setDebug(event.target.checked)}
+            className="h-4 w-4"
+            disabled={loading}
+          />{' '}
+          Debug mode
         </label>
       </div>
     </form>

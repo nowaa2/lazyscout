@@ -14,7 +14,9 @@ export {
   isBlockedLabel,
   normalizeBlockedKeywords,
   SUGGESTED_BLOCK_KEYWORDS,
-  MAX_BLOCK_KEYWORDS
+  MAX_BLOCK_KEYWORDS,
+  SESSION_ENDING_KEYWORDS,
+  isSessionEndingLabel
 } from './safety/blocklist.js'
 
 export { describeStep, describeSteps, describeTarget } from './testcase/describeStep.js'

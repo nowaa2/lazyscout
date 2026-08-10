@@ -181,7 +181,8 @@ export default function App() {
       language,
       includeApiChecks,
       waitAfterNavigationMs,
-      blockedKeywords
+      blockedKeywords,
+      activeProjectId
     )
     if (analyzed) {
       saveProject(url, analyzed, undefined, activeProject?.targetUrl ? undefined : activeProjectId)

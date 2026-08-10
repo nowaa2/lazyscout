@@ -4,6 +4,12 @@ All notable changes to LazyScout are documented in this file.
 
 ## [0.3.3] - 2026-08-10
 
+### Added
+
+- Exploring an application behind a login: Scout now runs in the Project browser profile, so the session left by Open login browser is the session it explores with. It used to open a blank browser and be redirected back to the login page on every URL
+- Menus that route through a click handler instead of an `<a href>` are followed. Scout clicks the controls on a page, and where a click lands somewhere new on the same site, that page joins the crawl — which is how the screens behind a login are reached at all
+- `maxNavigationProbesPerPage` bounds how many controls are tried per page, default 6
+
 ### Changed
 
 - The bot now clicks every control it finds. The built-in list of "destructive" words was blocking ordinary navigation — `publish`, `approve`, `archive`, `send`, `บันทึก` and `ยกเลิก` cut off most of an application behind a login

@@ -1,4 +1,5 @@
 export { exploreWebsite, DEFAULT_EXPLORE_OPTIONS } from './exploreWebsite.js'
+export { exploreWithScope, exploreWebsiteWithConfig } from './scopedExplorer.js'
 export { launchBrowser } from './launchBrowser.js'
 export { ExplorerError, toExploreIssue } from './errors.js'
 export {

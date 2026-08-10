@@ -40,9 +40,13 @@ export async function launchBrowser(
     }
   }
 
+  // Chromium locks a profile directory, so the usual cause here is another
+  // LazyScout browser for the same Project rather than a missing browser.
   throw new ExplorerError(
     'browser-error',
     `unable to launch a browser (tried: ${failures.join(', ')})`,
-    'Please install Google Chrome or Microsoft Edge or run "npx playwright install chromium" and try again'
+    options.userDataDir
+      ? 'Close any other LazyScout browser for this Project — the login browser and a recording both hold its profile — and try again'
+      : 'Please install Google Chrome or Microsoft Edge or run "npx playwright install chromium" and try again'
   )
 }

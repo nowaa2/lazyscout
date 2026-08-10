@@ -25,6 +25,17 @@ Default: 20
 --max-depth <n>     Maximum crawl depth.
 Default: 3
 
+--start-path <path> Continue exploration from this path after login.
+Example: /admin/users
+
+--scope-path <path> Limit exploration to this section.
+Example: /admin
+
+--mode <mode>       Exploration mode: current-page, scope, site.
+Default: site
+
+--debug             Show detailed exploration logs.
+
 Web Interface Options
 --port <port>       Port used by the LazyScout web interface.
 Default: 4321
@@ -42,6 +53,8 @@ npx lazyscout --workspace D:\\QA\\LazyScout
 npx lazyscout scan http://localhost:5173
 
 npx lazyscout scan https://example.com --max-pages 10 --csv report.csv
+
+npx lazyscout scan https://example.com --start-path /admin --scope-path /admin --mode scope --debug
 
 Explorer Behavior
 LazyScout only explores URLs within the same origin.
@@ -62,7 +75,11 @@ async function main(): Promise<void> {
       port: { type: 'string' },
       workspace: { type: 'string' },
 
-      'no-open': { type: 'boolean', default: false }
+      'no-open': { type: 'boolean', default: false },
+      'start-path': { type: 'string' },
+      'scope-path': { type: 'string' },
+      mode: { type: 'string' },
+      debug: { type: 'boolean', default: false }
     }
   })
 
@@ -95,12 +112,22 @@ async function main(): Promise<void> {
         process.exitCode = 1
         return
       }
+      const mode = values.mode as 'current-page' | 'scope' | 'site' | undefined
+      if (mode && mode !== 'current-page' && mode !== 'scope' && mode !== 'site') {
+        console.error(`Invalid mode "${mode}". Use: current-page, scope, or site`)
+        process.exitCode = 1
+        return
+      }
       await runScan({
         url,
         csvPath: values.csv,
         jsonPath: values.json,
         maxPages: values['max-pages'] ? Number(values['max-pages']) : undefined,
-        maxDepth: values['max-depth'] ? Number(values['max-depth']) : undefined
+        maxDepth: values['max-depth'] ? Number(values['max-depth']) : undefined,
+        startPath: values['start-path'],
+        scopePath: values['scope-path'],
+        mode,
+        debug: values.debug
       })
       return
     }

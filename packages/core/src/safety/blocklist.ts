@@ -28,6 +28,8 @@ export const SUGGESTED_BLOCK_KEYWORDS = [
   'close account',
   'unsubscribe',
   'cancel subscription',
+  'revoke access',
+  'reset database',
 
   'ลบ',
   'ชำระเงิน',
@@ -37,6 +39,30 @@ export const SUGGESTED_BLOCK_KEYWORDS = [
   'สั่งซื้อ',
   'ยืนยันการชำระ'
 ]
+
+/**
+ * Session-ending action labels. The explorer must never click these automatically
+ * because they would invalidate the authenticated session.
+ */
+export const SESSION_ENDING_KEYWORDS = [
+  'log out',
+  'logout',
+  'log out',
+  'sign out',
+  'signout',
+  'sign out',
+  'ออกจากระบบ',
+  'ออกจากระบบ'
+]
+
+/**
+ * Checks whether the given label indicates a session-ending action.
+ */
+export function isSessionEndingLabel(...labels: (string | undefined)[]): boolean {
+  const haystack = labels.filter(Boolean).join(' ').toLowerCase()
+  if (!haystack.trim()) return false
+  return SESSION_ENDING_KEYWORDS.some((keyword) => haystack.includes(keyword.toLowerCase()))
+}
 
 export const MAX_BLOCK_KEYWORDS = 100
 const MAX_KEYWORD_LENGTH = 80

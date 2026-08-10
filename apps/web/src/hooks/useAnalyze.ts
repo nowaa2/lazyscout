@@ -18,7 +18,8 @@ export function useAnalyze() {
     language: TestCaseLanguage = 'en',
     includeApiChecks = false,
     waitAfterNavigationMs = 750,
-    blockedKeywords: string[] = []
+    blockedKeywords: string[] = [],
+    projectId?: string
   ) {
     setState({ status: 'loading', result: null, error: null })
     try {
@@ -29,7 +30,8 @@ export function useAnalyze() {
         language,
         includeApiChecks,
         waitAfterNavigationMs,
-        blockedKeywords
+        blockedKeywords,
+        projectId
       })
       setState({ status: 'success', result, error: null })
       return result

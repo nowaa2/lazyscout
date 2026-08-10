@@ -5,8 +5,9 @@ import { ExplorerError, exploreWebsite, normalizeBlockedKeywords } from '@lazysc
 import { generateTestCases, generateTestData } from '@lazyscout/generators'
 import { clamp, config } from '../config.js'
 import { toApiError } from '../toApiError.js'
+import { browserProfileDirectory } from '../workspace.js'
 
-export function registerAnalyzeRoute(app: FastifyInstance): void {
+export function registerAnalyzeRoute(app: FastifyInstance, workspaceRoot: string): void {
   app.post('/api/analyze', async (request, reply) => {
     const body = (request.body ?? {}) as Partial<AnalyzeRequest>
 
@@ -21,6 +22,12 @@ export function registerAnalyzeRoute(app: FastifyInstance): void {
       return reply.status(400).send({ error: { code: check.code, message: check.message } })
     }
 
+    // Without the Project profile the crawl signs out of everything the operator
+    // signed into, and an application behind a login looks like one page.
+    const browserProfileDir = body.projectId
+      ? await browserProfileDirectory(workspaceRoot, body.projectId).catch(() => undefined)
+      : undefined
+
     try {
       const result = await exploreWebsite(
         check.url.toString(),
@@ -28,7 +35,8 @@ export function registerAnalyzeRoute(app: FastifyInstance): void {
           maxPages: clamp(body.maxPages, 1, config.limits.maxPages, config.limits.maxPages),
           maxDepth: clamp(body.maxDepth, 0, config.limits.maxDepth, config.limits.maxDepth),
           waitAfterNavigationMs: clamp(body.waitAfterNavigationMs, 0, 5000, 750),
-          blockedKeywords: normalizeBlockedKeywords(body.blockedKeywords)
+          blockedKeywords: normalizeBlockedKeywords(body.blockedKeywords),
+          ...(browserProfileDir ? { browserProfileDir } : {})
         },
         config.urlPolicy
       )

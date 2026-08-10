@@ -75,7 +75,19 @@ export type ApiObservation = {
 }
 
 export type ExplorerActionType =
-  'navigate' | 'click' | 'openModal' | 'closeDialog' | 'selectTab' | 'expandAccordion' | 'openDropdown' | 'other'
+  | 'navigate'
+  | 'click'
+  | 'openModal'
+  | 'closeDialog'
+  | 'selectTab'
+  | 'expandAccordion'
+  | 'openDropdown'
+  | 'openDrawer'
+  | 'expandMenu'
+  | 'breadcrumb'
+  | 'pagination'
+  | 'other'
+
 export type ExplorerAction = {
   id: string
   type: ExplorerActionType
@@ -159,6 +171,9 @@ export type ExploreIssueCode =
   | 'browser-error'
   | 'cloudflare'
   | 'challenge-blocked'
+  | 'auth-lost'
+  | 'scope-rejected'
+  | 'session-ending'
   | 'unknown'
 
 export type ExploreIssue = {
@@ -182,15 +197,114 @@ export type ExploreOptions = {
   stateDiscoveryTimeoutMs: number
   /** Labels the Project refuses to click. Empty means the explorer clicks anything it finds. */
   blockedKeywords: string[]
+  /** Controls per page that are clicked to see whether they navigate somewhere new. */
+  maxNavigationProbesPerPage: number
+  /** Reuses a signed-in Project browser profile, so exploration starts past the login page. */
+  browserProfileDir?: string
+}
+
+export type ExplorationMode = 'current-page' | 'scope' | 'site'
+
+export type ExplorationLimits = {
+  maxPages: number
+  maxStates: number
+  maxDepth: number
+  maxActionsPerState: number
+  maxTotalActions: number
+  maxActionRetries: number
+  explorationTimeoutMs: number
+}
+
+export type DiscoveryLog = {
+  timestamp: string
+  level: 'info' | 'warn' | 'error' | 'debug' | 'blocked' | 'skipped' | 'retry'
+  message: string
+  context?: {
+    url?: string
+    stateId?: string
+    actionId?: string
+    reason?: string
+    queueSize?: number
+    retryCount?: number
+  }
+}
+
+export type ExplorationEndReason =
+  | 'queue-exhausted'
+  | 'max-pages-reached'
+  | 'max-states-reached'
+  | 'max-depth-reached'
+  | 'max-total-actions-reached'
+  | 'timeout-reached'
+  | 'no-safe-actions-remaining'
+  | 'auth-lost-unrecoverable'
+  | 'browser-crash'
+
+export type ExplorationSummary = {
+  pagesDiscovered: number
+  statesDiscovered: number
+  transitions: number
+  actionsExecuted: number
+  actionsBlocked: number
+  actionsFailed: number
+  actionsRetried: number
+  urlsSkippedByScope: number
+  endReason: ExplorationEndReason
+  endReasonDetail?: string
+}
+
+export type EntryFlowStep = {
+  url: string
+  action: ExplorerAction
+  stateId?: string
+}
+
+export type StateRestoreStrategy = 'goto' | 'reload' | 'close-dialog' | 'select-tab' | 'entry-replay' | 'none'
+
+export type ExplorationConfig = {
+  startPath?: string
+  scopePath?: string
+  mode: ExplorationMode
+  debug: boolean
+  limits: ExplorationLimits
+  continueAfterLogin: boolean
+}
+
+export type SafeActionCandidate = {
+  priority: number
+  action: ExplorerAction
+  locator: {
+    role?: string
+    name?: string
+    label?: string
+    placeholder?: string
+    testId?: string
+    cssSelector?: string
+  }
+  kind:
+    | 'navigation-link'
+    | 'menu-item'
+    | 'tab'
+    | 'pagination'
+    | 'modal-opener'
+    | 'dropdown'
+    | 'accordion'
+    | 'drawer'
+    | 'breadcrumb'
+    | 'sidebar-nav'
+    | 'submenu'
+    | 'other-safe'
+  restoreStrategy: StateRestoreStrategy
 }
 
 export type ExploreStats = {
   browser?: string
   pagesVisited: number
-
   urlsSkipped: number
   durationMs: number
-  limitReached: 'max-pages' | 'max-depth' | 'total-timeout' | 'none'
+  limitReached: ExplorationEndReason | 'none'
+  summary?: ExplorationSummary
+  discoveryLogs?: DiscoveryLog[]
 }
 
 export type ExploreResult = {

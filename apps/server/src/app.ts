@@ -30,7 +30,7 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
 
   app.get('/api/health', async () => ({ status: 'ok', version: appVersion, workspaceRoot }))
 
-  registerAnalyzeRoute(app)
+  registerAnalyzeRoute(app, workspaceRoot)
   registerExportCsvRoute(app)
   registerAutomationRunRoute(app, workspaceRoot)
   registerApiCheckRunRoute(app)
