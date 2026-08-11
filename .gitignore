@@ -8,6 +8,11 @@ dist/
 **/*.test.ts
 !packages/*/tests/**/*.test.ts
 !apps/*/tests/**/*.test.ts
+**/*.spec.ts
+**/test.ts
+**/tests-output/
+**/generated-tests/
+recordings/
 
 .env
 .env.*
