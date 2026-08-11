@@ -988,6 +988,34 @@ body {
   .language-switcher-sidebar {
     @apply mb-3 flex w-full items-center justify-center gap-2;
   }
+  .auth-session-status {
+    @apply flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2;
+  }
+  .auth-session-status > div {
+    @apply flex min-w-0 flex-col gap-0.5;
+  }
+  .auth-session-actions {
+    @apply flex flex-wrap items-center gap-2;
+  }
+  .auth-session-actions .btn {
+    @apply whitespace-nowrap;
+  }
+  .auth-session-status b {
+    @apply text-xs font-semibold text-slate-700;
+  }
+  .auth-session-status small,
+  .auth-session-hint {
+    @apply text-[11px] leading-4 text-slate-500;
+  }
+  .auth-session-dot {
+    @apply h-2.5 w-2.5 shrink-0 rounded-full bg-slate-300;
+  }
+  .auth-session-dot.is-profile {
+    @apply bg-amber-400;
+  }
+  .auth-session-dot.is-ready {
+    @apply bg-emerald-500;
+  }
   .workspace-language-row {
     @apply flex items-center justify-between gap-3;
   }

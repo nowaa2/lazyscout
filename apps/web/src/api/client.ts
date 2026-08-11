@@ -172,6 +172,21 @@ export async function openWorkspaceAuthSession(projectId: string, url: string): 
   })
 }
 
+export type WorkspaceAuthSessionStatus = {
+  profileExists: boolean
+  browserDataDetected: boolean
+  cookieStoreDetected: boolean
+  lastModifiedAt?: string
+}
+
+export async function getWorkspaceAuthSessionStatus(projectId: string): Promise<WorkspaceAuthSessionStatus> {
+  return requestJson(`/api/workspace/projects/${encodeURIComponent(projectId)}/auth-session/status`)
+}
+
+export async function clearWorkspaceAuthSession(projectId: string): Promise<void> {
+  await requestJson(`/api/workspace/projects/${encodeURIComponent(projectId)}/auth-session`, { method: 'DELETE' })
+}
+
 export async function startRecorder(projectId: string, url: string): Promise<RecorderState> {
   return requestJson<RecorderState>(`/api/recorder/${encodeURIComponent(projectId)}/start`, {
     method: 'POST',

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { TestCase } from '@lazyscout/core'
 import { generatePlaywrightTest } from '@lazyscout/generators'
+import { toTargetRef } from '../src/testcases/targets.js'
 
 /** A login flow shaped exactly as the recorder emits it. */
 const recordedLogin: TestCase = {
@@ -45,5 +46,51 @@ describe('generatePlaywrightTest for a recorded flow', () => {
       steps: [{ type: 'fill', target: { cssSelector: '#pw' }, value: '{{TEST_PASSWORD}}' }]
     }
     expect(generatePlaywrightTest(unlabelled)).toContain('{{TEST_PASSWORD}}')
+  })
+
+  it('scopes duplicate controls to their section and selects the matching nth item', () => {
+    const duplicateButton: TestCase = {
+      ...recordedLogin,
+      steps: [
+        {
+          type: 'click',
+          target: {
+            role: 'button',
+            name: 'Save',
+            matchCount: 4,
+            nth: 1,
+            contextSelector: 'section',
+            contextText: 'Billing details'
+          }
+        }
+      ]
+    }
+
+    expect(generatePlaywrightTest(duplicateButton)).toContain(
+      'page.locator("section").filter({ hasText: "Billing details" }).getByRole("button", { name: "Save" }).nth(1).click()'
+    )
+  })
+
+  it('does not add nth when a unique container already separates the duplicate', () => {
+    const target = toTargetRef({
+      kind: 'button',
+      role: 'button',
+      accessibleName: 'Edit',
+      tagName: 'button',
+      required: false,
+      disabled: false,
+      cssSelector: '.actions > button',
+      matchIndex: 3,
+      matchCount: 4,
+      scopeIndex: 0,
+      scopeMatchCount: 1,
+      contextText: 'John Doe',
+      contextSelector: '.row'
+    })
+
+    expect(target.nth).toBeUndefined()
+    expect(generatePlaywrightTest({ ...recordedLogin, steps: [{ type: 'click', target }] })).toContain(
+      'page.locator(".row").filter({ hasText: "John Doe" }).getByRole("button", { name: "Edit" }).click()'
+    )
   })
 })

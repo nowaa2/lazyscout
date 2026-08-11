@@ -21,6 +21,7 @@ export type UIElement = {
   inputType?: string
   placeholder?: string
   name?: string
+  testId?: string
   id?: string
   href?: string
 
@@ -29,6 +30,14 @@ export type UIElement = {
   disabled: boolean
 
   cssSelector: string
+
+  matchIndex?: number
+  matchCount?: number
+  scopeIndex?: number
+  scopeMatchCount?: number
+  contextText?: string
+  contextSelector?: string
+  contextTestId?: string
 
   destructive: boolean
 }

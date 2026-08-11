@@ -4,7 +4,13 @@ export type TargetRef = {
   text?: string
   placeholder?: string
   label?: string
+  testId?: string
   cssSelector?: string
+  nth?: number
+  matchCount?: number
+  contextText?: string
+  contextSelector?: string
+  contextTestId?: string
 }
 
 export type NavigateStep = {
@@ -65,6 +71,7 @@ export type TestCaseType = 'positive' | 'negative' | 'validation'
 export type TestCasePriority = 'low' | 'medium' | 'high'
 
 export type AutomationStatus = 'ready' | 'needs-data' | 'needs-review' | 'manual'
+export type TestCaseExecutionStatus = 'pending' | 'passed' | 'failed'
 export type TestCaseLanguage = 'th' | 'en'
 
 export type TestCase = {
@@ -80,6 +87,7 @@ export type TestCase = {
   type: TestCaseType
   priority: TestCasePriority
   automationStatus: AutomationStatus
+  status?: TestCaseExecutionStatus
 
   sourceUrl: string
 

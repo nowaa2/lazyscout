@@ -241,6 +241,49 @@ export async function browserProfileDirectory(root: string, projectId: string): 
   return join(await ensureProject(root, projectId), 'browser-profile')
 }
 
+export type BrowserProfileStatus = {
+  profileExists: boolean
+  browserDataDetected: boolean
+  cookieStoreDetected: boolean
+  lastModifiedAt?: string
+}
+
+export async function browserProfileStatus(root: string, projectId: string): Promise<BrowserProfileStatus> {
+  const directory = join(projectDirectory(root, projectId), 'browser-profile')
+  try {
+    const entries = await readdir(directory)
+    const candidates = [
+      directory,
+      join(directory, 'Local State'),
+      join(directory, 'Default'),
+      join(directory, 'Default', 'Cookies'),
+      join(directory, 'Default', 'Local Storage')
+    ]
+    const modifiedTimes = await Promise.all(
+      candidates.map(async (candidate) => {
+        try {
+          return (await stat(candidate)).mtimeMs
+        } catch {
+          return 0
+        }
+      })
+    )
+    return {
+      profileExists: true,
+      browserDataDetected: entries.includes('Default') || entries.includes('Local State'),
+      cookieStoreDetected: modifiedTimes[3] > 0 || modifiedTimes[4] > 0,
+      lastModifiedAt: new Date(Math.max(...modifiedTimes)).toISOString()
+    }
+  } catch {
+    return { profileExists: false, browserDataDetected: false, cookieStoreDetected: false }
+  }
+}
+
+export async function clearBrowserProfile(root: string, projectId: string): Promise<void> {
+  const directory = join(projectDirectory(root, projectId), 'browser-profile')
+  await rm(directory, { recursive: true, force: true })
+}
+
 async function readProject(root: string, projectId: string): Promise<WorkspaceProject | undefined> {
   try {
     const directory = projectDirectory(root, projectId)

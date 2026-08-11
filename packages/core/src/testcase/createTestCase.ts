@@ -37,6 +37,7 @@ export function createEmptyTestCase(module = 'MANUAL', id = makeTestCaseId('MANU
     type: 'positive',
     priority: 'medium',
     automationStatus: 'manual',
+    status: 'pending',
     sourceUrl
   }
 }

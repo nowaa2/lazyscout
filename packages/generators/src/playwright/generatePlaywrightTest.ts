@@ -12,11 +12,29 @@ export function generatePlaywrightTest(testCase: TestCase): string {
 }
 
 function locator(target: TargetRef): string {
-  if (target.role && target.name) return `page.getByRole(${quote(target.role)}, { name: ${quote(target.name)} })`
-  if (target.label) return `page.getByLabel(${quote(target.label)})`
-  if (target.placeholder) return `page.getByPlaceholder(${quote(target.placeholder)})`
-  if (target.text) return `page.getByText(${quote(target.text)})`
-  return `page.locator(${quote(target.cssSelector ?? '')})`
+  const base =
+    target.role && target.name
+      ? `page.getByRole(${quote(target.role)}, { name: ${quote(target.name)} })`
+      : target.label
+        ? `page.getByLabel(${quote(target.label)})`
+        : target.testId
+          ? `page.getByTestId(${quote(target.testId)})`
+          : target.placeholder
+            ? `page.getByPlaceholder(${quote(target.placeholder)})`
+            : target.text
+              ? `page.getByText(${quote(target.text)})`
+              : `page.locator(${quote(target.cssSelector ?? '')})`
+  const context = target.contextTestId
+    ? `page.getByTestId(${quote(target.contextTestId)})`
+    : target.contextSelector
+      ? `page.locator(${quote(target.contextSelector)})`
+      : undefined
+  const scoped = context
+    ? target.contextText
+      ? `${context}.filter({ hasText: ${quote(target.contextText)} }).${base.slice(5)}`
+      : `${context}.${base.slice(5)}`
+    : base
+  return target.nth === undefined ? scoped : `${scoped}.nth(${target.nth})`
 }
 function playwrightStep(step: TestStep): string {
   switch (step.type) {

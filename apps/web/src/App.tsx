@@ -160,6 +160,10 @@ export default function App() {
         }) as TestCase['steps']
     } else updated[key] = value
     updateTestCase(id, updated)
+    if (activeProjectId && result) {
+      const nextTestCases = testCases.map((item) => (item.id === id ? updated : item))
+      updateProjectResult(activeProjectId, { ...result, testCases: nextTestCases, testData })
+    }
   }
   useEffect(() => {
     if (activeProjectId && result && activeProject?.result === result)
@@ -411,7 +415,11 @@ export default function App() {
                   projectId={activeProjectId}
                   secrets={secrets}
                   blockedKeywords={blockedKeywords}
-                  onRunStatus={(id, status) => setExecutionStatuses((current) => ({ ...current, [id]: status }))}
+                  onRunStatus={(id, status) => {
+                    setExecutionStatuses((current) => ({ ...current, [id]: status }))
+                    const current = testCases.find((testCase) => testCase.id === id)
+                    if (current) updateTestCase(id, { ...current, status })
+                  }}
                   onRunResult={(id, result) => {
                     setRunResults((current) => ({
                       ...current,

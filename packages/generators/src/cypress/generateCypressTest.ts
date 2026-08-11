@@ -7,12 +7,17 @@ export function generateCypressTest(testCase: TestCase): string {
   return lines.join('\n')
 }
 function locator(target: TargetRef): string {
-  if (target.role && target.name) return `cy.contains(${quote(target.role)}, ${quote(target.name)})`
-  if (target.label)
-    return `cy.get('label').contains(${quote(target.label)}).invoke('attr', 'for').then((id) => cy.get('#' + id))`
-  if (target.placeholder) return `cy.get(${quote(`[placeholder="${target.placeholder}"]`)})`
-  if (target.text) return `cy.contains(${quote(target.text)})`
-  return `cy.get(${quote(target.cssSelector ?? '')})`
+  const base =
+    target.role && target.name
+      ? `cy.contains(${quote(target.role)}, ${quote(target.name)})`
+      : target.label
+        ? `cy.get('label').contains(${quote(target.label)}).invoke('attr', 'for').then((id) => cy.get('#' + id))`
+        : target.placeholder
+          ? `cy.get(${quote(`[placeholder="${target.placeholder}"]`)})`
+          : target.text
+            ? `cy.contains(${quote(target.text)})`
+            : `cy.get(${quote(target.cssSelector ?? '')})`
+  return target.nth === undefined ? base : `${base}.eq(${target.nth})`
 }
 function cypressStep(step: TestStep): string {
   switch (step.type) {

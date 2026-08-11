@@ -1,6 +1,6 @@
 {
   "name": "lazyscout-monorepo",
-  "version": "0.3.7",
+  "version": "0.3.8",
   "private": true,
   "//": "Monorepo root. The published npm package is apps/cli (lazyscout).",
   "type": "module",

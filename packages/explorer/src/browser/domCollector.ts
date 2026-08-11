@@ -123,6 +123,24 @@ export function collectPageData(): RawPageData {
 
     const disabled = (el as HTMLInputElement).disabled === true || el.getAttribute('aria-disabled') === 'true'
     const required = (el as HTMLInputElement).required === true || el.getAttribute('aria-required') === 'true'
+    const context = el.closest(
+      'form, fieldset, tr, [role="row"], li, section, article, aside, main, nav, dialog, [role="dialog"], [role="region"], .card, [class*="card" i]'
+    )
+    const contextAriaLabel = context?.getAttribute('aria-label')
+    const contextHeading = context?.querySelector('h1, h2, h3')
+    const rowLabel = context?.matches('tr, [role="row"]')
+      ? context.querySelector('th, td, [role="cell"], [role="gridcell"]')
+      : undefined
+    const namedContainer = context?.querySelector('[data-title], [data-name], [data-label]')
+    const contextText = cleanText(
+      contextAriaLabel ||
+        contextHeading?.textContent ||
+        namedContainer?.getAttribute('data-title') ||
+        namedContainer?.getAttribute('data-name') ||
+        namedContainer?.getAttribute('data-label') ||
+        rowLabel?.textContent
+    )
+    const contextTestId = context?.getAttribute('data-testid')?.trim() || undefined
 
     return {
       kind,
@@ -133,12 +151,48 @@ export function collectPageData(): RawPageData {
       inputType,
       placeholder: attr(el, 'placeholder'),
       name: attr(el, 'name'),
+      testId: attr(el, 'data-testid'),
       id: el.id || undefined,
       href: el instanceof HTMLAnchorElement ? el.href : undefined,
       options,
       required,
       disabled,
-      cssSelector: cssSelector(el)
+      cssSelector: cssSelector(el),
+      contextText: contextText || undefined,
+      contextSelector: context ? cssSelector(context) : undefined,
+      contextTestId
+    }
+  }
+
+  function annotateMatches(elements: RawElement[]): void {
+    const groups = new Map<string, RawElement[]>()
+    for (const element of elements) {
+      if (!element.accessibleName) continue
+      const key = `${element.role}|${element.accessibleName}`
+      const group = groups.get(key) ?? []
+      group.push(element)
+      groups.set(key, group)
+    }
+    for (const group of groups.values()) {
+      if (group.length < 2) continue
+      group.forEach((element, index) => {
+        element.matchIndex = index
+        element.matchCount = group.length
+      })
+      const scopedGroups = new Map<string, RawElement[]>()
+      for (const element of group) {
+        if (!element.contextSelector) continue
+        const scopedKey = element.contextSelector
+        const scoped = scopedGroups.get(scopedKey) ?? []
+        scoped.push(element)
+        scopedGroups.set(scopedKey, scoped)
+      }
+      for (const scoped of scopedGroups.values()) {
+        scoped.forEach((element, index) => {
+          element.scopeIndex = index
+          element.scopeMatchCount = scoped.length
+        })
+      }
     }
   }
 
@@ -194,7 +248,7 @@ export function collectPageData(): RawPageData {
       }
     })
 
-  return {
+  const result: RawPageData = {
     title: document.title,
     headings: Array.from(document.querySelectorAll('h1, h2, h3'))
       .map((el) => cleanText(el.textContent))
@@ -275,4 +329,7 @@ export function collectPageData(): RawPageData {
       .filter(Boolean)
       .slice(0, 20)
   }
+  annotateMatches([...result.links, ...result.buttons, ...result.inputs, ...result.textareas, ...result.selects])
+  annotateMatches(result.forms.flatMap((form) => [...form.fields, ...form.submitButtons]))
+  return result
 }

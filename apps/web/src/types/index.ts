@@ -22,6 +22,7 @@ export type {
   TestCase,
   TestCasePriority,
   TestCaseType,
+  TestCaseExecutionStatus,
   TestDataRow,
   TestStep,
   RunEvent,

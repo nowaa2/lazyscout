@@ -6,6 +6,8 @@ import {
   deleteProject,
   deleteScreenshot,
   browserProfileDirectory,
+  browserProfileStatus,
+  clearBrowserProfile,
   listBugReports,
   listProjects,
   openWorkspace,
@@ -55,6 +57,15 @@ export function registerWorkspaceRoutes(app: FastifyInstance, root: string): voi
     const page = launched.context.pages()[0] ?? (await launched.context.newPage())
     await page.goto(body.url, { waitUntil: 'domcontentloaded' })
     return reply.send({ opened: true })
+  })
+
+  app.get<{ Params: ProjectParams }>('/api/workspace/projects/:projectId/auth-session/status', async (request) =>
+    browserProfileStatus(root, request.params.projectId)
+  )
+
+  app.delete<{ Params: ProjectParams }>('/api/workspace/projects/:projectId/auth-session', async (request, reply) => {
+    await clearBrowserProfile(root, request.params.projectId)
+    return reply.send({ cleared: true })
   })
 
   app.get<{ Params: ProjectParams }>('/api/workspace/projects/:projectId/screenshots', async (request) =>

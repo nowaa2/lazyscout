@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { describeStep } from '@lazyscout/core'
-import type { TestCase } from '../types'
+import type { TestCase, TestCaseExecutionStatus } from '../types'
 
 type Props = {
   testCases: TestCase[]
@@ -190,6 +190,7 @@ export function TestCaseTable({
   const [draggedId, setDraggedId] = useState<string>()
   const [dragOverId, setDragOverId] = useState<string>()
   const [openActionId, setOpenActionId] = useState<string>()
+  const [statusOverrides, setStatusOverrides] = useState<Record<string, TestCaseExecutionStatus>>({})
   const actionMenuRef = useRef<HTMLDivElement>(null)
   const allSelected = testCases.length > 0 && testCases.every((item) => selectedIds.includes(item.id))
 
@@ -234,10 +235,10 @@ export function TestCaseTable({
             <th className="table-head w-56">Steps</th>
             <th className="table-head">Expected Result</th>
             <th className="table-head w-32">Automation</th>
-            <th className="table-head w-28">Execution</th>
             <th className="table-head w-48">Preconditions</th>
             <th className="table-head w-48">Notes</th>
             <th className="table-head w-40">Tags</th>
+            <th className="table-head w-32">Status</th>
             <th className="table-head w-28 text-center">Actions</th>
           </tr>
         </thead>
@@ -286,11 +287,6 @@ export function TestCaseTable({
                   value={testCase.folder ?? testCase.module}
                   onSave={(value) => onUpdateCell(testCase.id, 'folder', value)}
                 />
-              </td>
-              <td className="table-cell">
-                <span className={`status-badge status-badge-${executionStatuses[testCase.id] ?? 'pending'}`}>
-                  {executionStatuses[testCase.id] ?? 'pending'}
-                </span>
               </td>
               <td className="table-cell font-medium text-slate-900">
                 <RichTextCell value={testCase.title} onSave={(value) => onUpdateCell(testCase.id, 'title', value)} />
@@ -368,6 +364,17 @@ export function TestCaseTable({
                 <EditableCell
                   value={(testCase.tags ?? []).join(', ')}
                   onSave={(value) => onUpdateCell(testCase.id, 'tags', value)}
+                />
+              </td>
+              <td className="table-cell">
+                <EditableCell
+                  value={statusOverrides[testCase.id] ?? executionStatuses[testCase.id] ?? testCase.status ?? 'pending'}
+                  options={['pending', 'passed', 'failed']}
+                  onSave={(value) => {
+                    const status = value as TestCaseExecutionStatus
+                    setStatusOverrides((current) => ({ ...current, [testCase.id]: status }))
+                    onUpdateCell(testCase.id, 'status', status)
+                  }}
                 />
               </td>
               <td className="table-cell text-center" onClick={(event) => event.stopPropagation()}>

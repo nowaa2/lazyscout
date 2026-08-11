@@ -1,6 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ProjectSecrets, TestStep } from '../types'
-import { openWorkspaceAuthSession } from '../api/client'
+import {
+  clearWorkspaceAuthSession,
+  getWorkspaceAuthSessionStatus,
+  openWorkspaceAuthSession,
+  type WorkspaceAuthSessionStatus
+} from '../api/client'
 import { RecorderPanel } from './RecorderPanel'
 import { ClickFilterPanel } from './ClickFilterPanel'
 import type { ClickFilter } from '../hooks/useClickFilter'
@@ -31,8 +36,28 @@ export function ProjectSettings({
   onChangeClickFilter
 }: Props) {
   const [draft, setDraft] = useState<ProjectSecrets>(secrets)
+  const [authStatus, setAuthStatus] = useState<WorkspaceAuthSessionStatus>()
+  const [authStatusLoading, setAuthStatusLoading] = useState(false)
+  const [authOpening, setAuthOpening] = useState(false)
+  const [authClearConfirm, setAuthClearConfirm] = useState(false)
   const update = (key: keyof ProjectSecrets, value: string) =>
     setDraft((current) => ({ ...current, [key]: value || undefined }))
+
+  async function refreshAuthStatus() {
+    if (!projectId) return
+    setAuthStatusLoading(true)
+    try {
+      setAuthStatus(await getWorkspaceAuthSessionStatus(projectId))
+    } catch {
+      setAuthStatus(undefined)
+    } finally {
+      setAuthStatusLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    void refreshAuthStatus()
+  }, [projectId])
   return (
     <div
       className="modal-backdrop"
@@ -114,15 +139,79 @@ export function ProjectSettings({
               <b>Google / SSO session</b>
               <span>
                 Open a separate LazyScout browser, sign in manually, then close that browser. Future Automation runs use
-                its local session.
+                this Project profile.
               </span>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => void openWorkspaceAuthSession(projectId, targetUrl)}
-              >
-                Open login browser
-              </button>
+              <div className="auth-session-status" aria-live="polite">
+                <span
+                  className={`auth-session-dot ${authStatus?.cookieStoreDetected ? 'is-ready' : authStatus?.profileExists ? 'is-profile' : ''}`}
+                />
+                <div>
+                  <b>
+                    {authStatus?.cookieStoreDetected
+                      ? 'Browser profile saved'
+                      : authStatus?.profileExists
+                        ? 'Browser profile created — login not verified'
+                        : 'No saved browser profile yet'}
+                  </b>
+                  <small>
+                    {authStatus?.lastModifiedAt
+                      ? `Last changed ${new Date(authStatus.lastModifiedAt).toLocaleString()}`
+                      : 'Open the login browser to create this Project profile.'}
+                  </small>
+                </div>
+              </div>
+              <div className="auth-session-actions">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  disabled={authOpening}
+                  onClick={async () => {
+                    setAuthOpening(true)
+                    try {
+                      await openWorkspaceAuthSession(projectId, targetUrl)
+                      await refreshAuthStatus()
+                    } finally {
+                      setAuthOpening(false)
+                    }
+                  }}
+                >
+                  {authOpening ? 'Opening browser…' : 'Open login browser'}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  disabled={authStatusLoading}
+                  onClick={() => void refreshAuthStatus()}
+                >
+                  {authStatusLoading ? 'Checking…' : 'Refresh session status'}
+                </button>
+                {!authClearConfirm ? (
+                  <button type="button" className="btn btn-danger" onClick={() => setAuthClearConfirm(true)}>
+                    Clear saved session
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      className="btn btn-danger"
+                      onClick={async () => {
+                        await clearWorkspaceAuthSession(projectId)
+                        setAuthClearConfirm(false)
+                        await refreshAuthStatus()
+                      }}
+                    >
+                      Confirm clear
+                    </button>
+                    <button type="button" className="btn btn-secondary" onClick={() => setAuthClearConfirm(false)}>
+                      Cancel
+                    </button>
+                  </>
+                )}
+              </div>
+              <small className="auth-session-hint">
+                Profile saved confirms that browser data exists. To verify Google / SSO is still valid, Scout the
+                authenticated Start Path, such as <code>/dashboard</code>.
+              </small>
             </div>
           )}
           <ClickFilterPanel filter={clickFilter} onChange={onChangeClickFilter} />

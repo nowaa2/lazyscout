@@ -1,13 +1,29 @@
 import type { TargetRef, UIElement } from '@lazyscout/core'
 
 export function toTargetRef(element: UIElement): TargetRef {
+  const needsDisambiguation = element.matchCount !== undefined && element.matchCount > 1
+  const disambiguation = needsDisambiguation
+    ? {
+        nth:
+          element.scopeMatchCount && element.scopeMatchCount > 1
+            ? element.scopeIndex
+            : element.contextSelector || element.contextText
+              ? undefined
+              : element.matchIndex,
+        matchCount: element.matchCount,
+        contextText: element.contextText,
+        contextSelector: element.contextSelector,
+        contextTestId: element.contextTestId
+      }
+    : undefined
   if (element.accessibleName) {
-    return { role: element.role, name: element.accessibleName }
+    return { role: element.role, name: element.accessibleName, ...disambiguation }
   }
   if (element.placeholder) {
-    return { role: element.role, placeholder: element.placeholder }
+    return { role: element.role, placeholder: element.placeholder, ...disambiguation }
   }
-  return { role: element.role, cssSelector: element.cssSelector }
+  if (element.testId) return { testId: element.testId, ...disambiguation }
+  return { role: element.role, cssSelector: element.cssSelector, ...disambiguation }
 }
 
 export function labelOf(element: UIElement): string {

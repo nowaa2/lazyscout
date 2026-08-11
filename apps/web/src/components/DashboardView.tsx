@@ -38,12 +38,11 @@ export function DashboardView({
     modules: 'treemap',
     trend: 'line'
   })
+  const statusOf = (testCase: TestCase) => executionStatuses[testCase.id] ?? testCase.status ?? 'pending'
   const execution = {
-    passed: testCases.filter((item) => executionStatuses[item.id] === 'passed').length,
-    failed: testCases.filter((item) => executionStatuses[item.id] === 'failed').length,
-    pending: testCases.filter(
-      (item) => executionStatuses[item.id] !== 'passed' && executionStatuses[item.id] !== 'failed'
-    ).length
+    passed: testCases.filter((item) => statusOf(item) === 'passed').length,
+    failed: testCases.filter((item) => statusOf(item) === 'failed').length,
+    pending: testCases.filter((item) => statusOf(item) === 'pending').length
   }
   const priorities = countBy(testCases, (item) => item.priority)
   const types = countBy(testCases, (item) => item.type)
@@ -95,7 +94,7 @@ export function DashboardView({
     readiness: readinessSlices,
     modules: topTen(folderSlices),
     failedCases: testCases
-      .filter((testCase) => executionStatuses[testCase.id] === 'failed')
+      .filter((testCase) => statusOf(testCase) === 'failed')
       .map((testCase) => ({
         id: testCase.id,
         title: testCase.title,
