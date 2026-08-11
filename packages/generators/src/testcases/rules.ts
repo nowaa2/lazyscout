@@ -1,4 +1,4 @@
-import type { FormInfo, PageInfo, TestCase, TestStep, UIElement } from '@lazyscout/core'
+import type { FormInfo, PageInfo, TargetRef, TestCase, TestStep, UIElement, UIInteraction } from '@lazyscout/core'
 import { normalizeUrl } from '@lazyscout/core'
 import { labelOf, sampleValueFor, toTargetRef } from './targets.js'
 
@@ -56,7 +56,17 @@ function fillFieldStep(field: UIElement): TestStep {
     const option = field.options?.[1] ?? field.options?.[0] ?? ''
     return { type: 'select', target: toTargetRef(field), option }
   }
-  return { type: 'fill', target: toTargetRef(field), value: sampleValueFor(field) }
+  return { type: 'fill', target: toTargetRef(field), value: automationValueFor(field) }
+}
+
+function automationValueFor(field: UIElement): string {
+  const hint =
+    `${field.inputType ?? ''} ${field.name ?? ''} ${field.accessibleName ?? ''} ${field.placeholder ?? ''}`.toLowerCase()
+  if (field.inputType === 'password' || hint.includes('password') || hint.includes('รหัสผ่าน'))
+    return '{{TEST_PASSWORD}}'
+  if (field.inputType === 'email' || hint.includes('email') || hint.includes('อีเมล')) return '{{TEST_EMAIL}}'
+  if (hint.includes('username') || hint.includes('user name') || hint.includes('ชื่อผู้ใช้')) return '{{TEST_USERNAME}}'
+  return sampleValueFor(field)
 }
 
 export function pageStructureRule(ctx: RuleContext): GeneratedTestCase[] {
@@ -91,6 +101,43 @@ export function pageStructureRule(ctx: RuleContext): GeneratedTestCase[] {
       notes: 'Generated from elements detected on the page.'
     })
   ]
+}
+
+export function interactionRule(ctx: RuleContext): GeneratedTestCase[] {
+  const interactions = ctx.page.state?.interactions ?? []
+  return interactions.slice(0, 12).map((interaction) => {
+    const target = interactionTarget(interaction)
+    return build(ctx, {
+      title: (interaction.name || interaction.kind) + ' interaction works',
+      preconditions: precondition(ctx.page),
+      steps: [
+        navigateStep(ctx.page),
+        { type: 'click', target, description: interactionAction(interaction) },
+        { type: 'assertVisible', target }
+      ],
+      expectedResult: interaction.kind + ' "' + (interaction.name || 'control') + '" opens and is usable.',
+      type: 'positive',
+      priority: 'medium',
+      automationStatus: 'needs-review',
+      notes: 'Generated from the observed ' + interaction.kind + ' interaction.'
+    })
+  })
+}
+
+function interactionTarget(interaction: UIInteraction): TargetRef {
+  return { role: interaction.role, name: interaction.name || undefined, cssSelector: interaction.cssSelector }
+}
+
+function interactionAction(interaction: UIInteraction): string {
+  const labels: Record<UIInteraction['kind'], string> = {
+    dialog: 'Open modal or dialog',
+    tab: 'Select tab',
+    accordion: 'Expand accordion',
+    dropdown: 'Open dropdown',
+    drawer: 'Open drawer',
+    popover: 'Open popover'
+  }
+  return labels[interaction.kind]
 }
 
 export function requiredFieldRule(ctx: RuleContext, form: FormInfo): GeneratedTestCase[] {
@@ -143,19 +190,41 @@ export function formSubmitRule(ctx: RuleContext, form: FormInfo): GeneratedTestC
   steps.push({ type: 'click', target: toTargetRef(submit) })
 
   const formName = form.accessibleName || labelOf(submit)
+  const loginForm = isLoginForm(ctx.page, form, fields, submit)
+  const expectedPath = form.action ? pathFromAction(ctx.page.finalUrl, form.action) : undefined
+  if (loginForm && expectedPath) steps.push({ type: 'assertUrl', urlContains: expectedPath })
 
   return [
     build(ctx, {
-      title: `Submit ${formName} with valid data`,
+      title: loginForm ? `Login with valid credentials via ${formName}` : `Submit ${formName} with valid data`,
       preconditions: [...precondition(ctx.page), 'Valid test data is prepared'],
       steps,
-      expectedResult: UNKNOWN_BEHAVIOUR,
+      expectedResult:
+        loginForm && expectedPath
+          ? `The form is submitted and the browser navigates to ${expectedPath}.`
+          : UNKNOWN_BEHAVIOUR,
       type: 'positive',
       priority: 'high',
-      automationStatus: 'needs-data',
+      automationStatus: loginForm ? 'ready' : 'needs-data',
       notes: 'Sample values are placeholders — replace them with real test data before running.'
     })
   ]
+}
+
+function isLoginForm(page: PageInfo, form: FormInfo, fields: UIElement[], submit: UIElement): boolean {
+  const text = [page.finalUrl, page.title, form.name, form.accessibleName, labelOf(submit), ...fields.map(labelOf)]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase()
+  return /login|log in|sign in|signin|password/.test(text) && fields.some((field) => field.inputType === 'password')
+}
+
+function pathFromAction(pageUrl: string, action: string): string | undefined {
+  try {
+    return new URL(action, pageUrl).pathname
+  } catch {
+    return undefined
+  }
 }
 
 export function navigationRule(ctx: RuleContext): GeneratedTestCase[] {

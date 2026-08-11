@@ -29,6 +29,11 @@ export function registerAnalyzeRoute(app: FastifyInstance, workspaceRoot: string
       : undefined
 
     try {
+      const abortController = new AbortController()
+      let completed = false
+      request.raw.once('close', () => {
+        if (!completed) abortController.abort()
+      })
       const result = await exploreWithScope(
         check.url.toString(),
         {
@@ -49,6 +54,7 @@ export function registerAnalyzeRoute(app: FastifyInstance, workspaceRoot: string
         {
           waitAfterNavigationMs: clamp(body.waitAfterNavigationMs, 0, 5000, 750),
           blockedKeywords: normalizeBlockedKeywords(body.blockedKeywords),
+          signal: abortController.signal,
           ...(browserProfileDir ? { browserProfileDir } : {})
         }
       )
@@ -156,6 +162,7 @@ export function registerAnalyzeRoute(app: FastifyInstance, workspaceRoot: string
         runEvents,
         apiChecks: body.includeApiChecks ? buildApiChecks(result.pages) : []
       }
+      completed = true
       return reply.send(response)
     } catch (error) {
       request.log.error(

@@ -68,6 +68,12 @@ const dictionary = {
     includeApiChecks: 'Include API checks from XHR/fetch',
     waitAfterNavigation: 'Wait after navigation',
     debugMode: 'Debug mode',
+    scoutAgain: 'Scout again',
+    regenerateProject: 'Regenerate this project?',
+    regenerateWarning:
+      'Scout Site will replace the current discovered pages and generated Test Cases for this project.',
+    regenerateHint: 'Export any Test Cases you want to keep before confirming. Project Settings will remain unchanged.',
+    cancel: 'Cancel',
     expandScout: 'Expand Scout form',
     collapseScout: 'Collapse Scout form',
     help: 'Help'
@@ -138,6 +144,11 @@ const dictionary = {
     includeApiChecks: 'รวม API checks จาก XHR/fetch',
     waitAfterNavigation: 'รอหลังเปลี่ยนหน้า',
     debugMode: 'โหมด Debug',
+    scoutAgain: 'สำรวจอีกครั้ง',
+    regenerateProject: 'ต้องการสร้างข้อมูลของโปรเจกต์นี้ใหม่หรือไม่?',
+    regenerateWarning: 'Scout Site จะเขียนทับหน้าที่ค้นพบและ Test Case ที่สร้างไว้ของโปรเจกต์นี้',
+    regenerateHint: 'Export Test Case ที่ต้องการเก็บไว้ก่อนยืนยัน ส่วน Project Settings จะยังคงเดิม',
+    cancel: 'ยกเลิก',
     expandScout: 'ขยายฟอร์ม Scout',
     collapseScout: 'พับฟอร์ม Scout',
     help: 'คำอธิบาย'

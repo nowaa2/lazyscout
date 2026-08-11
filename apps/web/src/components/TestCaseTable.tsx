@@ -13,6 +13,7 @@ type Props = {
   onDelete: (id: string) => void
   onReorder: (draggedId: string, targetId: string) => void
   onUpdateCell: (id: string, key: string, value: string) => void
+  executionStatuses?: Record<string, 'passed' | 'failed' | 'pending'>
 }
 
 function EditableCell({
@@ -183,7 +184,8 @@ export function TestCaseTable({
   onEdit,
   onDelete,
   onReorder,
-  onUpdateCell
+  onUpdateCell,
+  executionStatuses = {}
 }: Props) {
   const [draggedId, setDraggedId] = useState<string>()
   const [dragOverId, setDragOverId] = useState<string>()
@@ -232,6 +234,7 @@ export function TestCaseTable({
             <th className="table-head w-56">Steps</th>
             <th className="table-head">Expected Result</th>
             <th className="table-head w-32">Automation</th>
+            <th className="table-head w-28">Execution</th>
             <th className="table-head w-48">Preconditions</th>
             <th className="table-head w-48">Notes</th>
             <th className="table-head w-40">Tags</th>
@@ -283,6 +286,11 @@ export function TestCaseTable({
                   value={testCase.folder ?? testCase.module}
                   onSave={(value) => onUpdateCell(testCase.id, 'folder', value)}
                 />
+              </td>
+              <td className="table-cell">
+                <span className={`status-badge status-badge-${executionStatuses[testCase.id] ?? 'pending'}`}>
+                  {executionStatuses[testCase.id] ?? 'pending'}
+                </span>
               </td>
               <td className="table-cell font-medium text-slate-900">
                 <RichTextCell value={testCase.title} onSave={(value) => onUpdateCell(testCase.id, 'title', value)} />

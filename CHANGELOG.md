@@ -2,6 +2,24 @@
 
 All notable changes to LazyScout are documented in this file.
 
+## [0.3.7] - 2026-08-11
+
+### Added
+
+- A compact Guide link beside the LazyScout header brand that opens the hosted product documentation.
+- A GitBook-style public guide covering Projects, Scout, authenticated sessions, Test Cases, Automation, API checks, Bug Reports, screenshots, Load Test, exports and local workspace files.
+- Execution status in the Test Case table and Bug Report drafts for failed Playwright runs.
+
+### Changed
+
+- Scout confirmation, progress, API protection and terminal output layouts were refined for long-running local workflows.
+- Public documentation screenshots are release-safe assets while Project screenshots and generated test artifacts remain ignored.
+
+### Release
+
+- CLI, bundled web application, Node server and internal workspaces are aligned at version 0.3.7.
+- Demo fixtures remain outside the npm package and Cloudflare static-site deployment.
+
 ## [0.3.6] - 2026-08-11
 
 ### Added

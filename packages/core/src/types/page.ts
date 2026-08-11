@@ -183,6 +183,7 @@ export type ExploreIssue = {
 }
 
 export type ExploreOptions = {
+  signal?: AbortSignal
   maxPages: number
   maxDepth: number
 

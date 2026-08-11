@@ -67,6 +67,10 @@ export async function exploreWithScope(
     ...explorationConfig,
     limits: { ...DEFAULT_LIMITS, ...explorationConfig.limits }
   }
+  const abortIfRequested = () => {
+    if (exploreOptions.signal?.aborted)
+      throw new ExplorerError('browser-error', 'Scout stopped because the client disconnected.')
+  }
   const legacyOptions: ExploreOptions = {
     maxPages: config.limits.maxPages,
     maxDepth: config.limits.maxDepth,
@@ -754,6 +758,7 @@ export async function exploreWithScope(
 
       // Main queue loop
       while (stateQueue.length > 0) {
+        abortIfRequested()
         // Check limits
         if (pages.length >= config.limits.maxPages) {
           endReason = 'max-pages-reached'

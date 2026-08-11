@@ -67,7 +67,7 @@
               <span class="preview-new">＋ New Project</span>
               <p>PROJECTS <b>2</b></p>
               <div class="preview-project active">
-                <i></i><span>Storefront QA<small>shop.example.com</small></span>
+                <i></i><span>Lazyscout<small>shop.example.com</small></span>
               </div>
               <div class="preview-project">
                 <i></i><span>Account flows<small>Manual suite</small></span>
@@ -82,7 +82,7 @@
               <div class="preview-heading">
                 <div>
                   <small>QA WORKSPACE / WEBSITE UI STATE EXPLORER</small>
-                  <h2>Storefront QA</h2>
+                  <h2>Lazyscout</h2>
                 </div>
                 <span>● Explorer ready</span>
               </div>
@@ -216,67 +216,394 @@
         </div>
       </section>
 
-      <section id="docs" class="section-shell docs-section">
-        <div class="docs-panel">
-          <div class="docs-sidebar">
-            <p>DOCUMENTATION</p>
-            <a class="active" href="#install">Installation</a>
-            <a href="#workspace">Workspace files</a>
-            <a href="#automation">Automation &amp; screenshots</a>
-            <a href="#safety">Safety</a>
-            <a href="#troubleshooting">Troubleshooting</a>
+      <section id="docs" class="section-shell docs-section docs-guide">
+        <div class="docs-heading">
+          <div>
+            <p class="eyebrow"><span></span> Product guide</p>
+            <h2>Use LazyScout from first Scout to final report.</h2>
           </div>
-          <div class="docs-content">
-            <article id="install">
-              <p class="eyebrow"><span></span> Documentation</p>
+          <p>
+            A practical walkthrough based on the local application. Follow it in order for your first Project, or jump
+            directly to a tool from the navigation.
+          </p>
+        </div>
+
+        <div class="docs-panel docs-guide-panel">
+          <nav class="docs-sidebar" aria-label="Documentation pages">
+            <p>GETTING STARTED</p>
+            <a class="active" href="#guide-install">Installation</a>
+            <a href="#guide-project">First Project</a>
+            <a href="#guide-scout">Scout Website</a>
+            <a href="#guide-login">Login session</a>
+            <p>WORKSPACE</p>
+            <a href="#guide-overview">Overview</a>
+            <a href="#guide-cases">Test Cases</a>
+            <a href="#guide-automation">Automation</a>
+            <a href="#guide-log">Scout Log &amp; Explorer</a>
+            <a href="#guide-api">Test API</a>
+            <a href="#guide-bugs">Bugs &amp; screenshots</a>
+            <a href="#guide-load">Load Test</a>
+            <p>REFERENCE</p>
+            <a href="#guide-files">Workspace files</a>
+            <a href="#guide-export">Export &amp; reports</a>
+            <a href="#guide-safety">Safety</a>
+            <a href="#guide-help">Troubleshooting</a>
+          </nav>
+
+          <div class="docs-content" tabindex="0">
+            <article id="guide-install">
+              <p class="eyebrow"><span></span> Start here</p>
               <h2>Install and launch</h2>
-              <p>Use <code>npx</code> for the newest public version without a permanent global installation.</p>
-              <pre><code>npx lazyscout@latest</code></pre>
               <p>
-                LazyScout starts at <code>http://localhost:4321</code> and creates a local workspace before opening the
-                UI.
+                LazyScout is a local application. The public website is documentation only; your QA workspace opens on
+                your machine and Project data stays there.
+              </p>
+              <div class="docs-command">
+                <div><span>Recommended</span><small>Run the latest published version</small></div>
+                <code>npx lazyscout@latest</code>
+                <button type="button" class="copy-button" data-copy="npx lazyscout@latest">Copy</button>
+              </div>
+              <p>For local development, start the API and web app in two terminals:</p>
+              <pre><code>npm.cmd run dev:server
+npm.cmd run dev:web</code></pre>
+              <div class="docs-note info">
+                <b>Local addresses</b>
+                <span
+                  >Development UI: <code>http://localhost:5173</code> · API server:
+                  <code>http://localhost:4000</code></span
+                >
+              </div>
+            </article>
+
+            <article id="guide-project">
+              <p class="docs-kicker">01 · PROJECTS</p>
+              <h3>Create your first Project</h3>
+              <p>
+                Use one Project for each website or environment. Projects do not share Test Cases, credentials, Scout
+                Logs, screenshots, or reports.
+              </p>
+              <div class="docs-step-grid">
+                <div>
+                  <b>1</b><span>Press <strong>New project</strong> in the sidebar.</span>
+                </div>
+                <div>
+                  <b>2</b><span>Choose <strong>Scout a website</strong> or create an empty import workspace.</span>
+                </div>
+                <div><b>3</b><span>Enter the Target URL and choose the Test Case language.</span></div>
+                <div>
+                  <b>4</b><span>Press <strong>Scout Site</strong> and wait for Playwright to finish.</span>
+                </div>
+              </div>
+              <div class="docs-note warning">
+                <b>Existing data protection</b>
+                <span
+                  >Scouting a Project that already has Test Cases opens a confirmation modal before replacement.</span
+                >
+              </div>
+            </article>
+
+            <article id="guide-scout">
+              <p class="docs-kicker">02 · DISCOVERY</p>
+              <h3>Scout a website</h3>
+              <p>
+                Scout uses Playwright to visit same-origin pages, inspect accessible controls, observe UI states, and
+                draft Test Cases for review.
+              </p>
+              <figure class="docs-figure">
+                <a href="./screenshots/overview.png" target="_blank" rel="noreferrer">
+                  <img
+                    src="./screenshots/overview.png"
+                    alt="LazyScout Project screen after scouting Practice Test Automation"
+                  />
+                </a>
+                <figcaption>
+                  Real local run against <code>practicetestautomation.com</code>. Select the image to inspect the
+                  full-size interface.
+                </figcaption>
+              </figure>
+              <div class="docs-callout-grid">
+                <div>
+                  <span>Target URL</span>
+                  <p>The website or path Playwright starts from.</p>
+                </div>
+                <div>
+                  <span>Max pages</span>
+                  <p>Hard limit for the number of pages inspected.</p>
+                </div>
+                <div>
+                  <span>Max depth</span>
+                  <p>How many link levels Scout follows from the starting page.</p>
+                </div>
+                <div>
+                  <span>Language</span>
+                  <p>Controls generated Steps, Expected Result, and generator notes.</p>
+                </div>
+                <div>
+                  <span>Start Path</span>
+                  <p>Continue from a page after login, such as <code>/dashboard</code>.</p>
+                </div>
+                <div>
+                  <span>Scope Path</span>
+                  <p>Keep discovery inside a section such as <code>/admin</code>.</p>
+                </div>
+              </div>
+              <p>
+                Enable <strong>Include API checks from XHR/fetch</strong> when requests triggered by UI actions should
+                appear in Test API. Increase <strong>Wait after navigation</strong> for slow client-rendered pages or
+                delayed modals.
               </p>
             </article>
-            <article id="workspace">
-              <h3>Workspace files</h3>
+
+            <article id="guide-login">
+              <p class="docs-kicker">03 · AUTHENTICATION</p>
+              <h3>Continue after login</h3>
               <p>
-                Project data is stored on disk, not in a hosted database. Click <b>Local Workspace</b> in the app to
-                open it.
+                Each Project has a persistent browser profile. Use it for normal form login, SSO, or a manual
+                authentication step that cannot be automated safely.
+              </p>
+              <ol class="docs-numbered">
+                <li><b>Scout once</b><span>Project Settings becomes available after the Project exists.</span></li>
+                <li>
+                  <b>Open Project Settings</b><span>Add optional username, password, or token placeholders.</span>
+                </li>
+                <li><b>Open login browser</b><span>Sign in manually in the browser launched by LazyScout.</span></li>
+                <li><b>Close that browser</b><span>The Project profile keeps its cookies and local storage.</span></li>
+                <li>
+                  <b>Scout again</b><span>Set Start Path to the first authenticated page and choose the scope.</span>
+                </li>
+              </ol>
+              <div class="docs-note danger">
+                <b>Keep the hostname identical</b>
+                <span
+                  ><code>localhost</code> and <code>127.0.0.1</code> are different origins and do not share
+                  cookies.</span
+                >
+              </div>
+            </article>
+
+            <article id="guide-overview">
+              <p class="docs-kicker">04 · DASHBOARD</p>
+              <h3>Read the Overview</h3>
+              <p>
+                Overview summarizes the active Project. KPI cards show total cases, Pass, Failed, Need Review, and
+                Requirement coverage. Each chart can be changed independently where the selected data supports it.
+              </p>
+              <div class="docs-metric-row">
+                <div><i class="metric-blue"></i><b>Pending</b><span>Not executed yet</span></div>
+                <div><i class="metric-green"></i><b>Pass</b><span>Latest run passed</span></div>
+                <div><i class="metric-red"></i><b>Failed</b><span>Latest run failed</span></div>
+                <div><i class="metric-amber"></i><b>Need Review</b><span>Tester decision required</span></div>
+              </div>
+              <p>
+                Use <strong>Customize</strong> to change chart types, <strong>HTML report</strong> for a portable
+                browser report, and <strong>Export PDF</strong> for a fixed project summary.
+              </p>
+            </article>
+
+            <article id="guide-cases">
+              <p class="docs-kicker">05 · TEST DESIGN</p>
+              <h3>Review and maintain Test Cases</h3>
+              <p>
+                Search or select a Module, filter by tags and status, then open the three-dot Action menu to view, edit,
+                duplicate, or delete a case. Drag rows to reorder them.
+              </p>
+              <div class="docs-table-wrap">
+                <table class="docs-table">
+                  <thead>
+                    <tr>
+                      <th>Field</th>
+                      <th>What the tester should verify</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Steps</td>
+                      <td>Actions are specific, ordered, and use safe test data.</td>
+                    </tr>
+                    <tr>
+                      <td>Expected Result</td>
+                      <td>The result describes observable behavior, not only “works”.</td>
+                    </tr>
+                    <tr>
+                      <td>Priority / Type</td>
+                      <td>Use them to create focused smoke or regression runs.</td>
+                    </tr>
+                    <tr>
+                      <td>Requirement</td>
+                      <td>Add a Jira ID, GitLab issue, ticket, or requirement URL.</td>
+                    </tr>
+                    <tr>
+                      <td>Execution</td>
+                      <td>Pending until run; then paired with the latest Pass or Failed result.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p>
+                Import CSV, XLSX, or JSON from the toolbar. The image-to-Test-Case flow uses OCR as a starting draft;
+                correct extracted text before saving.
+              </p>
+            </article>
+
+            <article id="guide-automation">
+              <p class="docs-kicker">06 · PLAYWRIGHT</p>
+              <h3>Edit and run Automation</h3>
+              <p>
+                Choose cases with the run checkbox; <strong>Run all</strong> skips unchecked cases. Review generated
+                Playwright code, press <strong>Run</strong>, then inspect the terminal-like log for each action and the
+                final result.
+              </p>
+              <ol>
+                <li>Select a Test Case and review its locator strategy.</li>
+                <li>Edit code when login, upload, business data, or a precise assertion is required.</li>
+                <li>Run one case or the selected suite.</li>
+                <li>Open the related Bug Report when a case fails.</li>
+              </ol>
+              <div class="docs-note info">
+                <b>Screenshots are opt-in</b>
+                <span
+                  >Add <code>await page.screenshot(...)</code> to Playwright code. LazyScout does not capture every page
+                  automatically.</span
+                >
+              </div>
+            </article>
+
+            <article id="guide-log">
+              <p class="docs-kicker">07 · DIAGNOSTICS</p>
+              <h3>Scout Log and Explorer</h3>
+              <p>
+                Scout Log records discovered pages, observed states, attempted actions, blocked destructive controls,
+                and completion issues. Explorer opens as a modal and groups the discovered pages and states so you can
+                trace a generated Test Case back to its source path.
+              </p>
+            </article>
+
+            <article id="guide-api">
+              <p class="docs-kicker">08 · NETWORK</p>
+              <h3>Test API requests observed by Scout</h3>
+              <p>
+                Test API lists XHR/fetch calls collected during UI actions. Run a safe request, add a Project token when
+                required, and compare method, URL, status, duration, and result.
+              </p>
+              <div class="docs-note warning">
+                <b>Unsafe methods require confirmation</b>
+                <span
+                  >POST, PUT, PATCH, and DELETE are protected by default and limited to one execution when
+                  allowed.</span
+                >
+              </div>
+            </article>
+
+            <article id="guide-bugs">
+              <p class="docs-kicker">09 · EVIDENCE</p>
+              <h3>Bug Reports and screenshots</h3>
+              <p>
+                A failed automation run creates a Bug Report draft linked to its Test Case. Complete severity,
+                reproduction steps, actual result, expected result, and evidence before sharing it. The Screenshots tab
+                is a local gallery where images can be downloaded, deleted, or attached to a report.
+              </p>
+            </article>
+
+            <article id="guide-load">
+              <p class="docs-kicker">10 · BASIC LOAD</p>
+              <h3>Run a controlled Load Test</h3>
+              <p>
+                Set virtual users, requests per user, and the delay between requests. Start with small values and review
+                status, duration, and Pass or Failed results in the request table.
+              </p>
+              <div class="docs-note danger">
+                <b>Use only systems you own or are authorized to test</b>
+                <span>This is a basic HTTP load check, not a replacement for a full JMeter performance plan.</span>
+              </div>
+            </article>
+
+            <article id="guide-files">
+              <p class="docs-kicker">11 · LOCAL STORAGE</p>
+              <h3>Find your workspace files</h3>
+              <p>
+                Select <strong>Local workspace</strong> at the bottom of the sidebar. Supply <code>--workspace</code> at
+                startup when you need a custom folder.
               </p>
               <pre><code>LazyScout/
 ├── projects/&lt;project-id&gt;/
+│   ├── project.json
+│   ├── test-cases.json
 │   ├── test-cases.csv
+│   ├── test-data.csv
 │   ├── automation/
 │   ├── screenshots/
 │   ├── bugs/
 │   ├── reports/
 │   └── logs/
-└── backups/</code></pre>
+├── backups/
+└── settings.json</code></pre>
             </article>
-            <article id="automation">
-              <h3>Automation and screenshots</h3>
+
+            <article id="guide-export">
+              <p class="docs-kicker">12 · HANDOFF</p>
+              <h3>Export Test Cases and reports</h3>
               <p>
-                LazyScout generates Playwright and Cypress code. Local execution supports Playwright. A screenshot is
-                saved only when your Playwright code explicitly calls <code>page.screenshot()</code>.
+                Use CSV or XLSX for team editing, JSON for structured backup and re-import, HTML for a portable browser
+                report, PDF for a fixed summary, and ZIP when reports, bugs, logs, and image evidence must travel
+                together.
               </p>
             </article>
-            <article id="safety">
-              <h3>Safety boundaries</h3>
-              <p>
-                Exploration stays within the target origin, avoids destructive actions, and uses local browser
-                execution. Review generated Test Cases before using them in critical environments.
-              </p>
+
+            <article id="guide-safety">
+              <p class="docs-kicker">13 · SAFETY</p>
+              <h3>Know the safety boundaries</h3>
+              <ul class="docs-checklist">
+                <li>Scout stays on the target origin and configured path scope.</li>
+                <li>Destructive UI actions are blocked unless explicitly allowed.</li>
+                <li>Secrets stay in the active browser tab and are not written into Test Cases or logs.</li>
+                <li>Review generated code before running it against production data.</li>
+              </ul>
             </article>
-            <article id="troubleshooting">
+
+            <article id="guide-help">
+              <p class="docs-kicker">14 · HELP</p>
               <h3>Troubleshooting</h3>
-              <p>If no browser is available, install Playwright Chromium:</p>
-              <pre><code>npx playwright install chromium</code></pre>
-              <p>For the complete technical documentation, visit the repository.</p>
+              <div class="docs-faq">
+                <details open>
+                  <summary>The page stays on Login</summary>
+                  <p>
+                    Use the Project login browser, keep the hostname identical, close it after login, then Scout the
+                    authenticated Start Path again.
+                  </p>
+                </details>
+                <details>
+                  <summary>Scout creates no useful Test Cases</summary>
+                  <p>
+                    Check Scout Log for Cloudflare, authentication, delayed rendering, cross-origin navigation, or pages
+                    with no accessible controls.
+                  </p>
+                </details>
+                <details>
+                  <summary>Port 4000 is already in use</summary>
+                  <p>Stop the older LazyScout Node process before running <code>npm.cmd run dev:server</code> again.</p>
+                </details>
+                <details>
+                  <summary>Playwright Chromium is missing</summary>
+                  <pre><code>npx playwright install chromium</code></pre>
+                </details>
+              </div>
               <a class="text-link" href="https://github.com/nowaa2/lazyscout#readme" target="_blank" rel="noreferrer"
-                >Open GitHub README ↗</a
+                >Open GitHub README →</a
               >
             </article>
           </div>
+
+          <aside class="docs-toc" aria-label="On this guide">
+            <p>ON THIS GUIDE</p>
+            <a href="#guide-install">Launch</a>
+            <a href="#guide-scout">Scout options</a>
+            <a href="#guide-login">Login</a>
+            <a href="#guide-cases">Review cases</a>
+            <a href="#guide-automation">Run Playwright</a>
+            <a href="#guide-api">API checks</a>
+            <a href="#guide-files">Files</a>
+            <div class="docs-version"><span>Guide version</span><b>LazyScout 0.3.7</b></div>
+          </aside>
         </div>
       </section>
 

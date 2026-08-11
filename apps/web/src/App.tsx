@@ -31,7 +31,7 @@ import { useTestCases } from './hooks/useTestCases'
 import { useTestData } from './hooks/useTestData'
 import { useProjects } from './hooks/useProjects'
 import { useProjectSecrets } from './hooks/useProjectSecrets'
-import { useBugReports } from './hooks/useBugReports'
+import { useBugReports, type BugReport } from './hooks/useBugReports'
 import { useScreenshots } from './hooks/useScreenshots'
 import { filterTestCases, filterTestData, uniqueModules } from './lib/filterTestCases'
 import {
@@ -44,6 +44,7 @@ import {
 } from './types'
 
 const LAST_PROJECT_STORAGE_KEY = 'lazyscout-active-project-id'
+const SCOUT_PROGRESS_LOGS = ['Launching Playwright runner', 'Opening target URL', 'Collecting pages and controls']
 
 export default function App() {
   const { status, result: analysisResult, error, analyze, reset } = useAnalyze()
@@ -86,6 +87,8 @@ export default function App() {
   const { screenshots, add: addScreenshot, remove: deleteScreenshot } = useScreenshots(activeProjectId)
 
   const [tab, setTab] = useState<ResultTab>('testcases')
+  const [scoutLogIndex, setScoutLogIndex] = useState(0)
+  const [showScoutCli, setShowScoutCli] = useState(false)
   const [filters, setFilters] = useState<TestCaseFilters>(EMPTY_FILTERS)
   const [dataSearch, setDataSearch] = useState('')
   const [dataModule, setDataModule] = useState('all')
@@ -195,6 +198,18 @@ export default function App() {
     }
   }, [status])
 
+  useEffect(() => {
+    if (status !== 'loading') {
+      setScoutLogIndex(0)
+      setShowScoutCli(false)
+      return
+    }
+    const timer = window.setInterval(() => {
+      setScoutLogIndex((current) => (current + 1) % SCOUT_PROGRESS_LOGS.length)
+    }, 1800)
+    return () => window.clearInterval(timer)
+  }, [status])
+
   async function handleAnalyze(
     url: string,
     maxPages: number,
@@ -222,7 +237,7 @@ export default function App() {
       debug
     )
     if (analyzed) {
-      saveProject(url, analyzed, undefined, activeProject?.targetUrl ? undefined : activeProjectId, language)
+      saveProject(url, analyzed, undefined, activeProjectId, language)
       const controls = analyzed.pages.reduce(
         (total, page) =>
           total +
@@ -325,6 +340,19 @@ export default function App() {
             <div className="brand-mark">
               <span>LS</span>
               <h1>LazyScout</h1>
+              <a
+                className="guide-link"
+                href="https://lazyscout.lazyscout.workers.dev/"
+                target="_blank"
+                rel="noreferrer"
+                aria-label="Open LazyScout Guide"
+                title="Open LazyScout Guide"
+              >
+                <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                  <path d="M3.5 3.25A2.25 2.25 0 0 1 5.75 1h3A2.25 2.25 0 0 1 11 3.25v13.5A2.75 2.75 0 0 0 8.25 14h-2.5a2.25 2.25 0 0 0-2.25 2.25v-13Zm13 0A2.25 2.25 0 0 0 14.25 1h-3A2.25 2.25 0 0 0 9 3.25v13.5A2.75 2.75 0 0 1 11.75 14h2.5a2.25 2.25 0 0 1 2.25 2.25v-13Z" />
+                </svg>
+                <span>Guide</span>
+              </a>
             </div>
             <p>
               QA workspace <span>/</span> Website UI State Explorer
@@ -343,6 +371,7 @@ export default function App() {
             <AnalyzeForm
               key={activeProjectId ?? 'new-project'}
               initialUrl={activeProject?.targetUrl}
+              hasExistingData={Boolean(activeProject?.result?.testCases?.length)}
               initialLanguage={activeProject.testCaseLanguage}
               loading={status === 'loading'}
               onLanguageChange={(language) =>
@@ -394,6 +423,27 @@ export default function App() {
                         ? [result.screenshot]
                         : []
                     captured.forEach(addScreenshot)
+                    if (result.status === 'failed' && activeProjectId) {
+                      const failedCase = testCases.find((testCase) => testCase.id === id)
+                      const report: BugReport = {
+                        id: `bug-${crypto.randomUUID()}`,
+                        title: `Automation failed: ${failedCase?.title ?? id}`,
+                        severity: 'high',
+                        status: 'open',
+                        testCaseId: id,
+                        actualResult: 'The Playwright automation step failed. Open Automation Run Log for details.',
+                        expectedResult: failedCase?.expectedResult ?? 'The Test Case should complete successfully.',
+                        stepsToReproduce:
+                          failedCase?.steps.map((step, index) => `${index + 1}. ${step.type}`).join('\n') ?? '',
+                        attachments: captured.map((screenshot) => ({
+                          name: screenshot.name,
+                          type: 'image/png',
+                          dataUrl: screenshot.dataUrl
+                        })),
+                        createdAt: new Date().toISOString()
+                      }
+                      saveBugReport(report)
+                    }
                   }}
                 />
               ) : workspaceView === 'overview' ? (
@@ -517,6 +567,7 @@ export default function App() {
                               onDelete={deleteTestCase}
                               onReorder={reorderTestCases}
                               onUpdateCell={updateTableCell}
+                              executionStatuses={executionStatuses}
                             />
                           </>
                         ) : (
@@ -646,9 +697,43 @@ export default function App() {
         {status === 'loading' && (
           <div className="scout-lock" role="status" aria-live="polite">
             <div className="scout-lock-card">
-              <span className="scout-spinner" />
-              <b>Scouting website with Playwright</b>
-              <span>Collecting pages, controls and event logs. Please wait until it finishes.</span>
+              <div className="scout-progress-head">
+                <div className="scout-progress-icon">✦</div>
+                <div>
+                  <b>Scouting website with Playwright</b>
+                  <span>Collecting pages, controls and event logs.</span>
+                </div>
+              </div>
+              <div className="scout-view-switch" role="tablist" aria-label="Scout progress view">
+                <button
+                  type="button"
+                  className={!showScoutCli ? 'is-active' : ''}
+                  onClick={() => setShowScoutCli(false)}
+                >
+                  Progress
+                </button>
+                <button type="button" className={showScoutCli ? 'is-active' : ''} onClick={() => setShowScoutCli(true)}>
+                  CLI Log
+                </button>
+              </div>
+              {!showScoutCli ? (
+                <>
+                  <span className="scout-progress-track">
+                    <i />
+                  </span>
+                  <strong className="scout-progress-percent">Working…</strong>
+                  <code className="scout-cli-line">$ {SCOUT_PROGRESS_LOGS[scoutLogIndex]}…</code>
+                </>
+              ) : (
+                <div className="scout-cli-terminal" role="log" aria-live="polite">
+                  {SCOUT_PROGRESS_LOGS.slice(0, scoutLogIndex + 1).map((message, index) => (
+                    <code key={message}>
+                      [{String(index + 1).padStart(2, '0')}] $ {message}…
+                    </code>
+                  ))}
+                </div>
+              )}
+              <span>Please wait until Scout finishes.</span>
             </div>
           </div>
         )}

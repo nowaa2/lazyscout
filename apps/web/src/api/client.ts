@@ -278,11 +278,15 @@ export async function runLoadTest(payload: LoadTestRequest): Promise<LoadTestRes
   if (!response.ok) throw await toApiError(response)
   return (await response.json()) as LoadTestResponse
 }
-export async function runApiCheck(apiCheck: ApiCheck, secrets?: ProjectSecrets): Promise<ApiCheckRunResponse> {
+export async function runApiCheck(
+  apiCheck: ApiCheck,
+  secrets?: ProjectSecrets,
+  allowUnsafe = false
+): Promise<ApiCheckRunResponse> {
   const response = await fetch('/api/api-check/run', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ apiCheck, secrets })
+    body: JSON.stringify({ apiCheck, secrets, allowUnsafe })
   })
   if (!response.ok) throw await toApiError(response)
   return (await response.json()) as ApiCheckRunResponse

@@ -62,6 +62,18 @@ const loginPage: PageInfo = {
 describe('generateTestCases', () => {
   const testCases = generateTestCases([loginPage])
 
+  it('generates an executable login flow with filled fields and a submit action', () => {
+    const login = testCases.find((testCase) => testCase.title.includes('Login with valid credentials'))
+    expect(login?.automationStatus).toBe('ready')
+    expect(login?.steps).toEqual(
+      expect.arrayContaining([
+        { type: 'fill', target: { role: 'textbox', name: 'Email' }, value: '{{TEST_EMAIL}}' },
+        { type: 'fill', target: { role: 'textbox', name: 'Password' }, value: '{{TEST_PASSWORD}}' },
+        { type: 'click', target: { role: 'button', name: 'Login' } }
+      ])
+    )
+  })
+
   it('ตั้งชื่อ module และ TC ID เรียงต่อเนื่องจาก URL', () => {
     expect(testCases[0]?.id).toBe('TC-LOGIN-001')
     expect(testCases.every((testCase) => testCase.module === 'LOGIN')).toBe(true)
@@ -95,7 +107,7 @@ describe('generateTestCases', () => {
   it('สร้างข้อความ Test Case ภาษาไทยครบทั้ง title, precondition, step, expected result และ note', () => {
     const thaiCases = generateTestCases([loginPage], { language: 'th' })
     const required = thaiCases.find((testCase) => testCase.title === 'Email เป็นข้อมูลที่จำเป็น')
-    const submit = thaiCases.find((testCase) => testCase.title === 'ส่ง Login ด้วยข้อมูลที่ถูกต้อง')
+    const submit = thaiCases.find((testCase) => testCase.title.includes('เข้าสู่ระบบด้วยข้อมูลที่ถูกต้อง'))
     const destructive = thaiCases.find((testCase) => testCase.title.includes('Delete Account'))
 
     expect(required?.preconditions[0]).toBe('ระบบพร้อมใช้งานที่ http://localhost:5173')

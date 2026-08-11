@@ -816,7 +816,7 @@ body {
     @apply text-indigo-700;
   }
   .terminal-panel {
-    @apply border-t border-slate-800 bg-[#0b1120] text-xs text-slate-300;
+    @apply min-h-72 border-t border-slate-800 bg-[#0b1120] text-sm text-slate-300;
   }
   .terminal-head {
     @apply flex items-center justify-between border-b border-slate-800 px-4 py-2 font-mono;
@@ -828,10 +828,10 @@ body {
     @apply h-2 w-2 rounded-full bg-emerald-400;
   }
   .terminal-body {
-    @apply max-h-64 overflow-auto p-4 font-mono;
+    @apply max-h-[min(65vh,720px)] min-h-56 overflow-auto p-5 font-mono text-sm leading-6;
   }
   .terminal-line {
-    @apply grid grid-cols-[80px_1fr_auto] gap-3 py-1;
+    @apply grid grid-cols-[96px_minmax(0,1fr)_auto] gap-3 py-1;
   }
   .terminal-line > span {
     @apply text-slate-600;
@@ -960,6 +960,15 @@ body {
   }
   .brand-mark h1 {
     @apply text-xl font-bold tracking-tight text-slate-900;
+  }
+  .guide-link {
+    @apply ml-1 inline-flex cursor-pointer items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold text-slate-500 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700;
+  }
+  .guide-link svg {
+    @apply h-3.5 w-3.5 fill-none stroke-current;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.35;
   }
   .app-header p {
     @apply mt-1 text-xs text-slate-500;
@@ -1147,6 +1156,29 @@ body {
   }
   .run-confirm-modal {
     @apply max-w-md;
+  }
+  .scout-confirm-modal {
+    @apply max-w-md;
+  }
+  .scout-confirm-modal .modal-header {
+    @apply gap-3 px-5 py-4 sm:px-6;
+  }
+  .scout-confirm-modal .modal-header h2 {
+    @apply text-lg sm:text-xl;
+  }
+  .scout-confirm-modal .modal-body {
+    @apply px-5 py-5 text-sm leading-6 text-slate-700 sm:px-6;
+  }
+  .scout-confirm-modal .modal-footer {
+    @apply px-5 py-3 sm:px-6;
+  }
+  @media (max-width: 420px) {
+    .scout-confirm-modal .modal-footer {
+      @apply grid grid-cols-2;
+    }
+    .scout-confirm-modal .modal-footer .btn {
+      @apply w-full;
+    }
   }
   .new-project-modal {
     @apply flex max-h-[94vh] max-w-4xl flex-col;
@@ -1826,8 +1858,56 @@ body {
   .scout-lock-card span:last-child {
     @apply text-xs leading-5 text-slate-400;
   }
+  .scout-progress-icon {
+    @apply flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-500/20 text-2xl text-indigo-300;
+  }
+  .scout-progress-head {
+    @apply flex w-full items-center gap-3 text-left;
+  }
+  .scout-progress-head > div:last-child {
+    @apply flex min-w-0 flex-col gap-1;
+  }
+  .scout-view-switch {
+    @apply mt-2 flex w-full rounded-lg bg-slate-800 p-1;
+  }
+  .scout-view-switch button {
+    @apply flex-1 cursor-pointer rounded-md px-3 py-1.5 text-xs text-slate-400 transition hover:text-white;
+  }
+  .scout-view-switch button.is-active {
+    @apply bg-slate-700 text-white shadow-sm;
+  }
+  .scout-progress-track {
+    @apply relative mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-700;
+  }
+  .scout-progress-track i {
+    @apply absolute inset-y-0 left-0 w-2/5 rounded-full bg-gradient-to-r from-indigo-400 via-cyan-300 to-indigo-400;
+    animation: scout-progress-slide 1.45s ease-in-out infinite;
+  }
+  .scout-progress-percent {
+    @apply text-[11px] font-medium uppercase tracking-[0.18em] text-indigo-200;
+  }
+  .scout-cli-line {
+    @apply w-full overflow-hidden text-ellipsis whitespace-nowrap rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-left text-[11px] text-emerald-300;
+  }
+  .scout-cli-terminal {
+    @apply flex h-32 w-full flex-col gap-1 overflow-y-auto rounded-lg border border-slate-700 bg-slate-950 p-3 text-left;
+  }
+  .scout-cli-terminal code {
+    @apply text-[11px] leading-5 text-emerald-300;
+  }
   .scout-spinner {
     @apply h-8 w-8 animate-spin rounded-full border-2 border-slate-600 border-t-indigo-400;
+  }
+  @keyframes scout-progress-slide {
+    0% {
+      transform: translateX(-120%);
+    }
+    50% {
+      transform: translateX(150%);
+    }
+    100% {
+      transform: translateX(280%);
+    }
   }
   .scout-notice {
     @apply flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900;
@@ -2097,7 +2177,7 @@ body {
     @apply border-slate-200 border-b-white bg-white font-semibold text-indigo-700;
   }
   .scout-cli-terminal {
-    @apply border-y border-slate-800 bg-[#080d18] font-mono text-[11px] text-slate-300;
+    @apply min-h-80 border-y border-slate-800 bg-[#080d18] font-mono text-sm text-slate-300;
   }
   .scout-cli-head {
     @apply flex items-center justify-between border-b border-slate-800 px-4 py-2;
@@ -2115,10 +2195,10 @@ body {
     @apply cursor-pointer rounded border border-emerald-700 px-2 py-1 text-[10px] text-emerald-300 hover:bg-emerald-950 disabled:cursor-not-allowed disabled:opacity-50;
   }
   .scout-cli-body {
-    @apply max-h-80 overflow-y-auto p-4 leading-5;
+    @apply max-h-[min(72vh,820px)] min-h-72 overflow-y-auto p-5 text-sm leading-6;
   }
   .scout-cli-body div {
-    @apply whitespace-pre-wrap;
+    @apply whitespace-pre-wrap break-words;
   }
   .scout-cli-body em {
     @apply mr-1 text-slate-600 not-italic;

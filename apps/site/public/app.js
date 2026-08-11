@@ -25,3 +25,35 @@ document.querySelectorAll('.copy-button').forEach((button) => {
     }, 1500)
   })
 })
+
+const docsContent = document.querySelector('.docs-guide .docs-content')
+const docsLinks = [...document.querySelectorAll('.docs-guide .docs-sidebar a')]
+const docsArticles = [...document.querySelectorAll('.docs-guide .docs-content article')]
+
+function setActiveGuideLink(id) {
+  docsLinks.forEach((link) => {
+    const isActive = link.getAttribute('href') === `#${id}`
+    link.classList.toggle('active', isActive)
+    if (isActive) link.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+  })
+}
+
+docsLinks.forEach((link) => {
+  link.addEventListener('click', (event) => {
+    const selector = link.getAttribute('href')
+    const target = selector ? document.querySelector(selector) : null
+    if (!target || !docsContent) return
+    event.preventDefault()
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    setActiveGuideLink(target.id)
+    history.replaceState(null, '', selector)
+  })
+})
+
+docsContent?.addEventListener('scroll', () => {
+  const top = docsContent.getBoundingClientRect().top + 36
+  const visible = docsArticles.reduce((current, article) => {
+    return article.getBoundingClientRect().top <= top ? article : current
+  }, docsArticles[0])
+  if (visible) setActiveGuideLink(visible.id)
+})

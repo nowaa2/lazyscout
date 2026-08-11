@@ -25,11 +25,13 @@ const secretPatterns = [
   ['JWT', /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/]
 ]
 
+const allowedPublicAssets = [/^apps\/site\/public\/screenshots\//i]
+
 const findings = []
 
 for (const file of files) {
   const normalized = file.replace(/\\/g, '/')
-  if (normalized !== '.env.example') {
+  if (normalized !== '.env.example' && !allowedPublicAssets.some((pattern) => pattern.test(normalized))) {
     for (const [rule, pattern] of riskyPaths) {
       if (pattern.test(normalized)) findings.push({ file: normalized, rule })
     }

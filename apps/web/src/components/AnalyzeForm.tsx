@@ -6,6 +6,7 @@ import { useLanguage } from '../i18n'
 type Props = {
   loading: boolean
   initialUrl?: string
+  hasExistingData?: boolean
   initialLanguage?: TestCaseLanguage
   onLanguageChange?: (language: TestCaseLanguage) => void
   onAnalyze: (
@@ -54,7 +55,14 @@ function HelpTip({ text }: { text: string }) {
   )
 }
 
-export function AnalyzeForm({ loading, initialUrl = '', initialLanguage, onLanguageChange, onAnalyze }: Props) {
+export function AnalyzeForm({
+  loading,
+  initialUrl = '',
+  hasExistingData = false,
+  initialLanguage,
+  onLanguageChange,
+  onAnalyze
+}: Props) {
   const { t } = useLanguage()
   const [url, setUrl] = useState(initialUrl)
   const [maxPages, setMaxPages] = useState(20)
@@ -67,6 +75,7 @@ export function AnalyzeForm({ loading, initialUrl = '', initialLanguage, onLangu
   const [mode, setMode] = useState<ExplorationMode>('site')
   const [debug, setDebug] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
   const targetHost = (() => {
     try {
       return new URL(initialUrl).hostname
@@ -78,6 +87,14 @@ export function AnalyzeForm({ loading, initialUrl = '', initialLanguage, onLangu
   function handleSubmit(event: FormEvent) {
     event.preventDefault()
     if (!url.trim() || loading) return
+    if (hasExistingData) {
+      setConfirmOpen(true)
+      return
+    }
+    runAnalyze()
+  }
+
+  function runAnalyze() {
     onAnalyze(
       url.trim(),
       maxPages,
@@ -90,6 +107,7 @@ export function AnalyzeForm({ loading, initialUrl = '', initialLanguage, onLangu
       mode,
       debug
     )
+    setConfirmOpen(false)
   }
 
   return (
@@ -366,6 +384,38 @@ export function AnalyzeForm({ loading, initialUrl = '', initialLanguage, onLangu
           </label>
         </div>
       </div>
+      {confirmOpen && (
+        <div className="modern-modal-backdrop" role="presentation">
+          <section
+            className="modern-modal scout-confirm-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="scout-confirm-title"
+          >
+            <header className="modal-header">
+              <div>
+                <p className="eyebrow">{t('scoutAgain')}</p>
+                <h2 id="scout-confirm-title">{t('regenerateProject')}</h2>
+              </div>
+              <button type="button" className="icon-btn" onClick={() => setConfirmOpen(false)} aria-label="Close">
+                ×
+              </button>
+            </header>
+            <div className="modal-body">
+              <p>{t('regenerateWarning')}</p>
+              <p className="text-sm text-slate-500">{t('regenerateHint')}</p>
+            </div>
+            <footer className="modal-footer">
+              <button type="button" className="btn btn-secondary" onClick={() => setConfirmOpen(false)}>
+                {t('cancel')}
+              </button>
+              <button type="button" className="btn btn-primary" onClick={runAnalyze}>
+                {t('scoutSite')}
+              </button>
+            </footer>
+          </section>
+        </div>
+      )}
     </form>
   )
 }

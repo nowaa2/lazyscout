@@ -37,9 +37,12 @@ test-results/
 traces/
 videos/
 screenshots/
+!apps/site/public/screenshots/
+!apps/site/public/screenshots/**
 har/
 *.har
 
 .cache/
+.wrangler/
 .DS_Store
 Thumbs.db

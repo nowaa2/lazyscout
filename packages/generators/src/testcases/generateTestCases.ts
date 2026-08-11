@@ -4,6 +4,7 @@ import { assignModules } from '../moduleNames.js'
 import {
   destructiveActionRule,
   formSubmitRule,
+  interactionRule,
   navigationRule,
   pageStructureRule,
   requiredFieldRule,
@@ -41,6 +42,7 @@ export function generateTestCases(pages: PageInfo[], options: Partial<GenerateOp
       ...pageStructureRule(context),
       ...page.forms.flatMap((form) => requiredFieldRule(context, form)),
       ...page.forms.flatMap((form) => formSubmitRule(context, form)),
+      ...interactionRule(context),
       ...navigationRule(context),
       ...destructiveActionRule(context)
     ].slice(0, config.maxTestCasesPerPage)
@@ -95,6 +97,12 @@ function translateStep(step: TestCase['steps'][number]): string {
 
 function translate(value: string): string {
   return value
+    .replace(/^Login with valid credentials via (.+)$/, 'เข้าสู่ระบบด้วยข้อมูลที่ถูกต้องผ่าน $1')
+    .replace(/^The form is submitted and the browser navigates to (.+?)[.]?$/, 'ฟอร์มถูกส่งและเบราว์เซอร์ไปยัง $1')
+    .replace(/^(.+) interaction works$/, 'การทำงานของ $1 ทำงานได้ถูกต้อง')
+    .replace(/^(.+) "(.+)" opens and is usable\.$/, '$1 "$2" เปิดและสามารถใช้งานได้')
+    .replace(/^Generated from the observed (.+) interaction\.$/, 'สร้างจากการตรวจพบ interaction ประเภท $1')
+    .replace(/^Login with valid credentials via (.+)$/, 'เข้าสู่ระบบด้วยข้อมูลที่ถูกต้องผ่าน $1')
     .replace(/^(.+) page displays required controls$/, '$1 แสดงองค์ประกอบที่จำเป็น')
     .replace(
       /^All (\d+) controls detected on the page are visible\.$/,

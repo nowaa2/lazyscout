@@ -250,11 +250,16 @@ export function GeneratedTests({
     if (!selected || running) return
     stopRequestedRef.current = false
     setRunning(true)
-    setRunStatus(undefined)
-    setRunLogs([])
+    setRunStatus('running')
+    setRunLogs([
+      { timestamp: new Date().toISOString(), level: 'info', message: `$ lazyscout test --case ${selected.id}` },
+      { timestamp: new Date().toISOString(), level: 'info', message: `Starting Playwright runner: ${selected.title}` },
+      { timestamp: new Date().toISOString(), level: 'info', message: 'Preparing browser context and test steps…' },
+      { timestamp: new Date().toISOString(), level: 'info', message: 'Running generated automation source…' }
+    ])
     const result = await runOne(selected, code)
     setRunStatus(result.status)
-    setRunLogs(result.logs)
+    setRunLogs((current) => [...current, ...result.logs])
     setRunning(false)
   }
   async function runAll() {

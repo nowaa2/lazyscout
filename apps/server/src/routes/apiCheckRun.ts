@@ -14,11 +14,11 @@ export function registerApiCheckRunRoute(app: FastifyInstance): void {
     const target = checkTargetUrl(check.url, config.urlPolicy)
     if (!target.ok) return reply.status(400).send({ error: { code: target.code, message: target.message } })
     const method = check.method.toUpperCase()
-    if (!SAFE_API_METHODS.has(method))
+    if (!SAFE_API_METHODS.has(method) && !body.allowUnsafe)
       return reply.status(400).send({
         error: {
           code: 'unsafe-api-method',
-          message: `${method} API checks are observation-only. LazyScout runs only GET, HEAD and OPTIONS automatically.`
+          message: `${method} API checks are protected. Confirm allowUnsafe to run this endpoint once.`
         }
       })
     const token = body.secrets?.apiToken ?? process.env.LAZYSCOUT_API_TOKEN

@@ -1,6 +1,6 @@
 {
   "name": "@lazyscout/server",
-  "version": "0.3.4",
+  "version": "0.3.7",
   "private": true,
   "type": "module",
   "main": "./dist/app.js",
