@@ -32,7 +32,7 @@ describe('generatePlaywrightTest for a recorded flow', () => {
   it('replays the recorded steps in order', () => {
     expect(code).toContain(`await page.goto("http://localhost:5500/login")`)
     expect(code).toContain(`await page.getByRole("button", { name: "Sign in" }).click()`)
-    expect(code.indexOf('getByLabel("Email")')).toBeLessThan(code.indexOf('getByRole("button"'))
+    expect(code.indexOf('getByLabel("Email", { exact: true })')).toBeLessThan(code.indexOf('getByRole("button"'))
   })
 
   it('keeps the password as a placeholder instead of a literal', () => {

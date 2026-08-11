@@ -1,6 +1,6 @@
 {
   "name": "lazyscout",
-  "version": "0.3.8",
+  "version": "0.3.9",
   "description": "Local-first QA assistant for website exploration, test-case drafting, and Playwright/Cypress automation code generation.",
   "type": "module",
   "license": "MIT",

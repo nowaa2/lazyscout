@@ -29,7 +29,10 @@ export type {
   UIElement,
   TestCaseLanguage,
   RecorderState,
-  RecorderStatus
+  RecorderStatus,
+  GuidedFlow,
+  FlowStep,
+  FlowStepStatus
 } from '@lazyscout/core'
 
 export type ResultTab = 'testcases' | 'testdata' | 'apichecks' | 'bugreports' | 'screenshots'

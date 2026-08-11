@@ -16,7 +16,7 @@ function locator(target: TargetRef): string {
     target.role && target.name
       ? `page.getByRole(${quote(target.role)}, { name: ${quote(target.name)} })`
       : target.label
-        ? `page.getByLabel(${quote(target.label)})`
+        ? `page.getByLabel(${quote(target.label)}, { exact: true })`
         : target.testId
           ? `page.getByTestId(${quote(target.testId)})`
           : target.placeholder
@@ -46,6 +46,14 @@ function playwrightStep(step: TestStep): string {
       return `await ${locator(step.target)}.fill(${quote(runtimeValue(step))})`
     case 'select':
       return `await ${locator(step.target)}.selectOption(${quote(step.option)})`
+    case 'check':
+      return `await ${locator(step.target)}.${step.checked ? 'check' : 'uncheck'}()`
+    case 'wait':
+      if (step.mode === 'timeout')
+        return `await page.waitForTimeout(${Math.min(5000, Math.max(0, Number(step.value) || 0))})`
+      if (step.mode === 'url') return `await expect(page).toHaveURL(new RegExp(${quote(step.value)}))`
+      if (step.mode === 'text') return `await expect(page).toContainText(${quote(step.value)})`
+      return `await expect(${locator(step.target!)}).toBeVisible()`
     case 'assertVisible':
       return `await expect(${locator(step.target)}).toBeVisible()`
     case 'assertText':

@@ -33,10 +33,13 @@ import { useProjects } from './hooks/useProjects'
 import { useProjectSecrets } from './hooks/useProjectSecrets'
 import { useBugReports, type BugReport } from './hooks/useBugReports'
 import { useScreenshots } from './hooks/useScreenshots'
+import { useGuidedFlows } from './hooks/useGuidedFlows'
 import { filterTestCases, filterTestData, uniqueModules } from './lib/filterTestCases'
 import {
   EMPTY_FILTERS,
   type AutomationLog,
+  type AnalyzeResponse,
+  type FlowStep,
   type ResultTab,
   type TestCase,
   type TestCaseFilters,
@@ -85,6 +88,8 @@ export default function App() {
   const { testData, updateRow, deleteRow, addRow } = useTestData(result?.testData)
   const { reports: bugReports, save: saveBugReport, remove: deleteBugReport } = useBugReports(activeProjectId)
   const { screenshots, add: addScreenshot, remove: deleteScreenshot } = useScreenshots(activeProjectId)
+  const { flows: guidedFlows, update: updateGuidedFlows } = useGuidedFlows(activeProjectId)
+  const explorerResult = result ?? (activeProject ? createEmptyExplorerResult(activeProject.targetUrl) : undefined)
 
   const [tab, setTab] = useState<ResultTab>('testcases')
   const [scoutLogIndex, setScoutLogIndex] = useState(0)
@@ -310,6 +315,29 @@ export default function App() {
     setActiveId(created.id)
   }
 
+  function addStepToGuidedFlow(step: FlowStep) {
+    const origin = activeProject?.targetUrl || result?.startUrl || 'http://localhost:5173'
+    const existing = guidedFlows[0]
+    const flow = existing ?? {
+      id: crypto.randomUUID(),
+      name: 'Explorer Guided Flow',
+      description: 'Steps added from Auto Scout Explorer.',
+      baseUrl: origin,
+      steps: [{ id: crypto.randomUUID(), type: 'navigate' as const, path: new URL(origin).pathname || '/' }],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }
+    void updateGuidedFlows(
+      existing
+        ? guidedFlows.map((item) =>
+            item.id === existing.id
+              ? { ...item, steps: [...item.steps, step], updatedAt: new Date().toISOString() }
+              : item
+          )
+        : [{ ...flow, steps: [...flow.steps, step] }]
+    )
+  }
+
   return (
     <div className="app-frame">
       <WorkspaceSidebar
@@ -360,6 +388,14 @@ export default function App() {
               QA workspace <span>/</span> Website UI State Explorer
             </p>
           </div>
+          {activeProject && !result && (
+            <WorkspaceNav
+              view={workspaceView}
+              onChange={(view) => (view === 'explorer' ? setExplorerOpen(true) : setWorkspaceView(view))}
+              counts={{ cases: testCases.length, states: 0 }}
+            />
+          )}
+
           {result && (
             <div className="header-status">
               <span className="status-dot status-pass" /> Explorer ready <span className="header-divider" />{' '}
@@ -614,10 +650,21 @@ export default function App() {
             }}
           />
         )}
-        {explorerOpen && result && (
+        {explorerOpen && explorerResult && (
           <ExplorerModal
-            result={result}
+            result={explorerResult}
             testCaseCount={testCases.length}
+            flows={guidedFlows}
+            baseUrl={activeProject?.targetUrl || explorerResult.startUrl}
+            projectId={activeProjectId}
+            secrets={secrets}
+            onSaveFlows={updateGuidedFlows}
+            onGenerateTestCase={(testCase) => {
+              addTestCase(testCase)
+              setExplorerOpen(false)
+              setWorkspaceView('testcases')
+            }}
+            onAddToFlow={addStepToGuidedFlow}
             onClose={() => setExplorerOpen(false)}
             onOpenCases={() => {
               setExplorerOpen(false)
@@ -743,4 +790,27 @@ export default function App() {
       </div>
     </div>
   )
+}
+
+function createEmptyExplorerResult(targetUrl: string): AnalyzeResponse {
+  const parsed = new URL(targetUrl)
+  return {
+    startUrl: targetUrl,
+    origin: parsed.origin,
+    pages: [],
+    testCases: [],
+    testData: [],
+    issues: [],
+    stats: { pagesVisited: 0, urlsSkipped: 0, durationMs: 0, limitReached: 'none' },
+    actionGraph: {
+      states: [],
+      edges: [],
+      visitedStateIds: [],
+      visitedActionKeys: [],
+      failedActionKeys: [],
+      blockedActionKeys: []
+    },
+    runEvents: [],
+    apiChecks: []
+  }
 }

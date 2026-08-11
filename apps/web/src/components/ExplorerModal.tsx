@@ -1,20 +1,36 @@
 import { useMemo, useState } from 'react'
-import type { AnalyzeResponse, PageState, StateEdge } from '../types'
+import type { AnalyzeResponse, FlowStep, GuidedFlow, PageState, ProjectSecrets, StateEdge, TestCase } from '../types'
+import { GuidedFlowBuilder } from './GuidedFlowBuilder'
 
 type View = 'site-map' | 'state-flow'
 
 export function ExplorerModal({
   result,
   testCaseCount,
+  flows,
+  baseUrl,
+  projectId,
+  secrets,
+  onSaveFlows,
+  onGenerateTestCase,
+  onAddToFlow,
   onClose,
   onOpenCases
 }: {
   result: AnalyzeResponse
   testCaseCount: number
+  flows: GuidedFlow[]
+  baseUrl: string
+  projectId?: string
+  secrets?: ProjectSecrets
+  onSaveFlows: (flows: GuidedFlow[]) => Promise<void>
+  onGenerateTestCase: (testCase: TestCase) => void
+  onAddToFlow: (step: FlowStep) => void
   onClose: () => void
   onOpenCases: () => void
 }) {
   const [view, setView] = useState<View>('state-flow')
+  const [explorerTab, setExplorerTab] = useState<'auto-scout' | 'guided-flow'>('auto-scout')
   const [selectedStateId, setSelectedStateId] = useState<string>()
   const [selectedEdgeId, setSelectedEdgeId] = useState<string>()
   const [zoom, setZoom] = useState(1)
@@ -39,56 +55,94 @@ export function ExplorerModal({
             ×
           </button>
         </header>
-        <div className="explorer-hero">
-          <div className="explorer-number">
-            <strong>{testCaseCount}</strong>
-            <span>draft test cases</span>
-          </div>
-          <div className="explorer-number">
-            <strong>{result.stats.pagesVisited}</strong>
-            <span>pages discovered</span>
-          </div>
-          <div className="explorer-number">
-            <strong>{result.actionGraph.states.length}</strong>
-            <span>UI states observed</span>
-          </div>
-        </div>
-        <div className="explorer-view-tabs" role="tablist" aria-label="Explorer view">
-          <button type="button" className={view === 'site-map' ? 'active' : ''} onClick={() => setView('site-map')}>
-            Site Map
+        <div className="explorer-main-tabs" role="tablist" aria-label="Explorer mode">
+          <button
+            type="button"
+            className={explorerTab === 'auto-scout' ? 'active' : ''}
+            onClick={() => setExplorerTab('auto-scout')}
+          >
+            Auto Scout
           </button>
-          <button type="button" className={view === 'state-flow' ? 'active' : ''} onClick={() => setView('state-flow')}>
-            State Flow <span>{result.actionGraph.edges.length}</span>
+          <button
+            type="button"
+            className={explorerTab === 'guided-flow' ? 'active' : ''}
+            onClick={() => setExplorerTab('guided-flow')}
+          >
+            Guided Flow
           </button>
         </div>
-        {view === 'site-map' ? (
-          <SiteMap
-            result={result}
-            onSelect={(state) => {
-              setSelectedStateId(state.id)
-              setView('state-flow')
-            }}
+        {explorerTab === 'guided-flow' ? (
+          <GuidedFlowBuilder
+            flows={flows}
+            baseUrl={baseUrl}
+            projectId={projectId}
+            secrets={secrets}
+            onSave={onSaveFlows}
+            onGenerateTestCase={onGenerateTestCase}
           />
         ) : (
-          <div className="state-flow-layout">
-            <FlowGraph
-              states={result.actionGraph.states}
-              edges={result.actionGraph.edges}
-              selectedStateId={selectedStateId}
-              selectedEdgeId={selectedEdgeId}
-              zoom={zoom}
-              onZoom={setZoom}
-              onState={(id) => {
-                setSelectedStateId(id)
-                setSelectedEdgeId(undefined)
-              }}
-              onEdge={(id) => {
-                setSelectedEdgeId(id)
-                setSelectedStateId(undefined)
-              }}
-            />
-            <FlowInspector state={selectedState} edge={selectedEdge} states={result.actionGraph.states} />
-          </div>
+          <>
+            <div className="explorer-hero">
+              <div className="explorer-number">
+                <strong>{testCaseCount}</strong>
+                <span>draft test cases</span>
+              </div>
+              <div className="explorer-number">
+                <strong>{result.stats.pagesVisited}</strong>
+                <span>pages discovered</span>
+              </div>
+              <div className="explorer-number">
+                <strong>{result.actionGraph.states.length}</strong>
+                <span>UI states observed</span>
+              </div>
+            </div>
+            <div className="explorer-view-tabs" role="tablist" aria-label="Explorer view">
+              <button type="button" className={view === 'site-map' ? 'active' : ''} onClick={() => setView('site-map')}>
+                Site Map
+              </button>
+              <button
+                type="button"
+                className={view === 'state-flow' ? 'active' : ''}
+                onClick={() => setView('state-flow')}
+              >
+                State Flow <span>{result.actionGraph.edges.length}</span>
+              </button>
+            </div>
+            {view === 'site-map' ? (
+              <SiteMap
+                result={result}
+                onSelect={(state) => {
+                  setSelectedStateId(state.id)
+                  setView('state-flow')
+                }}
+              />
+            ) : (
+              <div className="state-flow-layout">
+                <FlowGraph
+                  states={result.actionGraph.states}
+                  edges={result.actionGraph.edges}
+                  selectedStateId={selectedStateId}
+                  selectedEdgeId={selectedEdgeId}
+                  zoom={zoom}
+                  onZoom={setZoom}
+                  onState={(id) => {
+                    setSelectedStateId(id)
+                    setSelectedEdgeId(undefined)
+                  }}
+                  onEdge={(id) => {
+                    setSelectedEdgeId(id)
+                    setSelectedStateId(undefined)
+                  }}
+                />
+                <FlowInspector
+                  state={selectedState}
+                  edge={selectedEdge}
+                  states={result.actionGraph.states}
+                  onAddToFlow={onAddToFlow}
+                />
+              </div>
+            )}
+          </>
         )}
         <footer className="modal-footer">
           <span className="flow-safety">{result.actionGraph.blockedActionKeys.length} unsafe actions blocked</span>
@@ -263,7 +317,17 @@ function FlowGraph({
   )
 }
 
-function FlowInspector({ state, edge, states }: { state?: PageState; edge?: StateEdge; states: PageState[] }) {
+function FlowInspector({
+  state,
+  edge,
+  states,
+  onAddToFlow
+}: {
+  state?: PageState
+  edge?: StateEdge
+  states: PageState[]
+  onAddToFlow: (step: FlowStep) => void
+}) {
   if (!state && !edge)
     return (
       <aside className="flow-inspector empty">
@@ -297,6 +361,17 @@ function FlowInspector({ state, edge, states }: { state?: PageState; edge?: Stat
               </dd>
             </>
           )}
+          {edge.action.locator && (
+            <button
+              type="button"
+              className="btn btn-secondary mt-3"
+              onClick={() =>
+                onAddToFlow({ id: crypto.randomUUID(), type: 'click', target: toFlowTarget(edge.action.locator!) })
+              }
+            >
+              Add to Guided Flow
+            </button>
+          )}
         </dl>
       </aside>
     )
@@ -327,6 +402,14 @@ function FlowInspector({ state, edge, states }: { state?: PageState; edge?: Stat
       </section>
     </aside>
   )
+}
+
+function toFlowTarget(locator: NonNullable<StateEdge['action']['locator']>) {
+  if (locator.role) return { strategy: 'role' as const, role: locator.role, name: locator.name ?? '' }
+  if (locator.label) return { strategy: 'label' as const, label: locator.label }
+  if (locator.placeholder) return { strategy: 'placeholder' as const, placeholder: locator.placeholder }
+  if (locator.testId) return { strategy: 'testid' as const, testId: locator.testId }
+  return { strategy: 'text' as const, text: locator.name ?? '' }
 }
 
 function truncate(value: string, length: number): string {

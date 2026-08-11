@@ -1668,8 +1668,31 @@ body {
     @apply flex max-h-[calc(100dvh-2rem)] max-w-7xl flex-col overflow-hidden;
   }
   .explorer-flow-modal .modal-header,
-  .explorer-flow-modal .modal-footer {
+  .explorer-flow-modal .modal-footer,
+  .explorer-flow-modal .explorer-main-tabs {
     @apply shrink-0;
+  }
+  .explorer-flow-modal .guided-flow-panel {
+    @apply min-h-0 flex-1 overflow-y-auto;
+  }
+  @media (max-width: 768px) {
+    .explorer-flow-modal {
+      @apply max-h-[calc(100dvh-1rem)];
+    }
+    .guided-flow-layout {
+      @apply grid-cols-1;
+    }
+    .guided-flow-list {
+      @apply max-h-44 overflow-y-auto;
+    }
+    .guided-flow-fields,
+    .guided-flow-inline-fields,
+    .guided-flow-target {
+      @apply grid-cols-1;
+    }
+    .guided-flow-wide {
+      @apply col-span-1;
+    }
   }
   .explorer-view-tabs {
     @apply flex gap-1 border-b border-slate-200 bg-white px-5 pt-3;
@@ -2349,6 +2372,302 @@ body {
   }
   .status-badge-warn {
     @apply bg-amber-50 text-amber-700;
+  }
+
+  .explorer-main-tabs {
+    @apply flex gap-1 border-b border-slate-200 bg-slate-50 px-5 pt-3;
+  }
+
+  .explorer-main-tabs button {
+    @apply rounded-t-lg px-4 py-2 text-sm font-semibold text-slate-500 transition hover:bg-white hover:text-slate-900;
+  }
+
+  .explorer-main-tabs button.active {
+    @apply bg-white text-indigo-700 shadow-sm;
+  }
+
+  .guided-flow-panel {
+    @apply min-h-[620px] bg-white p-5;
+  }
+
+  .guided-flow-intro,
+  .guided-flow-section-head,
+  .guided-flow-list-head {
+    @apply flex items-center justify-between gap-4;
+  }
+
+  .guided-flow-intro h2 {
+    @apply mt-1 text-2xl font-semibold text-slate-900;
+  }
+
+  .guided-flow-intro p:last-child {
+    @apply mt-1 text-sm text-slate-500;
+  }
+
+  .guided-flow-intro-actions {
+    @apply flex shrink-0 items-center gap-2;
+  }
+
+  .guided-flow-quick-guide {
+    @apply mt-4 rounded-xl border border-indigo-100 bg-indigo-50/60 p-4 text-sm text-slate-700;
+  }
+
+  .guided-flow-quick-guide-head {
+    @apply flex items-center justify-between gap-4;
+  }
+
+  .guided-flow-quick-guide-head b {
+    @apply block font-semibold text-indigo-800;
+  }
+
+  .guided-flow-quick-guide-head span {
+    @apply mt-1 block text-xs text-indigo-700/70;
+  }
+
+  .guided-flow-guide-link {
+    @apply inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs font-bold text-indigo-700 shadow-sm transition hover:border-indigo-400 hover:bg-indigo-700 hover:text-white;
+  }
+
+  .guided-flow-guide-link > span {
+    @apply m-0 text-sm leading-none;
+  }
+
+  .guided-flow-guide-grid {
+    @apply mt-3 grid gap-3 sm:grid-cols-2;
+  }
+
+  .guided-flow-guide-grid > div {
+    @apply rounded-lg border border-indigo-100 bg-white/80 p-3;
+  }
+
+  .guided-flow-guide-grid strong {
+    @apply text-xs font-bold text-slate-800;
+  }
+
+  .guided-flow-guide-grid p {
+    @apply mt-1 text-xs leading-5 text-slate-600;
+  }
+
+  .guided-flow-guide-grid code {
+    @apply rounded bg-indigo-100 px-1 text-[11px] text-indigo-800;
+  }
+
+  .guided-flow-guide-grid pre {
+    @apply mt-2 whitespace-pre-wrap rounded bg-slate-950 p-2 font-mono text-[11px] leading-5 text-emerald-300;
+  }
+
+  .guided-flow-guide-steps {
+    @apply mt-3 rounded-lg border border-indigo-100 bg-white/80 p-3 text-xs text-slate-600;
+  }
+
+  .guided-flow-guide-steps > strong {
+    @apply text-xs text-slate-800;
+  }
+
+  .guided-flow-guide-steps ol {
+    @apply mt-2 grid gap-1.5 pl-5 sm:grid-cols-2;
+    list-style: decimal;
+  }
+
+  .guided-flow-guide-steps code,
+  .guided-flow-decision code {
+    @apply rounded bg-indigo-100 px-1 font-mono text-[10px] text-indigo-700;
+  }
+
+  .guided-flow-decision {
+    @apply mt-3 flex flex-col gap-1 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900;
+  }
+
+  .guided-flow-decision span {
+    @apply leading-5 text-amber-800;
+  }
+
+  .guided-flow-field-help {
+    @apply mt-1 text-[10px] font-normal leading-4 text-slate-400;
+  }
+
+  .guided-flow-field-help code {
+    @apply rounded bg-slate-100 px-1 font-mono text-[10px] text-indigo-700;
+  }
+
+  .guided-flow-confirm-backdrop {
+    @apply fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm;
+  }
+
+  .guided-flow-confirm-modal {
+    @apply w-full max-w-md rounded-2xl border border-white/40 bg-white p-6 text-center shadow-2xl;
+  }
+
+  .guided-flow-confirm-icon {
+    @apply mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-100 text-2xl font-bold text-indigo-700;
+  }
+
+  .guided-flow-confirm-icon.is-delete {
+    @apply bg-rose-100 text-rose-700;
+  }
+
+  .guided-flow-confirm-modal h3 {
+    @apply mt-1 text-xl font-semibold text-slate-900;
+  }
+
+  .guided-flow-confirm-modal > p:last-of-type {
+    @apply mx-auto mt-2 max-w-sm text-sm leading-6 text-slate-500;
+  }
+
+  .guided-flow-confirm-modal footer {
+    @apply mt-6 flex justify-center gap-3 border-t border-slate-100 pt-4;
+  }
+
+  .guided-flow-layout {
+    @apply mt-5 grid min-h-[500px] grid-cols-[220px_minmax(0,1fr)] gap-5;
+  }
+
+  .guided-flow-list {
+    @apply rounded-xl border border-slate-200 bg-slate-50 p-2;
+  }
+
+  .guided-flow-list-head {
+    @apply px-3 py-2 text-xs uppercase tracking-wide text-slate-500;
+  }
+
+  .guided-flow-list-head span {
+    @apply rounded-full bg-white px-2 py-0.5 text-[10px] text-slate-500;
+  }
+
+  .guided-flow-list > button {
+    @apply mb-1 flex w-full flex-col items-start rounded-lg px-3 py-2 text-left transition hover:bg-white;
+  }
+
+  .guided-flow-list > button.is-active {
+    @apply bg-white text-indigo-700 shadow-sm ring-1 ring-indigo-100;
+  }
+
+  .guided-flow-list > button strong {
+    @apply truncate text-sm;
+  }
+
+  .guided-flow-list > button small {
+    @apply mt-1 text-[11px] text-slate-400;
+  }
+
+  .guided-flow-empty,
+  .guided-flow-empty-state {
+    @apply p-4 text-sm text-slate-500;
+  }
+
+  .guided-flow-empty-state {
+    @apply flex min-h-[400px] flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-slate-300 text-center;
+  }
+
+  .guided-flow-editor {
+    @apply min-w-0;
+  }
+
+  .guided-flow-fields {
+    @apply grid grid-cols-2 gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4;
+  }
+
+  .guided-flow-fields label,
+  .guided-flow-inline-fields label,
+  .guided-flow-target label {
+    @apply flex flex-col gap-1 text-xs font-semibold text-slate-600;
+  }
+
+  .guided-flow-wide {
+    @apply col-span-2;
+  }
+
+  .guided-flow-section-head {
+    @apply mt-5 border-b border-slate-200 pb-3;
+  }
+
+  .guided-flow-section-head > div > span {
+    @apply text-xs text-slate-500;
+  }
+
+  .guided-flow-steps {
+    @apply mt-4 space-y-3;
+  }
+
+  .guided-flow-step {
+    @apply rounded-xl border border-slate-200 bg-white p-3 shadow-sm;
+  }
+
+  .guided-flow-step.is-passed {
+    @apply border-emerald-200 bg-emerald-50/30;
+  }
+
+  .guided-flow-step.is-failed {
+    @apply border-rose-200 bg-rose-50/30;
+  }
+
+  .guided-flow-step > header {
+    @apply flex items-center gap-2;
+  }
+
+  .guided-flow-step-number {
+    @apply flex h-6 w-6 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700;
+  }
+
+  .guided-flow-step > header b {
+    @apply uppercase tracking-wide text-xs text-slate-700;
+  }
+
+  .guided-flow-step > header em {
+    @apply rounded-full bg-slate-100 px-2 py-0.5 text-[10px] not-italic text-slate-500;
+  }
+
+  .guided-flow-step-actions {
+    @apply ml-auto flex gap-1;
+  }
+
+  .guided-flow-step-actions button {
+    @apply rounded border border-slate-200 px-2 py-1 text-[10px] text-slate-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40;
+  }
+
+  .guided-flow-step > :not(header) {
+    @apply mt-3;
+  }
+
+  .guided-flow-target,
+  .guided-flow-inline-fields {
+    @apply grid grid-cols-2 gap-3;
+  }
+
+  .guided-flow-target {
+    @apply grid-cols-3;
+  }
+
+  .guided-flow-check {
+    @apply mt-3 flex items-center gap-2 text-xs text-slate-600;
+  }
+
+  .guided-flow-add,
+  .guided-flow-actions {
+    @apply mt-4 flex flex-wrap items-center gap-2;
+  }
+
+  .guided-flow-add .field {
+    @apply w-36;
+  }
+
+  .guided-flow-code,
+  .guided-flow-run {
+    @apply mt-5 overflow-hidden rounded-xl border border-slate-800 bg-slate-950;
+  }
+
+  .guided-flow-code header,
+  .guided-flow-run header {
+    @apply flex items-center justify-between border-b border-slate-800 px-4 py-3 text-xs text-slate-200;
+  }
+
+  .guided-flow-code pre,
+  .guided-flow-log {
+    @apply max-h-72 overflow-auto p-4 font-mono text-xs leading-6 text-slate-300;
+  }
+
+  .guided-flow-log code {
+    @apply block whitespace-pre-wrap;
   }
   .run-live {
     @apply flex items-center gap-1 rounded bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700;

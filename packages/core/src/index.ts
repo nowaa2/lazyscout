@@ -1,5 +1,6 @@
 export type * from './types/page.js'
 export type * from './types/testcase.js'
+export type * from './types/guidedflow.js'
 export type * from './types/testdata.js'
 export type * from './types/api.js'
 export type * from './types/recorder.js'

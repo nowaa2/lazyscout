@@ -10,7 +10,8 @@ import type {
   AutomationScreenshot,
   TestCase,
   TestCaseLanguage,
-  TestDataRow
+  TestDataRow,
+  GuidedFlow
 } from '@lazyscout/core'
 import { escapeCsvValue, exportTestCasesToCsv, TEST_DATA_CSV_COLUMNS, UTF8_BOM } from '@lazyscout/generators'
 
@@ -220,6 +221,21 @@ export async function saveRunLog(
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
   const name = `${timestamp}-${safeFileName(testCaseId, 'test-case')}.json`
   await writeJson(join(directory, name), { testCaseId, status, createdAt: new Date().toISOString(), logs })
+}
+
+export async function readGuidedFlows(root: string, projectId: string): Promise<GuidedFlow[]> {
+  const directory = await ensureProject(root, projectId)
+  return readJson<GuidedFlow[]>(join(directory, 'guided-flows.json'), [])
+}
+
+export async function saveGuidedFlows(root: string, projectId: string, flows: GuidedFlow[]): Promise<void> {
+  if (!Array.isArray(flows) || flows.length > 100) throw new Error('Guided Flow limit exceeded')
+  for (const flow of flows) {
+    if (!flow?.id || !flow.name || !flow.baseUrl || !Array.isArray(flow.steps) || flow.steps.length > 200)
+      throw new Error('Invalid Guided Flow')
+  }
+  const directory = await ensureProject(root, projectId)
+  await writeJson(join(directory, 'guided-flows.json'), flows)
 }
 
 export async function saveReport(root: string, projectId: string, name: string, html: string): Promise<string> {

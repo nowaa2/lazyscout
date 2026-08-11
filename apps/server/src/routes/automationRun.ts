@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify'
 import type { AutomationRunRequest, AutomationRunResponse } from '@lazyscout/core'
 import { isUnsafeAutoClick, redactSensitiveText } from '@lazyscout/core'
 import { isBlockedLabel, normalizeBlockedKeywords } from '@lazyscout/explorer'
-import { saveRunLog } from '../workspace.js'
+import { browserProfileDirectory, saveRunLog } from '../workspace.js'
 import { redactCliError, runPlaywrightCli } from './playwrightCliRunner.js'
 
 const MAX_STEPS = 100
@@ -26,6 +26,7 @@ export function registerAutomationRunRoute(app: FastifyInstance, workspaceRoot: 
   app.post('/api/automation/run', async (request, reply) => {
     const body = request.body as Partial<AutomationRunRequest>
     const testCase = body.testCase
+    const secrets = body.secrets
     const framework = body.framework ?? 'playwright'
     const runId = body.runId || crypto.randomUUID()
     const blockedKeywords = normalizeBlockedKeywords(body.blockedKeywords)
@@ -51,7 +52,8 @@ export function registerAutomationRunRoute(app: FastifyInstance, workspaceRoot: 
       process.env.LAZYSCOUT_TEST_EMAIL,
       process.env.LAZYSCOUT_TEST_USERNAME,
       process.env.LAZYSCOUT_TEST_PASSWORD,
-      process.env.LAZYSCOUT_API_TOKEN
+      process.env.LAZYSCOUT_API_TOKEN,
+      ...(secrets?.variables ? Object.values(secrets.variables) : [])
     ].filter((value): value is string => Boolean(value))
     const addLog = (level: AutomationRunResponse['logs'][number]['level'], message: string, durationMs?: number) => {
       if (logs.length >= MAX_LOGS) return
@@ -106,6 +108,7 @@ export function registerAutomationRunRoute(app: FastifyInstance, workspaceRoot: 
         testCaseId: testCase.id,
         secrets: body.secrets,
         secretValues,
+        profileDirectory: body.projectId ? await browserProfileDirectory(workspaceRoot, body.projectId) : undefined,
         addLog,
         onProcess: (child) => {
           active.close = async () => {

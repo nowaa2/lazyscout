@@ -24,6 +24,7 @@
         <a href="#features">Features</a>
         <a href="#quick-start">Quick start</a>
         <a href="#docs">Docs</a>
+        <a href="./guided-flow.html">Guided Flow guide</a>
         <a href="https://github.com/nowaa2/lazyscout" target="_blank" rel="noreferrer">GitHub ↗</a>
       </nav>
     </header>
@@ -235,6 +236,7 @@
             <a href="#guide-project">First Project</a>
             <a href="#guide-scout">Scout Website</a>
             <a href="#guide-login">Login session</a>
+            <a href="#guide-guided-flow">Guided Flow</a>
             <p>WORKSPACE</p>
             <a href="#guide-overview">Overview</a>
             <a href="#guide-cases">Test Cases</a>
@@ -377,6 +379,158 @@ npm.cmd run dev:web</code></pre>
                 <span
                   ><code>localhost</code> and <code>127.0.0.1</code> are different origins and do not share
                   cookies.</span
+                >
+              </div>
+            </article>
+
+            <article id="guide-guided-flow">
+              <p class="docs-kicker">04 · DETERMINISTIC TESTING</p>
+              <h3>Build a Guided Flow with the right locator</h3>
+              <p>
+                Guided Flow is for a tester-defined path. Add one step at a time, choose the locator that matches the
+                real HTML, save the Flow, then run it with the real Playwright Test CLI.
+              </p>
+              <a class="text-link" href="./guided-flow.html">Open the visual Guided Flow manual →</a>
+              <div class="docs-note info">
+                <b>Rule of thumb</b>
+                <span
+                  >Use CSS for inputs with a stable id or name. Use Role for buttons. Use Label when a real HTML label
+                  exists or when checking validation.</span
+                >
+              </div>
+              <h4>How to pair the page HTML with a Flow step</h4>
+              <p>
+                Open the browser inspector, select the element, and look for an id, name, label, role, placeholder, or
+                data-testid. Pick the most stable unique value. Do not copy a long generated class name if a short id or
+                name is available.
+              </p>
+              <div class="docs-table-wrap">
+                <table class="docs-table">
+                  <thead>
+                    <tr>
+                      <th>What you see in HTML</th>
+                      <th>Choose in Guided Flow</th>
+                      <th>Playwright that should be generated</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>&lt;input id="username"&gt;</code></td>
+                      <td>Fill → CSS → <code>#username</code></td>
+                      <td><code>await page.locator('#username').fill(value)</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>&lt;input name="password"&gt;</code></td>
+                      <td>Fill → CSS → <code>input[name="password"]</code></td>
+                      <td><code>await page.locator('input[name="password"]').fill(value)</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>&lt;button id="submit"&gt;Submit&lt;/button&gt;</code></td>
+                      <td>Click → CSS → <code>#submit</code></td>
+                      <td><code>await page.locator('#submit').click()</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>&lt;button&gt;Submit&lt;/button&gt;</code></td>
+                      <td>Click → Role → button → Submit</td>
+                      <td><code>await page.getByRole('button', { name: 'Submit', exact: true }).click()</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>&lt;label for="email"&gt;Email&lt;/label&gt;</code></td>
+                      <td>Fill → Label → Email</td>
+                      <td><code>await page.getByLabel('Email', { exact: true }).fill(value)</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>data-testid="save-button"</code></td>
+                      <td>Click → Test ID → <code>save-button</code></td>
+                      <td><code>await page.getByTestId('save-button').click()</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>placeholder="Search products"</code></td>
+                      <td>Fill → Placeholder → Search products</td>
+                      <td><code>await page.getByPlaceholder('Search products', { exact: true }).fill(value)</code></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <h4>Complete login example</h4>
+              <p>For this HTML:</p>
+              <pre><code>&lt;input type="text" name="username" id="username"&gt;
+&lt;input type="password" name="password" id="password"&gt;
+&lt;button id="submit"&gt;Submit&lt;/button&gt;</code></pre>
+              <p>Configure the Flow like this:</p>
+              <pre><code>Base URL: https://practicetestautomation.com
+Navigate → /practice-test-login/
+Fill → CSS → #username → TEST_USERNAME
+Fill → CSS → #password → TEST_PASSWORD
+Click → CSS → #submit
+Wait → URL → /logged-in-successfully
+Assert → URL → /logged-in-successfully</code></pre>
+              <p>LazyScout should generate code equivalent to:</p>
+              <pre><code>import { test, expect } from '@playwright/test'
+
+test('Login', async ({ page }) =&gt; {
+  await page.goto('https://practicetestautomation.com/practice-test-login/')
+  await page.locator('#username').fill('{{TEST_USERNAME}}')
+  await page.locator('#password').fill('{{TEST_PASSWORD}}')
+  await page.locator('#submit').click()
+  await expect(page).toHaveURL(/\/logged-in-successfully/)
+})</code></pre>
+              <p>
+                Set <code>TEST_USERNAME=student</code> and <code>TEST_PASSWORD=Password123</code> in Project Settings.
+                Keep secrets out of Flow source and logs.
+              </p>
+              <h4>When a locator fails</h4>
+              <div class="docs-table-wrap">
+                <table class="docs-table">
+                  <thead>
+                    <tr>
+                      <th>Failure</th>
+                      <th>What it usually means</th>
+                      <th>What to change</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>strict mode violation</td>
+                      <td>More than one element matched.</td>
+                      <td>Add an id, test id, parent container, or use exact accessible name.</td>
+                    </tr>
+                    <tr>
+                      <td>getByLabel found nothing</td>
+                      <td>The input has no real label or the label text differs.</td>
+                      <td>Switch to CSS using <code>#id</code> or <code>[name="..."]</code>.</td>
+                    </tr>
+                    <tr>
+                      <td>locator.fill timeout</td>
+                      <td>Wrong path, redirect, modal, or element is not visible.</td>
+                      <td>Verify Navigate URL, add Wait visible, then inspect the current page.</td>
+                    </tr>
+                    <tr>
+                      <td>button click timeout</td>
+                      <td>Button name is different, duplicated, disabled, or covered by a modal.</td>
+                      <td>Use CSS id, Role with exact name, or add a modal close step first.</td>
+                    </tr>
+                    <tr>
+                      <td>URL assertion failed</td>
+                      <td>The action did not navigate or the expected path is wrong.</td>
+                      <td>Copy the final URL from the browser and use only its path in Wait/Assert.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <h4>Repeated elements and nth()</h4>
+              <p>
+                Avoid a broad selector such as <code>page.locator('button')</code>. If several cards contain an Edit
+                button, scope the button to the card or row first. Use <code>nth()</code> only when the page has no
+                stable id, text, label, role, test id, or parent context.
+              </p>
+              <pre><code>const row = page.getByRole('row').filter({ hasText: 'John Doe' })
+await row.getByRole('button', { name: 'Edit', exact: true }).click()</code></pre>
+              <div class="docs-note warning">
+                <b>Do not copy blindly</b>
+                <span
+                  >Generate the Flow, open the Playwright code, and adjust only the locator or expected result that the
+                  real page requires.</span
                 >
               </div>
             </article>
@@ -598,11 +752,12 @@ npm.cmd run dev:web</code></pre>
             <a href="#guide-install">Launch</a>
             <a href="#guide-scout">Scout options</a>
             <a href="#guide-login">Login</a>
+            <a href="#guide-guided-flow">Guided Flow</a>
             <a href="#guide-cases">Review cases</a>
             <a href="#guide-automation">Run Playwright</a>
             <a href="#guide-api">API checks</a>
             <a href="#guide-files">Files</a>
-            <div class="docs-version"><span>Guide version</span><b>LazyScout 0.3.7</b></div>
+            <div class="docs-version"><span>Guide version</span><b>LazyScout 0.3.9</b></div>
           </aside>
         </div>
       </section>

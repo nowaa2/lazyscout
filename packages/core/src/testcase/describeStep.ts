@@ -20,6 +20,10 @@ export function describeStep(step: TestStep): string {
       return `Enter "${step.value}" in ${describeTarget(step.target)}`
     case 'select':
       return `Select "${step.option}" from ${describeTarget(step.target)}`
+    case 'check':
+      return `${step.checked ? 'Check' : 'Uncheck'} ${describeTarget(step.target)}`
+    case 'wait':
+      return `Wait for ${step.mode}: ${step.value}`
     case 'assertVisible':
       return `Verify that ${describeTarget(step.target)} is visible`
     case 'assertText':

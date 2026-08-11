@@ -29,6 +29,13 @@ function cypressStep(step: TestStep): string {
       return `${locator(step.target)}.clear().type(${quote(runtimeValue(step))})`
     case 'select':
       return `${locator(step.target)}.select(${quote(step.option)})`
+    case 'check':
+      return `${locator(step.target)}.${step.checked ? 'check' : 'uncheck'}()`
+    case 'wait':
+      if (step.mode === 'timeout') return `cy.wait(${Math.min(5000, Math.max(0, Number(step.value) || 0))})`
+      if (step.mode === 'url') return `cy.url().should('include', ${quote(step.value)})`
+      if (step.mode === 'text') return `cy.contains(${quote(step.value)}).should('be.visible')`
+      return `${locator(step.target!)}.should('be.visible')`
     case 'assertVisible':
       return `${locator(step.target)}.should('be.visible')`
     case 'assertText':

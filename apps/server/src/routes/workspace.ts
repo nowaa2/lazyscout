@@ -12,8 +12,10 @@ import {
   listProjects,
   openWorkspace,
   readAutomation,
+  readGuidedFlows,
   readScreenshots,
   saveAutomation,
+  saveGuidedFlows,
   saveBugReport,
   saveProject,
   saveReport,
@@ -113,6 +115,20 @@ export function registerWorkspaceRoutes(app: FastifyInstance, root: string): voi
   app.get<{ Params: ProjectParams }>('/api/workspace/projects/:projectId/automation', async (request) =>
     readAutomation(root, request.params.projectId)
   )
+
+  app.get<{ Params: ProjectParams }>('/api/workspace/projects/:projectId/guided-flows', async (request) =>
+    readGuidedFlows(root, request.params.projectId)
+  )
+
+  app.put<{ Params: ProjectParams }>('/api/workspace/projects/:projectId/guided-flows', async (request, reply) => {
+    const body = request.body as { flows?: unknown }
+    if (!Array.isArray(body?.flows))
+      return reply
+        .status(400)
+        .send({ error: { code: 'invalid-guided-flows', message: 'Guided Flow list is required.' } })
+    await saveGuidedFlows(root, request.params.projectId, body.flows as never[])
+    return reply.send({ saved: true })
+  })
 
   app.put<{ Params: ProjectParams }>('/api/workspace/projects/:projectId/automation', async (request, reply) => {
     await saveAutomation(root, request.params.projectId, request.body as Record<string, string>)

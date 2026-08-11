@@ -1,6 +1,9 @@
 export type TargetRef = {
+  strategy?: 'role' | 'label' | 'placeholder' | 'text' | 'testid' | 'css'
   role?: string
   name?: string
+  value?: string
+  exact?: boolean
   text?: string
   placeholder?: string
   label?: string
@@ -39,6 +42,16 @@ export type SelectStep = {
   description?: string
 }
 
+export type CheckStep = { type: 'check'; target: TargetRef; checked: boolean; description?: string }
+
+export type WaitStep = {
+  type: 'wait'
+  mode: 'timeout' | 'url' | 'visible' | 'text'
+  value: string
+  target?: TargetRef
+  description?: string
+}
+
 export type AssertVisibleStep = {
   type: 'assertVisible'
   target: TargetRef
@@ -64,7 +77,16 @@ export type ManualStep = {
 }
 
 export type TestStep =
-  NavigateStep | ClickStep | FillStep | SelectStep | AssertVisibleStep | AssertTextStep | AssertUrlStep | ManualStep
+  | NavigateStep
+  | ClickStep
+  | FillStep
+  | SelectStep
+  | CheckStep
+  | WaitStep
+  | AssertVisibleStep
+  | AssertTextStep
+  | AssertUrlStep
+  | ManualStep
 
 export type TestCaseType = 'positive' | 'negative' | 'validation'
 

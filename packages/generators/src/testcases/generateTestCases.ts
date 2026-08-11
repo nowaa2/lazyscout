@@ -82,6 +82,10 @@ function translateStep(step: TestCase['steps'][number]): string {
       return `กรอกข้อมูลใน ${step.target.name ?? step.target.label ?? step.target.placeholder ?? 'ช่องข้อมูล'}`
     case 'select':
       return `เลือก ${step.option} จาก ${step.target.name ?? step.target.label ?? 'รายการ'}`
+    case 'check':
+      return `${step.checked ? 'Check' : 'Uncheck'} ${step.target.name ?? step.target.label ?? 'element'}`
+    case 'wait':
+      return `Wait for ${step.mode}: ${step.value}`
     case 'assertVisible':
       return `ตรวจสอบว่า ${step.target.name ?? step.target.label ?? 'element'} แสดงอยู่`
     case 'assertText':

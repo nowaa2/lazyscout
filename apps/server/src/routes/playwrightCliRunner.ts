@@ -24,24 +24,32 @@ type RunInput = {
   testCaseId: string
   secrets?: ProjectSecrets
   secretValues: string[]
+  profileDirectory?: string
   addLog: (level: AutomationLog['level'], message: string, durationMs?: number) => void
   onProcess?: (process: ChildProcess) => void
 }
 
 export async function runPlaywrightCli(input: RunInput): Promise<PlaywrightCliRun> {
   const started = Date.now()
-  const source = resolveSource(input.source, input.testCase, input.secrets)
-  validateLiteralNavigationUrls(source)
-
   const runDirectory = await mkdtemp(join(dirname(CLI_ENTRY), '.lazyscout-run-'))
+  const source = resolveSource(input.source, input.testCase, input.secrets, Boolean(input.profileDirectory))
+  validateLiteralNavigationUrls(source)
   const specPath = join(runDirectory, `${safeName(input.testCaseId)}.spec.ts`)
   const configPath = join(runDirectory, 'playwright.config.mjs')
   await writeFile(specPath, source, 'utf8')
+  if (input.profileDirectory) {
+    const fixture = createProfileFixture()
+    await writeFile(join(runDirectory, 'lazyscout-fixture.mjs'), fixture, 'utf8')
+  }
   await writeFile(configPath, createConfig(), 'utf8')
 
   const child = spawn(process.execPath, [CLI_ENTRY, 'test', '--config', configPath], {
     cwd: runDirectory,
-    env: { ...process.env, FORCE_COLOR: '0' },
+    env: {
+      ...process.env,
+      FORCE_COLOR: '0',
+      ...(input.profileDirectory ? { LAZYSCOUT_PROFILE_DIR: input.profileDirectory } : {})
+    },
     windowsHide: true,
     stdio: ['ignore', 'pipe', 'pipe']
   })
@@ -99,18 +107,44 @@ export async function runPlaywrightCli(input: RunInput): Promise<PlaywrightCliRu
   }
 }
 
-function resolveSource(source: string | undefined, testCase: TestCase, secrets?: ProjectSecrets): string {
+function resolveSource(
+  source: string | undefined,
+  testCase: TestCase,
+  secrets?: ProjectSecrets,
+  useProfile = false
+): string {
   const generated = source?.trim() || generatePlaywrightTest(testCase)
   const resolved = replaceSecrets(generated, secrets)
-  if (/\btest\s*\(/.test(resolved) && /@playwright\/test/.test(resolved)) return resolved
-  return [
-    `import { test, expect } from '@playwright/test'`,
-    '',
-    `test(${JSON.stringify(testCase.title)}, async ({ page }) => {`,
-    resolved,
-    '})',
-    ''
-  ].join('\n')
+  const fullSource =
+    /\btest\s*\(/.test(resolved) && /@playwright\/test/.test(resolved)
+      ? resolved
+      : [
+          `import { test, expect } from '@playwright/test'`,
+          '',
+          `test(${JSON.stringify(testCase.title)}, async ({ page }) => {`,
+          resolved,
+          '})',
+          ''
+        ].join('\n')
+  return useProfile
+    ? fullSource.replace(/from\s+(['"])@playwright\/test\1/g, "from './lazyscout-fixture.mjs'")
+    : fullSource
+}
+
+function createProfileFixture(): string {
+  return `import { test as base, expect } from '@playwright/test'
+import { chromium } from 'playwright-core'
+
+export const test = base.extend({
+  context: async ({}, use) => {
+    const context = await chromium.launchPersistentContext(process.env.LAZYSCOUT_PROFILE_DIR, { headless: true })
+    await use(context)
+    await context.close()
+  }
+})
+
+export { expect }
+`
 }
 
 function replaceSecrets(source: string, secrets?: ProjectSecrets): string {
@@ -118,11 +152,12 @@ function replaceSecrets(source: string, secrets?: ProjectSecrets): string {
     TEST_EMAIL: secrets?.email ?? process.env.LAZYSCOUT_TEST_EMAIL,
     TEST_USERNAME: secrets?.username ?? process.env.LAZYSCOUT_TEST_USERNAME,
     TEST_PASSWORD: secrets?.password ?? process.env.LAZYSCOUT_TEST_PASSWORD,
-    API_TOKEN: secrets?.apiToken ?? process.env.LAZYSCOUT_API_TOKEN
+    API_TOKEN: secrets?.apiToken ?? process.env.LAZYSCOUT_API_TOKEN,
+    ...(secrets?.variables ?? {})
   }
-  return source.replace(/\{\{(TEST_EMAIL|TEST_USERNAME|TEST_PASSWORD|API_TOKEN)\}\}/g, (_, key: string) => {
+  return source.replace(/\{\{([A-Z][A-Z0-9_]*)\}\}/g, (_, key: string) => {
     const value = values[key]
-    if (value === undefined) throw new Error(`Required secret is not configured for {{${key}}}`)
+    if (value === undefined) throw new Error(`Required test variable is not configured for {{${key}}}`)
     return escapeStringContent(value)
   })
 }

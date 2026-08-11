@@ -43,7 +43,13 @@ export type ApiCheck = {
   durationMs?: number
   note?: string
 }
-export type ProjectSecrets = { email?: string; username?: string; password?: string; apiToken?: string }
+export type ProjectSecrets = {
+  email?: string
+  username?: string
+  password?: string
+  apiToken?: string
+  variables?: Record<string, string>
+}
 export type ApiCheckRunRequest = { apiCheck: ApiCheck; secrets?: ProjectSecrets; allowUnsafe?: boolean }
 export type ApiCheckRunResponse = {
   status: 'passed' | 'failed' | 'needs-auth'

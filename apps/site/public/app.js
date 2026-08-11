@@ -41,6 +41,7 @@ function setActiveGuideLink(id) {
 docsLinks.forEach((link) => {
   link.addEventListener('click', (event) => {
     const selector = link.getAttribute('href')
+    if (!selector?.startsWith('#')) return
     const target = selector ? document.querySelector(selector) : null
     if (!target || !docsContent) return
     event.preventDefault()

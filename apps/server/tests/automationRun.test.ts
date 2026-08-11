@@ -1,7 +1,11 @@
 import { createServer, type Server } from 'node:http'
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { TestCase } from '@lazyscout/core'
-import { generatePlaywrightTest } from '@lazyscout/generators'
+import { generatePlaywrightFromFlow, generatePlaywrightTest } from '@lazyscout/generators'
+import type { GuidedFlow } from '@lazyscout/core'
 import { runPlaywrightCli } from '../src/routes/playwrightCliRunner.js'
 
 describe('real Playwright Test CLI runner', () => {
@@ -80,5 +84,51 @@ test('recorded flow', async ({ page }) => {
     expect(result.screenshots).toHaveLength(1)
     expect(result.screenshots[0].name).toContain('recorded-login.png')
     expect(logs.some((entry) => entry.message.includes('passed'))).toBe(true)
+  })
+
+  it('runs a structured Guided Flow through the real CLI', async () => {
+    const guidedFlow: GuidedFlow = {
+      id: 'flow-login-link',
+      name: 'Open login link',
+      baseUrl: url,
+      steps: [
+        { id: 'navigate', type: 'navigate', path: '/' },
+        { id: 'click', type: 'click', target: { strategy: 'role', role: 'link', name: 'เข้าสู่ระบบ' } },
+        { id: 'assert', type: 'assert', assertion: { type: 'url', value: '/login' } }
+      ]
+    }
+    const logs: Array<{ level: 'info' | 'pass' | 'fail' | 'warn'; message: string }> = []
+    const result = await runPlaywrightCli({
+      source: generatePlaywrightFromFlow(guidedFlow),
+      testCase,
+      testCaseId: 'TC-FLOW-001',
+      secretValues: [],
+      addLog: (level, message) => logs.push({ level, message })
+    })
+
+    expect(result.status).toBe('passed')
+    expect(logs.some((entry) => entry.message.includes('passed'))).toBe(true)
+  })
+
+  it('can run a Guided Flow with the saved browser profile fixture', async () => {
+    const profileDirectory = await mkdtemp(join(tmpdir(), 'lazyscout-profile-'))
+    try {
+      const result = await runPlaywrightCli({
+        source: generatePlaywrightFromFlow({
+          id: 'flow-profile',
+          name: 'Profile flow',
+          baseUrl: url,
+          steps: [{ id: 'navigate', type: 'navigate', path: '/' }]
+        }),
+        testCase,
+        testCaseId: 'TC-FLOW-PROFILE',
+        secretValues: [],
+        profileDirectory,
+        addLog: () => undefined
+      })
+      expect(result.status).toBe('passed')
+    } finally {
+      await rm(profileDirectory, { recursive: true, force: true })
+    }
   })
 })

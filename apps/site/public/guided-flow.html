@@ -1,0 +1,1044 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="A visual end-user guide for creating, running, and fixing LazyScout Guided Flows."
+    />
+    <meta name="theme-color" content="#111827" />
+    <title>Guided Flow Guide · LazyScout</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <style>
+      .guide-page {
+        padding-bottom: 6rem;
+      }
+      .guide-hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+        gap: 2rem;
+        align-items: center;
+        padding: 5rem 0 3rem;
+      }
+      .guide-hero h1 {
+        max-width: 14ch;
+        margin: 0.7rem 0 1rem;
+        font-size: clamp(2.3rem, 5vw, 4.5rem);
+        line-height: 1;
+        letter-spacing: -0.065em;
+      }
+      .guide-hero h1 em {
+        color: var(--cyan);
+        font-style: normal;
+      }
+      .guide-hero p {
+        max-width: 58ch;
+        color: var(--muted);
+        line-height: 1.7;
+      }
+      .guide-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.7rem;
+        margin-top: 1.4rem;
+      }
+      .guide-links a {
+        padding: 0.7rem 0.95rem;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        color: #dfe4f7;
+        font-size: 0.82rem;
+      }
+      .guide-links a:hover {
+        border-color: var(--violet);
+        color: white;
+      }
+      .guide-visual,
+      .flow-mock {
+        color: #182136;
+        background: #fff;
+        border: 1px solid #dce4f2;
+        border-radius: 22px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.28);
+      }
+      .guide-visual {
+        overflow: hidden;
+      }
+      .visual-bar {
+        display: flex;
+        gap: 0.4rem;
+        align-items: center;
+        padding: 0.8rem 1rem;
+        background: #f5f7fb;
+        border-bottom: 1px solid #e1e7f0;
+      }
+      .visual-bar i {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: #f29d9d;
+      }
+      .visual-bar i:nth-child(2) {
+        background: #f5ca75;
+      }
+      .visual-bar i:nth-child(3) {
+        background: #8bcf9e;
+      }
+      .visual-bar b {
+        margin-left: 0.45rem;
+        color: #65718b;
+        font-size: 0.72rem;
+      }
+      .visual-body {
+        display: grid;
+        gap: 0.75rem;
+        padding: 1.25rem;
+      }
+      .visual-kicker,
+      .flow-step-ui small {
+        color: #6b7894;
+        font-size: 0.66rem;
+        font-weight: 800;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+      }
+      .visual-body h2 {
+        margin: 0;
+        color: #111b31;
+        font-size: 1.3rem;
+      }
+      .flow-step-ui {
+        padding: 0.85rem;
+        border: 1px solid #d9e2ef;
+        border-radius: 12px;
+        background: #fbfcfe;
+      }
+      .flow-step-ui b {
+        display: block;
+        margin: 0.3rem 0 0.6rem;
+        color: #27324a;
+        font-size: 0.85rem;
+      }
+      .mock-fields {
+        display: grid;
+        grid-template-columns: 0.9fr 1.2fr;
+        gap: 0.55rem;
+      }
+      .mock-input {
+        padding: 0.58rem 0.65rem;
+        border: 1px solid #cdd9ea;
+        border-radius: 7px;
+        color: #34425f;
+        background: white;
+        font:
+          0.75rem 'SFMono-Regular',
+          Consolas,
+          monospace;
+      }
+      .mock-button {
+        display: inline-block;
+        padding: 0.58rem 0.8rem;
+        color: white;
+        background: #4d46e5;
+        border-radius: 7px;
+        font-size: 0.75rem;
+        font-weight: 800;
+        text-align: center;
+      }
+      .guide-layout {
+        display: grid;
+        grid-template-columns: 220px minmax(0, 1fr);
+        gap: 2rem;
+        align-items: start;
+      }
+      .guide-toc {
+        position: sticky;
+        top: 1.2rem;
+        display: grid;
+        gap: 0.15rem;
+        padding: 0.9rem;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: rgba(20, 25, 39, 0.72);
+      }
+      .guide-toc b {
+        padding: 0.4rem 0.55rem 0.65rem;
+        color: #7f8aa5;
+        font-size: 0.66rem;
+        letter-spacing: 0.1em;
+      }
+      .guide-toc a {
+        padding: 0.5rem 0.55rem;
+        border-radius: 8px;
+        color: #b9c2d7;
+        font-size: 0.8rem;
+      }
+      .guide-toc a:hover {
+        color: white;
+        background: rgba(140, 125, 255, 0.14);
+      }
+      .guide-content {
+        min-width: 0;
+      }
+      .guide-section {
+        padding: 2.4rem 0;
+        border-top: 1px solid var(--line);
+      }
+      .guide-section:first-child {
+        padding-top: 0;
+        border-top: 0;
+      }
+      .guide-section h2 {
+        margin: 0.35rem 0 0.7rem;
+        color: white;
+        font-size: clamp(1.65rem, 3vw, 2.35rem);
+        letter-spacing: -0.045em;
+      }
+      .guide-section > p {
+        max-width: 74ch;
+        color: var(--muted);
+        line-height: 1.7;
+      }
+      .eyebrow-guide {
+        margin: 0;
+        color: var(--cyan);
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .guide-note {
+        display: flex;
+        gap: 0.75rem;
+        align-items: flex-start;
+        margin: 1.25rem 0;
+        padding: 1rem;
+        color: #dae4fa;
+        background: rgba(87, 76, 207, 0.16);
+        border: 1px solid rgba(140, 125, 255, 0.35);
+        border-radius: 12px;
+        line-height: 1.55;
+      }
+      .guide-note b {
+        min-width: 1.2rem;
+        color: #bcb4ff;
+      }
+      .guide-note.warning {
+        background: rgba(170, 111, 21, 0.15);
+        border-color: rgba(242, 187, 102, 0.4);
+      }
+      .guide-note.warning b {
+        color: var(--amber);
+      }
+      .how-grid,
+      .locator-grid,
+      .case-grid {
+        display: grid;
+        gap: 1rem;
+        margin-top: 1.4rem;
+      }
+      .how-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+      .locator-grid,
+      .case-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .how-card,
+      .locator-card,
+      .case-card {
+        padding: 1.05rem;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: rgba(20, 25, 39, 0.74);
+      }
+      .how-card > span {
+        display: grid;
+        width: 26px;
+        height: 26px;
+        place-items: center;
+        margin-bottom: 0.8rem;
+        color: #191d31;
+        background: #b7afff;
+        border-radius: 8px;
+        font-size: 0.75rem;
+        font-weight: 900;
+      }
+      .how-card h3,
+      .locator-card h3,
+      .case-card h3 {
+        margin: 0;
+        color: white;
+        font-size: 0.95rem;
+      }
+      .how-card p,
+      .locator-card p,
+      .case-card p {
+        margin: 0.5rem 0 0;
+        color: var(--muted);
+        font-size: 0.83rem;
+        line-height: 1.6;
+      }
+      .html-sample,
+      .code-sample {
+        overflow: auto;
+        margin: 0.9rem 0 0;
+        padding: 0.85rem;
+        border-radius: 10px;
+        font-size: 0.73rem;
+        line-height: 1.6;
+      }
+      .html-sample {
+        color: #27364e;
+        background: #fff;
+        border: 1px solid #dbe4ee;
+      }
+      .code-sample {
+        color: #d4f8d7;
+        background: #0b1020;
+        border: 1px solid #252f49;
+      }
+      .flow-settings {
+        display: grid;
+        gap: 0.45rem;
+        margin-top: 0.9rem;
+      }
+      .flow-settings div {
+        display: grid;
+        grid-template-columns: 86px 1fr;
+        gap: 0.55rem;
+        align-items: center;
+        padding: 0.55rem 0.65rem;
+        color: #36425a;
+        background: white;
+        border: 1px solid #d9e2ef;
+        border-radius: 8px;
+        font-size: 0.76rem;
+      }
+      .flow-settings b {
+        color: #68758f;
+        font-size: 0.66rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      .flow-settings code,
+      .guide-content code {
+        font-family: 'SFMono-Regular', Consolas, monospace;
+      }
+      .flow-settings code {
+        color: #4338ca;
+      }
+      .decision {
+        display: grid;
+        gap: 0;
+        max-width: 690px;
+        margin: 1.5rem auto 0;
+        overflow: hidden;
+        border: 1px solid #d7e0ee;
+        border-radius: 14px;
+        background: white;
+      }
+      .decision div {
+        display: grid;
+        grid-template-columns: 1fr 26px 1fr;
+        gap: 0.7rem;
+        align-items: center;
+        padding: 0.85rem 1rem;
+        color: #27344d;
+        border-bottom: 1px solid #e4eaf3;
+        font-size: 0.82rem;
+      }
+      .decision div:last-child {
+        border-bottom: 0;
+      }
+      .decision i {
+        color: #665de8;
+        font-style: normal;
+        font-weight: 900;
+        text-align: center;
+      }
+      .decision b {
+        color: #4038bd;
+      }
+      .full-flow {
+        margin-top: 1.3rem;
+        overflow: hidden;
+        border: 1px solid #d7e0ee;
+        border-radius: 16px;
+        background: white;
+      }
+      .full-flow > header {
+        padding: 1rem 1.1rem;
+        color: #26324a;
+        background: #f6f8fc;
+        border-bottom: 1px solid #e0e7f0;
+        font-size: 0.85rem;
+        font-weight: 800;
+      }
+      .full-flow > div {
+        display: grid;
+        gap: 0.7rem;
+        padding: 1rem;
+      }
+      .run-step {
+        display: grid;
+        grid-template-columns: 30px 1fr auto;
+        gap: 0.75rem;
+        align-items: center;
+        padding: 0.75rem;
+        border: 1px solid #dce4ef;
+        border-radius: 10px;
+        color: #33415b;
+        font-size: 0.8rem;
+      }
+      .run-step > i {
+        display: grid;
+        place-items: center;
+        width: 25px;
+        height: 25px;
+        color: #4438c5;
+        background: #ecebff;
+        border-radius: 50%;
+        font-size: 0.72rem;
+        font-style: normal;
+        font-weight: 900;
+      }
+      .run-step b {
+        color: #68758d;
+        font-size: 0.66rem;
+        letter-spacing: 0.07em;
+      }
+      .run-step code {
+        color: #3d35b8;
+        font-size: 0.72rem;
+      }
+      .error-table {
+        width: 100%;
+        margin-top: 1.25rem;
+        border-collapse: collapse;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        font-size: 0.8rem;
+      }
+      .error-table th,
+      .error-table td {
+        padding: 0.8rem;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        vertical-align: top;
+      }
+      .error-table th {
+        color: #aeb9d3;
+        background: rgba(255, 255, 255, 0.035);
+      }
+      .error-table td {
+        color: var(--muted);
+        line-height: 1.55;
+      }
+      .error-table td:first-child {
+        color: #f1c2c2;
+        font-family: 'SFMono-Regular', Consolas, monospace;
+      }
+      .error-table tr:last-child td {
+        border-bottom: 0;
+      }
+      .guide-footer {
+        margin-top: 3rem;
+        padding: 1.5rem;
+        color: #cdd6e9;
+        background: linear-gradient(135deg, rgba(92, 75, 220, 0.23), rgba(33, 151, 172, 0.16));
+        border: 1px solid rgba(135, 128, 255, 0.3);
+        border-radius: 18px;
+      }
+      .guide-footer h2 {
+        margin: 0;
+        color: white;
+      }
+      .guide-footer p {
+        color: #c4cde3;
+        line-height: 1.6;
+      }
+      @media (max-width: 900px) {
+        .guide-hero,
+        .guide-layout {
+          grid-template-columns: 1fr;
+        }
+        .guide-toc {
+          position: static;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+      }
+      @media (max-width: 650px) {
+        .guide-hero {
+          padding-top: 3rem;
+        }
+        .how-grid,
+        .locator-grid,
+        .case-grid {
+          grid-template-columns: 1fr;
+        }
+        .guide-toc {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .mock-fields,
+        .flow-settings div {
+          grid-template-columns: 1fr;
+        }
+        .run-step {
+          grid-template-columns: 26px 1fr;
+        }
+        .run-step b {
+          grid-column: 2;
+        }
+        .error-table {
+          display: block;
+          overflow-x: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page-glow glow-left"></div>
+    <div class="page-glow glow-right"></div>
+    <header class="site-header">
+      <a class="brand" href="./index.html" aria-label="LazyScout home">
+        <span class="brand-icon">LS</span><span>LazyScout</span>
+      </a>
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">Menu</button>
+      <nav id="site-nav" class="site-nav" aria-label="Main navigation">
+        <a href="./index.html">Home</a>
+        <a href="#start">Start here</a>
+        <a href="#locators">Locators</a>
+        <a href="#cases">Examples</a>
+        <a href="#fix">Fix errors</a>
+      </nav>
+    </header>
+
+    <main id="top" class="guide-page">
+      <section class="guide-hero section-shell">
+        <div>
+          <p class="eyebrow"><span></span> Guided Flow visual guide</p>
+          <h1>See the HTML.<br /><em>Choose the right step.</em></h1>
+          <p>
+            A practical visual guide for building predictable Playwright flows in LazyScout. Start from the element you
+            see on a page, choose a locator that matches it, then run and fix only the failing step.
+          </p>
+          <div class="guide-links">
+            <a href="#start">1. Build a Flow</a>
+            <a href="#locators">2. Pick a locator</a>
+            <a href="#cases">3. Copy examples</a>
+            <a href="#fix">4. Fix failures</a>
+          </div>
+        </div>
+        <div class="guide-visual" aria-label="Guided Flow setup visual">
+          <div class="visual-bar"><i></i><i></i><i></i><b>LazyScout · Guided Flow</b></div>
+          <div class="visual-body">
+            <span class="visual-kicker">Step 2 of 6 · Fill</span>
+            <h2>Enter the username</h2>
+            <div class="flow-step-ui">
+              <small>Locator strategy</small><b>CSS</b>
+              <div class="mock-fields">
+                <span class="mock-input">#username</span><span class="mock-input">Value reference: TEST_USERNAME</span>
+              </div>
+            </div>
+            <div class="flow-step-ui">
+              <small>Generated Playwright</small><b><code>page.locator('#username').fill(...)</code></b>
+              <span class="mock-button">Run Flow →</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section-shell guide-layout">
+        <aside class="guide-toc">
+          <b>GUIDED FLOW MANUAL</b>
+          <a href="#start">Start a Flow</a>
+          <a href="#locators">Locator decision</a>
+          <a href="#fill">Fill inputs</a>
+          <a href="#buttons">Click buttons</a>
+          <a href="#dropdown">Dropdown &amp; checkboxes</a>
+          <a href="#wait">Wait &amp; modal</a>
+          <a href="#assert">Assertions</a>
+          <a href="#repeat">Repeated elements</a>
+          <a href="#fix">Troubleshooting</a>
+        </aside>
+
+        <div class="guide-content">
+          <section id="start" class="guide-section">
+            <p class="eyebrow-guide">01 · START HERE</p>
+            <h2>Build the Flow in the same order as a real user</h2>
+            <p>
+              A Guided Flow is deterministic: LazyScout only executes the Steps you add. It does not crawl extra pages
+              or guess what to click. Add Navigate first, then actions, then Wait or Assert for the result you expect.
+            </p>
+            <div class="how-grid">
+              <article class="how-card">
+                <span>1</span>
+                <h3>Open the target page</h3>
+                <p>Set Base URL once. Use Navigate with a path such as <code>/login</code>.</p>
+              </article>
+              <article class="how-card">
+                <span>2</span>
+                <h3>Inspect the element</h3>
+                <p>
+                  In Chrome DevTools, right-click the control and choose Inspect. Look for id, name, label, role,
+                  placeholder, or data-testid.
+                </p>
+              </article>
+              <article class="how-card">
+                <span>3</span>
+                <h3>Add one action</h3>
+                <p>
+                  Choose Fill, Click, Select, Check, Wait, or Assert. Save and run after a few Steps instead of writing
+                  everything at once.
+                </p>
+              </article>
+            </div>
+            <div class="guide-note">
+              <b>✓</b
+              ><span
+                >Before you Run, make sure the first Navigate step points at the exact real path. A valid selector
+                cannot work on the wrong page.</span
+              >
+            </div>
+          </section>
+
+          <section id="locators" class="guide-section">
+            <p class="eyebrow-guide">02 · LOCATOR DECISION</p>
+            <h2>Choose the locator from the HTML you actually have</h2>
+            <p>
+              Use the strongest stable attribute first. Do not choose Label just because the screen shows a word near an
+              input: the page needs a real HTML label for that strategy.
+            </p>
+            <div class="decision" aria-label="Locator choice decision guide">
+              <div>
+                <span>The element has <code>id</code> or <code>name</code></span
+                ><i>→</i><b>CSS</b>
+              </div>
+              <div><span>It is a button, link, checkbox, or tab with a clear name</span><i>→</i><b>Role</b></div>
+              <div>
+                <span>It has a real <code>&lt;label for="..."&gt;</code></span
+                ><i>→</i><b>Label</b>
+              </div>
+              <div>
+                <span>It has <code>data-testid</code></span
+                ><i>→</i><b>Test ID</b>
+              </div>
+              <div><span>It has a stable placeholder</span><i>→</i><b>Placeholder</b></div>
+              <div><span>Only visible text is reliable</span><i>→</i><b>Text / Assert</b></div>
+            </div>
+            <div class="guide-note warning">
+              <b>!</b
+              ><span
+                >Avoid broad selectors such as <code>button</code>, <code>input</code>, or text that appears in many
+                places. They may match the wrong element or cause a strict mode error.</span
+              >
+            </div>
+          </section>
+
+          <section id="fill" class="guide-section">
+            <p class="eyebrow-guide">03 · FILL INPUTS</p>
+            <h2>Fill username, password, search, and textarea fields</h2>
+            <div class="locator-grid">
+              <article class="locator-card">
+                <h3>Case A · Input has id or name</h3>
+                <p>This is the most common login form. Choose CSS and copy a short stable selector.</p>
+                <pre class="html-sample">&lt;input type="text" name="username" id="username"&gt;</pre>
+                <div class="flow-settings">
+                  <div><b>Step</b><span>Fill</span></div>
+                  <div><b>Strategy</b><span>CSS</span></div>
+                  <div><b>Value</b><code>#username</code></div>
+                  <div><b>Value reference</b><code>TEST_USERNAME</code></div>
+                </div>
+                <pre class="code-sample">await page.locator('#username').fill('{{TEST_USERNAME}}')</pre>
+              </article>
+              <article class="locator-card">
+                <h3>Case B · Input has a real label</h3>
+                <p>
+                  Use Label only when the label is linked to the input with <code>for</code> and <code>id</code>, or
+                  wraps the input.
+                </p>
+                <pre class="html-sample">
+&lt;label for="email"&gt;Email address&lt;/label&gt;
+&lt;input id="email" type="email"&gt;</pre>
+                <div class="flow-settings">
+                  <div><b>Step</b><span>Fill</span></div>
+                  <div><b>Strategy</b><span>Label</span></div>
+                  <div><b>Value</b><code>Email address</code></div>
+                  <div><b>Value reference</b><code>TEST_EMAIL</code></div>
+                </div>
+                <pre class="code-sample">
+await page.getByLabel('Email address', { exact: true })
+  .fill('{{TEST_EMAIL}}')</pre>
+              </article>
+              <article class="locator-card">
+                <h3>Case C · Search with placeholder</h3>
+                <p>Use Placeholder when the hint is stable and there is no better id, name, or test id.</p>
+                <pre class="html-sample">&lt;input placeholder="Search products" type="search"&gt;</pre>
+                <div class="flow-settings">
+                  <div><b>Step</b><span>Fill</span></div>
+                  <div><b>Strategy</b><span>Placeholder</span></div>
+                  <div><b>Value</b><code>Search products</code></div>
+                  <div><b>Typed value</b><code>Headphones</code></div>
+                </div>
+                <pre class="code-sample">
+await page.getByPlaceholder('Search products')
+  .fill('Headphones')</pre>
+              </article>
+              <article class="locator-card">
+                <h3>Case D · Test ID provided by developers</h3>
+                <p>Test IDs are excellent for automation because visual copy can change without breaking the test.</p>
+                <pre class="html-sample">&lt;input data-testid="billing-postcode"&gt;</pre>
+                <div class="flow-settings">
+                  <div><b>Step</b><span>Fill</span></div>
+                  <div><b>Strategy</b><span>Test ID</span></div>
+                  <div><b>Value</b><code>billing-postcode</code></div>
+                  <div><b>Typed value</b><code>10110</code></div>
+                </div>
+                <pre class="code-sample">await page.getByTestId('billing-postcode').fill('10110')</pre>
+              </article>
+            </div>
+          </section>
+
+          <section id="buttons" class="guide-section">
+            <p class="eyebrow-guide">04 · CLICK</p>
+            <h2>Click submit, login, links, tabs, and actions</h2>
+            <div class="case-grid">
+              <article class="case-card">
+                <h3>Submit button with id</h3>
+                <pre class="html-sample">&lt;button id="submit"&gt;Submit&lt;/button&gt;</pre>
+                <div class="flow-settings">
+                  <div><b>Step</b><span>Click</span></div>
+                  <div><b>Strategy</b><span>CSS</span></div>
+                  <div><b>Value</b><code>#submit</code></div>
+                </div>
+                <pre class="code-sample">await page.locator('#submit').click()</pre>
+              </article>
+              <article class="case-card">
+                <h3>Button with an accessible name</h3>
+                <pre class="html-sample">&lt;button&gt;Continue to payment&lt;/button&gt;</pre>
+                <div class="flow-settings">
+                  <div><b>Step</b><span>Click</span></div>
+                  <div><b>Strategy</b><span>Role</span></div>
+                  <div><b>Role</b><code>button</code></div>
+                  <div><b>Accessible name</b><code>Continue to payment</code></div>
+                </div>
+                <pre class="code-sample">
+await page.getByRole('button', {
+  name: 'Continue to payment',
+  exact: true
+}).click()</pre>
+              </article>
+              <article class="case-card">
+                <h3>Login button by text</h3>
+                <p>
+                  Role is normally safer than Text for a button. Use Text when the target is not exposed with the
+                  correct role.
+                </p>
+                <div class="flow-settings">
+                  <div><b>Step</b><span>Click</span></div>
+                  <div><b>Strategy</b><span>Text</span></div>
+                  <div><b>Value</b><code>Sign in</code></div>
+                </div>
+                <pre class="code-sample">await page.getByText('Sign in').click()</pre>
+              </article>
+              <article class="case-card">
+                <h3>Link to another page</h3>
+                <div class="flow-settings">
+                  <div><b>Step</b><span>Click</span></div>
+                  <div><b>Strategy</b><span>Role</span></div>
+                  <div><b>Role</b><code>link</code></div>
+                  <div><b>Accessible name</b><code>My account</code></div>
+                </div>
+                <pre class="code-sample">
+await page.getByRole('link', { name: 'My account' })
+  .click()</pre>
+              </article>
+            </div>
+          </section>
+
+          <section id="dropdown" class="guide-section">
+            <p class="eyebrow-guide">05 · SELECT &amp; CHECK</p>
+            <h2>Dropdowns, checkboxes, radio controls, and toggles</h2>
+            <div class="case-grid">
+              <article class="case-card">
+                <h3>Native select dropdown</h3>
+                <pre class="html-sample">&lt;select id="country"&gt;...&lt;/select&gt;</pre>
+                <div class="flow-settings">
+                  <div><b>Step</b><span>Select</span></div>
+                  <div><b>Strategy</b><span>CSS</span></div>
+                  <div><b>Value</b><code>#country</code></div>
+                  <div><b>Option</b><code>Thailand</code></div>
+                </div>
+                <pre class="code-sample">await page.locator('#country').selectOption('Thailand')</pre>
+              </article>
+              <article class="case-card">
+                <h3>Checkbox or consent</h3>
+                <pre class="html-sample">&lt;input id="terms" type="checkbox"&gt;</pre>
+                <div class="flow-settings">
+                  <div><b>Step</b><span>Check</span></div>
+                  <div><b>Strategy</b><span>CSS</span></div>
+                  <div><b>Value</b><code>#terms</code></div>
+                  <div><b>Checked</b><code>true</code></div>
+                </div>
+                <pre class="code-sample">await page.locator('#terms').check()</pre>
+              </article>
+              <article class="case-card">
+                <h3>Custom dropdown or menu</h3>
+                <p>
+                  Custom menus are usually two actions: Click the menu trigger, then Click an option. Do not use Select
+                  unless it is a real <code>&lt;select&gt;</code>.
+                </p>
+                <pre class="code-sample">
+await page.getByRole('button', { name: 'Country' }).click()
+await page.getByRole('option', { name: 'Thailand' }).click()</pre>
+              </article>
+              <article class="case-card">
+                <h3>Toggle switch</h3>
+                <p>
+                  Use Check when it is an actual checkbox. For a visual-only switch, use Click then Assert its status
+                  text or attribute.
+                </p>
+                <pre class="code-sample">
+await page.getByRole('checkbox', { name: 'Dark mode' }).check()
+await expect(page.getByText('Dark mode enabled')).toBeVisible()</pre>
+              </article>
+            </div>
+          </section>
+
+          <section id="wait" class="guide-section">
+            <p class="eyebrow-guide">06 · WAIT &amp; MODAL</p>
+            <h2>Wait for navigation, a modal, a message, or a short delay</h2>
+            <p>
+              Prefer a meaningful wait over a fixed timeout. Use Timeout only for a small animation or third-party delay
+              when there is no observable result to wait for.
+            </p>
+            <div class="case-grid">
+              <article class="case-card">
+                <h3>Wait for URL after login</h3>
+                <div class="flow-settings">
+                  <div><b>Step</b><span>Wait</span></div>
+                  <div><b>Wait type</b><span>URL</span></div>
+                  <div><b>Value</b><code>/dashboard</code></div>
+                </div>
+                <pre class="code-sample">await expect(page).toHaveURL(/\/dashboard/)</pre>
+              </article>
+              <article class="case-card">
+                <h3>Wait for a modal to appear</h3>
+                <div class="flow-settings">
+                  <div><b>Step</b><span>Wait</span></div>
+                  <div><b>Wait type</b><span>Element visible</span></div>
+                  <div><b>Strategy</b><span>CSS</span></div>
+                  <div><b>Value</b><code>[role="dialog"]</code></div>
+                </div>
+                <pre class="code-sample">await expect(page.locator('[role="dialog"]')).toBeVisible()</pre>
+              </article>
+              <article class="case-card">
+                <h3>Wait for a success message</h3>
+                <div class="flow-settings">
+                  <div><b>Step</b><span>Wait</span></div>
+                  <div><b>Wait type</b><span>Text</span></div>
+                  <div><b>Value</b><code>Saved successfully</code></div>
+                </div>
+                <pre class="code-sample">await expect(page).toContainText('Saved successfully')</pre>
+              </article>
+              <article class="case-card">
+                <h3>Short fixed delay</h3>
+                <div class="flow-settings">
+                  <div><b>Step</b><span>Wait</span></div>
+                  <div><b>Wait type</b><span>Timeout</span></div>
+                  <div><b>Value</b><code>750</code> ms</div>
+                </div>
+                <pre class="code-sample">await page.waitForTimeout(750)</pre>
+              </article>
+            </div>
+            <div class="guide-note warning">
+              <b>!</b
+              ><span
+                >If a modal blocks a button, first Wait until the modal is visible, Click the close/cancel button, then
+                continue. Do not wait 10 seconds hoping it disappears.</span
+              >
+            </div>
+          </section>
+
+          <section id="assert" class="guide-section">
+            <p class="eyebrow-guide">07 · ASSERT</p>
+            <h2>Verify the result, not just that the click happened</h2>
+            <div class="case-grid">
+              <article class="case-card">
+                <h3>Assert URL</h3>
+                <p>Use after Login, navigation, or checkout.</p>
+                <pre class="code-sample">await expect(page).toHaveURL(/\/logged-in-successfully/)</pre>
+              </article>
+              <article class="case-card">
+                <h3>Assert visible element</h3>
+                <p>Use for a dashboard heading, Logout button, or a modal.</p>
+                <pre class="code-sample">
+await expect(page.getByRole('button', {
+  name: 'Log out'
+})).toBeVisible()</pre>
+              </article>
+              <article class="case-card">
+                <h3>Assert success or error text</h3>
+                <p>Use for validation, toast messages, and API feedback.</p>
+                <pre class="code-sample">
+await expect(page.getByText('Your password is invalid!'))
+  .toBeVisible()</pre>
+              </article>
+              <article class="case-card">
+                <h3>Validation case</h3>
+                <p>
+                  Click Submit with an empty field, then Assert the validation message. This is where Label and Text
+                  checks are often useful.
+                </p>
+                <pre class="code-sample">
+await page.locator('#submit').click()
+await expect(page.getByText('Email is required'))
+  .toBeVisible()</pre>
+              </article>
+            </div>
+          </section>
+
+          <section id="repeat" class="guide-section">
+            <p class="eyebrow-guide">08 · REPEATED ELEMENTS</p>
+            <h2>When the page has many Edit, Delete, or Add buttons</h2>
+            <p>
+              Do not use a generic button selector and do not start with <code>nth()</code>. First locate the row, card,
+              form, or modal that contains unique text, then locate the action inside it.
+            </p>
+            <pre class="html-sample">
+&lt;article class="user-card"&gt;
+  &lt;h3&gt;John Doe&lt;/h3&gt;
+  &lt;button&gt;Edit&lt;/button&gt;
+&lt;/article&gt;</pre>
+            <pre class="code-sample">
+const card = page.locator('.user-card').filter({ hasText: 'John Doe' })
+await card.getByRole('button', { name: 'Edit', exact: true }).click()</pre>
+            <div class="guide-note">
+              <b>✓</b
+              ><span
+                >Use <code>nth()</code> only as the final option when the order itself is a stable part of the product.
+                If the page adds a new row later, a bare nth selector can click the wrong record.</span
+              >
+            </div>
+          </section>
+
+          <section id="full-example" class="guide-section">
+            <p class="eyebrow-guide">09 · FULL EXAMPLE</p>
+            <h2>A complete login Flow that you can copy</h2>
+            <div class="full-flow">
+              <header>Base URL: https://practicetestautomation.com</header>
+              <div>
+                <div class="run-step">
+                  <i>1</i><span>Navigate to the Login page</span><b>Navigate</b><code>/practice-test-login/</code>
+                </div>
+                <div class="run-step">
+                  <i>2</i><span>Enter the test username</span><b>Fill · CSS</b><code>#username · TEST_USERNAME</code>
+                </div>
+                <div class="run-step">
+                  <i>3</i><span>Enter the test password</span><b>Fill · CSS</b><code>#password · TEST_PASSWORD</code>
+                </div>
+                <div class="run-step"><i>4</i><span>Submit the form</span><b>Click · CSS</b><code>#submit</code></div>
+                <div class="run-step">
+                  <i>5</i><span>Wait until Login navigation finishes</span><b>Wait · URL</b
+                  ><code>/logged-in-successfully</code>
+                </div>
+                <div class="run-step">
+                  <i>6</i><span>Verify the final page</span><b>Assert · URL</b><code>/logged-in-successfully</code>
+                </div>
+              </div>
+            </div>
+            <pre class="code-sample">
+import { test, expect } from '@playwright/test'
+
+test('Positive login', async ({ page }) =&gt; {
+  await page.goto('https://practicetestautomation.com/practice-test-login/')
+  await page.locator('#username').fill('{{TEST_USERNAME}}')
+  await page.locator('#password').fill('{{TEST_PASSWORD}}')
+  await page.locator('#submit').click()
+  await expect(page).toHaveURL(/\/logged-in-successfully/)
+})</pre>
+          </section>
+
+          <section id="fix" class="guide-section">
+            <p class="eyebrow-guide">10 · FIX FAILURES</p>
+            <h2>Read the CLI log, then change only the failing Step</h2>
+            <p>
+              The CLI tells you the exact generated locator it could not use. Find that Flow step and replace its
+              Strategy or Value with a locator that matches the real page.
+            </p>
+            <table class="error-table">
+              <thead>
+                <tr>
+                  <th>CLI error</th>
+                  <th>Meaning</th>
+                  <th>What to do in Guided Flow</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>strict mode violation</td>
+                  <td>One locator found more than one matching element.</td>
+                  <td>
+                    Use CSS id/test id, a more exact Role name, or a parent container + child selector. Avoid a broad
+                    Text locator.
+                  </td>
+                </tr>
+                <tr>
+                  <td>waiting for locator('#username')</td>
+                  <td>The current page has no matching element.</td>
+                  <td>
+                    Check Navigate path first. Then inspect the element again and confirm its id/name was not changed.
+                  </td>
+                </tr>
+                <tr>
+                  <td>getByLabel(...) found nothing</td>
+                  <td>The input has no linked HTML label, or the label wording is different.</td>
+                  <td>Switch to CSS with <code>#id</code> or <code>input[name="..."]</code>.</td>
+                </tr>
+                <tr>
+                  <td>button click timeout</td>
+                  <td>The button is hidden, disabled, named differently, duplicated, or covered by a modal.</td>
+                  <td>
+                    Add Wait → Element visible, close the modal, then use Role/CSS that targets the specific button.
+                  </td>
+                </tr>
+                <tr>
+                  <td>URL assertion failed</td>
+                  <td>The action did not navigate, or the expected path is wrong.</td>
+                  <td>Copy the actual browser path and use its path portion in Wait URL and Assert URL.</td>
+                </tr>
+                <tr>
+                  <td>Required test variable is not configured</td>
+                  <td>Value reference exists in the Flow but is empty in Project Settings.</td>
+                  <td>
+                    Add TEST_USERNAME, TEST_PASSWORD, TEST_EMAIL, or API_TOKEN in Project Settings, then run again.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+
+          <section class="guide-footer">
+            <h2>The safe way to learn: one small Flow at a time.</h2>
+            <p>
+              Start with Navigate → one action → one Assert. When it passes, add the next action. This makes every
+              failure obvious and keeps the final Test Case easy to maintain.
+            </p>
+          </section>
+        </div>
+      </section>
+    </main>
+    <footer class="site-footer section-shell">
+      <a class="brand" href="./index.html"><span class="brand-icon">LS</span><span>LazyScout</span></a>
+      <p>Local-first QA tooling for practical Test Case work.</p>
+      <div>
+        <a href="./index.html#docs">Docs</a
+        ><a href="https://github.com/nowaa2/lazyscout" target="_blank" rel="noreferrer">GitHub</a>
+      </div>
+    </footer>
+    <script src="./app.js"></script>
+  </body>
+</html>

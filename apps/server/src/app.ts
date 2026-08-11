@@ -8,6 +8,7 @@ import { registerLoadTestRoute } from './routes/loadTest.js'
 import { registerVersionRoutes } from './routes/versions.js'
 import { registerWorkspaceRoutes } from './routes/workspace.js'
 import { registerRecorderRoutes } from './routes/recorder.js'
+import { registerGuidedFlowRunRoute } from './routes/guidedFlowRun.js'
 import { ensureWorkspace, resolveWorkspaceRoot } from './workspace.js'
 
 export type AppOptions = {
@@ -38,6 +39,7 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
   registerVersionRoutes(app, appVersion)
   registerWorkspaceRoutes(app, workspaceRoot)
   registerRecorderRoutes(app, workspaceRoot)
+  registerGuidedFlowRunRoute(app, workspaceRoot)
 
   if (options.staticDir) {
     app.register(fastifyStatic, { root: options.staticDir })

@@ -10,6 +10,7 @@ import type {
   LoadTestResponse,
   ProjectSecrets,
   RecorderState,
+  GuidedFlow,
   TestCase,
   TestDataRow
 } from '../types'
@@ -181,6 +182,44 @@ export type WorkspaceAuthSessionStatus = {
 
 export async function getWorkspaceAuthSessionStatus(projectId: string): Promise<WorkspaceAuthSessionStatus> {
   return requestJson(`/api/workspace/projects/${encodeURIComponent(projectId)}/auth-session/status`)
+}
+
+export async function getGuidedFlows(projectId: string): Promise<GuidedFlow[]> {
+  return requestJson(`/api/workspace/projects/${encodeURIComponent(projectId)}/guided-flows`)
+}
+
+export async function saveGuidedFlows(projectId: string, flows: GuidedFlow[]): Promise<void> {
+  await requestJson(`/api/workspace/projects/${encodeURIComponent(projectId)}/guided-flows`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ flows })
+  })
+}
+
+export type GuidedFlowRunResponse = AutomationRunResponse & {
+  runId: string
+  stepStatuses: Array<{ id: string; status: 'pending' | 'passed' | 'failed' }>
+}
+
+export async function runGuidedFlow(
+  flow: GuidedFlow,
+  projectId?: string,
+  secrets?: ProjectSecrets,
+  runId?: string
+): Promise<GuidedFlowRunResponse> {
+  return requestJson('/api/guided-flows/run', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ flow, projectId, secrets, runId })
+  })
+}
+
+export async function stopGuidedFlow(runId: string): Promise<{ stopped: boolean }> {
+  return requestJson('/api/guided-flows/stop', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ runId })
+  })
 }
 
 export async function clearWorkspaceAuthSession(projectId: string): Promise<void> {

@@ -134,6 +134,13 @@ export function ProjectSettings({
             Use <code>{'{{TEST_PASSWORD}}'}</code>, <code>{'{{TEST_EMAIL}}'}</code>, <code>{'{{TEST_USERNAME}}'}</code>{' '}
             or <code>{'{{API_TOKEN}}'}</code> in a Test Case. Values are passed to the runner only while it runs.
           </p>
+          <div className="settings-notice settings-notice-stacked">
+            <b>How to connect credentials to Guided Flow</b>
+            <span>
+              In a Fill step, leave Value empty and put <code>TEST_USERNAME</code>, <code>TEST_PASSWORD</code>, or{' '}
+              <code>TEST_EMAIL</code> in Value reference. LazyScout replaces the reference only during the run.
+            </span>
+          </div>
           {projectId && targetUrl && (
             <div className="settings-notice settings-notice-stacked">
               <b>Google / SSO session</b>
