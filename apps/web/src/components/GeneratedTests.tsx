@@ -491,6 +491,41 @@ export function GeneratedTests({
           onConfirm={confirmRefresh}
         />
       )}
+      {editing && (
+        <div className="modern-modal-backdrop code-editor-backdrop">
+          <section
+            className="modern-modal code-editor-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="code-editor-title"
+          >
+            <header className="modal-header">
+              <div>
+                <p className="eyebrow">Automation source</p>
+                <h2 id="code-editor-title">Edit {framework === 'playwright' ? 'Playwright' : 'Cypress'} code</h2>
+                <p>
+                  {selected?.id} · {selected?.title}
+                </p>
+              </div>
+              <button type="button" className="icon-btn" aria-label="Close editor" onClick={() => setEditing(false)}>
+                ×
+              </button>
+            </header>
+            <div className="code-editor-modal-body">
+              <CodeEditor value={draftCode} framework={framework} onChange={setDraftCode} height="100%" />
+            </div>
+            <footer className="modal-footer code-editor-modal-footer">
+              <span className="muted">VS Code style editor · Ctrl+Space for suggestions.</span>
+              <button type="button" className="btn btn-secondary" onClick={() => setEditing(false)}>
+                Cancel
+              </button>
+              <button type="button" className="btn btn-primary" onClick={saveEdit}>
+                Save code
+              </button>
+            </footer>
+          </section>
+        </div>
+      )}
     </section>
   )
 }

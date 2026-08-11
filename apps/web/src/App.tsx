@@ -88,7 +88,6 @@ export default function App() {
 
   const [tab, setTab] = useState<ResultTab>('testcases')
   const [scoutLogIndex, setScoutLogIndex] = useState(0)
-  const [showScoutCli, setShowScoutCli] = useState(false)
   const [filters, setFilters] = useState<TestCaseFilters>(EMPTY_FILTERS)
   const [dataSearch, setDataSearch] = useState('')
   const [dataModule, setDataModule] = useState('all')
@@ -205,7 +204,6 @@ export default function App() {
   useEffect(() => {
     if (status !== 'loading') {
       setScoutLogIndex(0)
-      setShowScoutCli(false)
       return
     }
     const timer = window.setInterval(() => {
@@ -712,19 +710,7 @@ export default function App() {
                   <span>Collecting pages, controls and event logs.</span>
                 </div>
               </div>
-              <div className="scout-view-switch" role="tablist" aria-label="Scout progress view">
-                <button
-                  type="button"
-                  className={!showScoutCli ? 'is-active' : ''}
-                  onClick={() => setShowScoutCli(false)}
-                >
-                  Progress
-                </button>
-                <button type="button" className={showScoutCli ? 'is-active' : ''} onClick={() => setShowScoutCli(true)}>
-                  CLI Log
-                </button>
-              </div>
-              {!showScoutCli ? (
+              {true ? (
                 <>
                   <span className="scout-progress-track">
                     <i />

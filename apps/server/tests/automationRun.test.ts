@@ -1,0 +1,84 @@
+import { createServer, type Server } from 'node:http'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import type { TestCase } from '@lazyscout/core'
+import { generatePlaywrightTest } from '@lazyscout/generators'
+import { runPlaywrightCli } from '../src/routes/playwrightCliRunner.js'
+
+describe('real Playwright Test CLI runner', () => {
+  let server: Server
+  let url: string
+  const testCase: TestCase = {
+    id: 'TC-CLI-001',
+    module: 'HOME',
+    title: 'Generated page has a login link',
+    preconditions: [],
+    steps: [
+      { type: 'navigate', url: '' },
+      { type: 'assertVisible', target: { role: 'link', name: 'เข้าสู่ระบบ' } },
+      { type: 'click', target: { role: 'link', name: 'เข้าสู่ระบบ' } },
+      { type: 'assertUrl', urlContains: '/login' }
+    ],
+    expectedResult: 'The login page opens.',
+    type: 'positive',
+    priority: 'medium',
+    automationStatus: 'ready',
+    sourceUrl: ''
+  }
+
+  beforeAll(async () => {
+    server = createServer((request, response) => {
+      response.setHeader('content-type', 'text/html; charset=utf-8')
+      if (request.url === '/login') {
+        response.end('<h1>Login</h1>')
+        return
+      }
+      response.end('<a href="/login">เข้าสู่ระบบ</a>')
+    })
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+    const address = server.address()
+    if (!address || typeof address === 'string') throw new Error('Test server did not start')
+    url = `http://127.0.0.1:${address.port}`
+    testCase.sourceUrl = url
+    testCase.steps[0] = { type: 'navigate', url }
+  })
+
+  afterAll(async () => {
+    await new Promise<void>((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())))
+  })
+
+  it('runs Scout-generated Playwright source through the real CLI', async () => {
+    const logs: Array<{ level: 'info' | 'pass' | 'fail' | 'warn'; message: string }> = []
+    const result = await runPlaywrightCli({
+      source: generatePlaywrightTest(testCase),
+      testCase,
+      testCaseId: testCase.id,
+      secretValues: [],
+      addLog: (level, message) => logs.push({ level, message })
+    })
+
+    expect(result.status).toBe('passed')
+    expect(logs.some((entry) => entry.message.includes('Running 1 test'))).toBe(true)
+    expect(logs.some((entry) => entry.message.includes('passed'))).toBe(true)
+  })
+
+  it('runs Record-style edited source and returns a screenshot', async () => {
+    const logs: Array<{ level: 'info' | 'pass' | 'fail' | 'warn'; message: string }> = []
+    const result = await runPlaywrightCli({
+      source: `import { test } from '@playwright/test'
+test('recorded flow', async ({ page }) => {
+  await page.goto(${JSON.stringify(url)})
+  await page.getByRole('link', { name: 'เข้าสู่ระบบ' }).click()
+  await page.screenshot({ path: 'recorded-login.png', fullPage: true })
+})`,
+      testCase,
+      testCaseId: 'TC-REC-001',
+      secretValues: [],
+      addLog: (level, message) => logs.push({ level, message })
+    })
+
+    expect(result.status).toBe('passed')
+    expect(result.screenshots).toHaveLength(1)
+    expect(result.screenshots[0].name).toContain('recorded-login.png')
+    expect(logs.some((entry) => entry.message.includes('passed'))).toBe(true)
+  })
+})

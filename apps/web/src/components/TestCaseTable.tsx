@@ -368,7 +368,12 @@ export function TestCaseTable({
               </td>
               <td className="table-cell">
                 <EditableCell
-                  value={statusOverrides[testCase.id] ?? executionStatuses[testCase.id] ?? testCase.status ?? 'pending'}
+                  value={
+                    statusOverrides[testCase.id] ??
+                    executionStatuses[testCase.id] ??
+                    testCase.status ??
+                    (testCase.automationStatus === 'ready' ? 'passed' : 'pending')
+                  }
                   options={['pending', 'passed', 'failed']}
                   onSave={(value) => {
                     const status = value as TestCaseExecutionStatus

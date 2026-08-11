@@ -943,6 +943,9 @@ body {
   .code-edit-area {
     @apply flex min-h-[calc(100vh-360px)] flex-1 flex-col;
   }
+  .automation-editor > .code-edit-area {
+    display: none;
+  }
   .code-edit-area textarea {
     @apply min-h-0 flex-1 resize-none rounded-none border-0 bg-[#0b1120] p-6 font-mono text-xs leading-6 text-slate-100 outline-none;
   }
@@ -950,6 +953,21 @@ body {
     @apply flex flex-wrap items-center gap-2 border-t border-slate-800 bg-slate-900 p-3;
   }
   .code-edit-actions .muted {
+    @apply mr-auto text-[10px] text-slate-500;
+  }
+  .code-editor-modal {
+    @apply flex h-[min(92vh,900px)] max-w-[1400px] flex-col;
+  }
+  .code-editor-modal .modal-header {
+    @apply shrink-0 bg-slate-50;
+  }
+  .code-editor-modal-body {
+    @apply min-h-0 flex-1 bg-[#0b1120];
+  }
+  .code-editor-modal-footer {
+    @apply shrink-0;
+  }
+  .code-editor-modal-footer .muted {
     @apply mr-auto text-[10px] text-slate-500;
   }
   .brand-mark {

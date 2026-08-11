@@ -27,7 +27,7 @@ await build({
   format: 'esm',
   outfile: join(outDir, 'index.js'),
 
-  external: ['playwright-core', 'fastify', '@fastify/static'],
+  external: ['@playwright/test', 'playwright-core', 'fastify', '@fastify/static'],
   banner: { js: '#!/usr/bin/env node' },
   define: { __LAZYSCOUT_VERSION__: JSON.stringify(pkg.version) },
   legalComments: 'none',

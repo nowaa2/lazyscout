@@ -4,14 +4,15 @@ import type { LoadTestResponse } from '../types'
 
 export function LoadTest({ defaultUrl }: { defaultUrl: string }) {
   const [url, setUrl] = useState(defaultUrl)
-  const [virtualUsers, setVirtualUsers] = useState(3)
-  const [requestsPerUser, setRequestsPerUser] = useState(5)
-  const [intervalMs, setIntervalMs] = useState(300)
+  const [virtualUsers, setVirtualUsers] = useState<number | ''>(3)
+  const [requestsPerUser, setRequestsPerUser] = useState<number | ''>(5)
+  const [intervalMs, setIntervalMs] = useState<number | ''>(300)
   const [confirmed, setConfirmed] = useState(false)
   const [running, setRunning] = useState(false)
   const [result, setResult] = useState<LoadTestResponse>()
   const [error, setError] = useState('')
-  const requestBudget = Math.min(20, Math.max(1, virtualUsers)) * Math.min(100, Math.max(1, requestsPerUser))
+  const requestBudget =
+    Math.min(20, Math.max(1, Number(virtualUsers) || 1)) * Math.min(100, Math.max(1, Number(requestsPerUser) || 1))
 
   async function run() {
     if (running || !confirmed) return
@@ -19,7 +20,15 @@ export function LoadTest({ defaultUrl }: { defaultUrl: string }) {
     setResult(undefined)
     setError('')
     try {
-      setResult(await runLoadTest({ url, virtualUsers, requestsPerUser, intervalMs, confirmed }))
+      setResult(
+        await runLoadTest({
+          url,
+          virtualUsers: Number(virtualUsers) || 1,
+          requestsPerUser: Number(requestsPerUser) || 1,
+          intervalMs: Number(intervalMs) || 0,
+          confirmed
+        })
+      )
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason))
     } finally {
@@ -67,7 +76,7 @@ export function LoadTest({ defaultUrl }: { defaultUrl: string }) {
                   min={1}
                   max={20}
                   value={virtualUsers}
-                  onChange={(event) => setVirtualUsers(Number(event.target.value))}
+                  onChange={(event) => setVirtualUsers(event.target.value === '' ? '' : Number(event.target.value))}
                   disabled={running}
                 />
                 <small>Maximum 20 concurrent users</small>
@@ -80,7 +89,7 @@ export function LoadTest({ defaultUrl }: { defaultUrl: string }) {
                   min={1}
                   max={100}
                   value={requestsPerUser}
-                  onChange={(event) => setRequestsPerUser(Number(event.target.value))}
+                  onChange={(event) => setRequestsPerUser(event.target.value === '' ? '' : Number(event.target.value))}
                   disabled={running}
                 />
                 <small>Maximum 100 per user</small>
@@ -94,7 +103,7 @@ export function LoadTest({ defaultUrl }: { defaultUrl: string }) {
                     min={0}
                     max={10000}
                     value={intervalMs}
-                    onChange={(event) => setIntervalMs(Number(event.target.value))}
+                    onChange={(event) => setIntervalMs(event.target.value === '' ? '' : Number(event.target.value))}
                     disabled={running}
                   />
                   <em>ms</em>

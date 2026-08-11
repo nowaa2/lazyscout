@@ -1,10 +1,10 @@
 import Editor, { type OnMount } from '@monaco-editor/react'
 import type * as Monaco from 'monaco-editor'
 
-type Props = { value: string; framework: 'playwright' | 'cypress'; onChange: (value: string) => void }
+type Props = { value: string; framework: 'playwright' | 'cypress'; onChange: (value: string) => void; height?: string }
 type Framework = Props['framework']
 
-export function CodeEditor({ value, framework, onChange }: Props) {
+export function CodeEditor({ value, framework, onChange, height = 'calc(100vh - 420px)' }: Props) {
   function handleMount(editor: Monaco.editor.IStandaloneCodeEditor, monaco: typeof Monaco) {
     const language = 'typescript'
     const suggestions =
@@ -68,7 +68,7 @@ export function CodeEditor({ value, framework, onChange }: Props) {
   }
   return (
     <Editor
-      height="calc(100vh - 420px)"
+      height={height}
       theme="vs-dark"
       language="typescript"
       value={value}

@@ -17,10 +17,10 @@ export function toTargetRef(element: UIElement): TargetRef {
       }
     : undefined
   if (element.accessibleName) {
-    return { role: element.role, name: element.accessibleName, ...disambiguation }
+    return { role: element.role, name: element.accessibleName, cssSelector: element.cssSelector, ...disambiguation }
   }
   if (element.placeholder) {
-    return { role: element.role, placeholder: element.placeholder, ...disambiguation }
+    return { role: element.role, placeholder: element.placeholder, cssSelector: element.cssSelector, ...disambiguation }
   }
   if (element.testId) return { testId: element.testId, ...disambiguation }
   return { role: element.role, cssSelector: element.cssSelector, ...disambiguation }

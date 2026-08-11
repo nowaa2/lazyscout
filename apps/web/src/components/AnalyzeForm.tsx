@@ -65,8 +65,8 @@ export function AnalyzeForm({
 }: Props) {
   const { t } = useLanguage()
   const [url, setUrl] = useState(initialUrl)
-  const [maxPages, setMaxPages] = useState(20)
-  const [maxDepth, setMaxDepth] = useState(3)
+  const [maxPages, setMaxPages] = useState<number | ''>(20)
+  const [maxDepth, setMaxDepth] = useState<number | ''>(3)
   const [language, setLanguage] = useState<TestCaseLanguage>(initialLanguage ?? savedTestCaseLanguage)
   const [includeApiChecks, setIncludeApiChecks] = useState(false)
   const [waitAfterNavigationMs, setWaitAfterNavigationMs] = useState(750)
@@ -95,10 +95,12 @@ export function AnalyzeForm({
   }
 
   function runAnalyze() {
+    const safeMaxPages = Math.min(100, Math.max(1, maxPages === '' ? 20 : maxPages))
+    const safeMaxDepth = Math.min(10, Math.max(0, maxDepth === '' ? 3 : maxDepth))
     onAnalyze(
       url.trim(),
-      maxPages,
-      maxDepth,
+      safeMaxPages,
+      safeMaxDepth,
       language,
       includeApiChecks,
       waitAfterNavigationMs,
@@ -182,7 +184,9 @@ export function AnalyzeForm({
               min={1}
               max={100}
               value={maxPages}
-              onChange={(event) => setMaxPages(Number(event.target.value))}
+              onChange={(event) =>
+                setMaxPages(event.target.value === '' ? '' : Math.min(100, Math.max(1, Number(event.target.value))))
+              }
               disabled={loading}
             />
           </div>
@@ -196,9 +200,11 @@ export function AnalyzeForm({
               className="field"
               type="number"
               min={0}
-              max={20}
+              max={10}
               value={maxDepth}
-              onChange={(event) => setMaxDepth(Number(event.target.value))}
+              onChange={(event) =>
+                setMaxDepth(event.target.value === '' ? '' : Math.min(10, Math.max(0, Number(event.target.value))))
+              }
               disabled={loading}
             />
           </div>
@@ -367,7 +373,7 @@ export function AnalyzeForm({
               max={5000}
               step={250}
               value={waitAfterNavigationMs}
-              onChange={(event) => setWaitAfterNavigationMs(Number(event.target.value))}
+              onChange={(event) => setWaitAfterNavigationMs(event.target.value === '' ? 0 : Number(event.target.value))}
               disabled={loading}
             />{' '}
             ms

@@ -67,9 +67,9 @@ describe('generateTestCases', () => {
     expect(login?.automationStatus).toBe('ready')
     expect(login?.steps).toEqual(
       expect.arrayContaining([
-        { type: 'fill', target: { role: 'textbox', name: 'Email' }, value: '{{TEST_EMAIL}}' },
-        { type: 'fill', target: { role: 'textbox', name: 'Password' }, value: '{{TEST_PASSWORD}}' },
-        { type: 'click', target: { role: 'button', name: 'Login' } }
+        { type: 'fill', target: { role: 'textbox', name: 'Email', cssSelector: '#x' }, value: '{{TEST_EMAIL}}' },
+        { type: 'fill', target: { role: 'textbox', name: 'Password', cssSelector: '#x' }, value: '{{TEST_PASSWORD}}' },
+        { type: 'click', target: { role: 'button', name: 'Login', cssSelector: '#x' } }
       ])
     )
   })
@@ -101,7 +101,10 @@ describe('generateTestCases', () => {
 
   it('เก็บ step เป็น structured data ไม่ใช่ string อย่างเดียว', () => {
     const navigation = testCases.find((testCase) => testCase.title === 'Navigate to Register')
-    expect(navigation?.steps[1]).toEqual({ type: 'click', target: { role: 'link', name: 'Register' } })
+    expect(navigation?.steps[1]).toEqual({
+      type: 'click',
+      target: { role: 'link', name: 'Register', cssSelector: '#x' }
+    })
   })
 
   it('สร้างข้อความ Test Case ภาษาไทยครบทั้ง title, precondition, step, expected result และ note', () => {
