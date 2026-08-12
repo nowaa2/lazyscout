@@ -23,7 +23,7 @@ function locator(target: TargetRef): string {
             ? `page.getByPlaceholder(${quote(target.placeholder)})`
             : target.text
               ? `page.getByText(${quote(target.text)})`
-              : `page.locator(${quote(target.cssSelector ?? '')})`
+              : `page.locator(${quote(normalizeCssSelector(target.cssSelector ?? ''))})`
   const context = target.contextTestId
     ? `page.getByTestId(${quote(target.contextTestId)})`
     : target.contextSelector
@@ -74,3 +74,7 @@ function runtimeValue(step: Extract<TestStep, { type: 'fill' }>): string {
   return step.value
 }
 const quote = (value: string): string => JSON.stringify(value)
+
+function normalizeCssSelector(value: string): string {
+  return value.replace(/\\(["'])/g, '$1')
+}

@@ -53,4 +53,19 @@ describe('Guided Flow generators', () => {
     expect(source).toContain('await page.waitForURL(new RegExp("/dashboard"))')
     expect(source).not.toContain('toHaveURL')
   })
+
+  it('normalizes copied escaped quotes in CSS locators', () => {
+    const source = generatePlaywrightFromFlow({
+      ...flow,
+      steps: [
+        {
+          id: 'username',
+          type: 'fill',
+          target: { strategy: 'css', cssSelector: 'input[name=\\"username\\"]' },
+          value: 'demo'
+        }
+      ]
+    })
+    expect(source).toContain('page.locator("input[name=\\\"username\\\"]").fill("demo")')
+  })
 })

@@ -738,7 +738,8 @@ function TargetFields({ target, onChange }: { target: GuidedTarget; onChange: (t
 }
 
 function locatorHelp(strategy: GuidedTarget['strategy']): string {
-  if (strategy === 'css') return 'Best for inputs/buttons with a stable id, name, or data attribute.'
+  if (strategy === 'css')
+    return 'Best for inputs/buttons with a stable id, name, or data attribute. Enter quotes without backslashes.'
   if (strategy === 'role') return 'Best for buttons, links, checkboxes, and controls with a clear accessible name.'
   if (strategy === 'label') return 'Use only when the input has a real HTML label. Useful for validation checks.'
   if (strategy === 'placeholder') return 'Use when the input has a stable placeholder attribute.'
@@ -758,6 +759,6 @@ function locatorPlaceholder(strategy: GuidedTarget['strategy']): string {
 function targetValue(target: TargetRef & { strategy: NonNullable<TargetRef['strategy']> }, value: string) {
   if (target.strategy === 'role') return { ...target, name: value }
   if (target.strategy === 'testid') return { ...target, testId: value }
-  if (target.strategy === 'css') return { ...target, cssSelector: value }
+  if (target.strategy === 'css') return { ...target, cssSelector: value.replace(/\\(["'])/g, '$1') }
   return { ...target, [target.strategy]: value }
 }

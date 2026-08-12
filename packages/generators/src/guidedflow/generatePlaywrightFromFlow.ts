@@ -48,5 +48,9 @@ function locator(target: TargetRef): string {
     return `page.getByTestId(${JSON.stringify(target.testId ?? target.value ?? '')})`
   if (target.strategy === 'text' || target.text)
     return `page.getByText(${JSON.stringify(target.text ?? target.value ?? '')})`
-  return `page.locator(${JSON.stringify(target.cssSelector ?? target.value ?? '')})`
+  return `page.locator(${JSON.stringify(normalizeCssSelector(target.cssSelector ?? target.value ?? ''))})`
+}
+
+function normalizeCssSelector(value: string): string {
+  return value.replace(/\\(["'])/g, '$1')
 }
