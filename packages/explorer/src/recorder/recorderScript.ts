@@ -134,15 +134,23 @@ export function recorderInitScript(): void {
 
   const targetOf = (element: Element) => {
     const role = roleOf(element)
-    return {
+    const name = accessibleName(element)
+    const matches =
+      role && name
+        ? Array.from(document.querySelectorAll(CLICKABLE)).filter(
+            (candidate) => roleOf(candidate) === role && accessibleName(candidate) === name
+          )
+        : []
+    const target = {
       role,
-      name: accessibleName(element),
+      name,
       // Only offer text matching where there is no role to match on.
       text: role ? undefined : clean(element.textContent) || undefined,
       label: labelOf(element),
       placeholder: clean(element.getAttribute('placeholder')) || undefined,
       cssSelector: cssPath(element)
     }
+    return matches.length > 1 ? { ...target, matchCount: matches.length } : target
   }
 
   document.addEventListener(

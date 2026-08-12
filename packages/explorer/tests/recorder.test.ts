@@ -16,6 +16,28 @@ describe('buildStep', () => {
     })
   })
 
+  it('keeps duplicate-match metadata so generation can use the clicked CSS target', () => {
+    const step = buildStep({
+      kind: 'click',
+      target: {
+        role: 'link',
+        name: 'การเงิน',
+        cssSelector: 'nav.primary a:nth-of-type(2)',
+        matchCount: 2
+      },
+      url
+    })
+    expect(step).toEqual({
+      type: 'click',
+      target: {
+        role: 'link',
+        name: 'การเงิน',
+        cssSelector: 'nav.primary a:nth-of-type(2)',
+        matchCount: 2
+      }
+    })
+  })
+
   it('records typing as a fill step', () => {
     const event: RecorderEvent = {
       kind: 'fill',

@@ -56,7 +56,9 @@ function locator(target: TargetRef): string {
 
 function preferStableCss(target: TargetRef): boolean {
   return Boolean(
-    target.cssSelector && (target.strategy === 'css' || (target.matchCount !== undefined && target.matchCount > 1))
+    target.cssSelector &&
+    (target.strategy === 'css' ||
+      (target.matchCount !== undefined && target.matchCount > 1 && !target.contextSelector && !target.contextText))
   )
 }
 
