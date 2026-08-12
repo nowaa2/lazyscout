@@ -855,7 +855,12 @@ export default function App() {
             }
             onSample={() =>
               transition(() => {
-                createEmptyProject('LazyScout Sample', 'empty', createSampleResult(), 'https://example.com')
+                createEmptyProject(
+                  'Practice Login Demo',
+                  'empty',
+                  createSampleResult(),
+                  'https://practicetestautomation.com/practice-test-login/'
+                )
                 reset()
                 setExecutionStatuses({})
                 setRunResults({})
@@ -944,69 +949,92 @@ function createEmptyExplorerResult(targetUrl: string): AnalyzeResponse {
 }
 
 function createSampleResult(): AnalyzeResponse {
-  const sourceUrl = 'https://example.com/login'
-  const result = createEmptyExplorerResult('https://example.com')
-  result.origin = 'Sample Storefront'
+  const sourceUrl = 'https://practicetestautomation.com/practice-test-login/'
+  const result = createEmptyExplorerResult(sourceUrl)
+  result.origin = new URL(sourceUrl).origin
   result.testCases = [
     {
       id: 'TC-LOGIN-001',
       module: 'LOGIN',
       folder: 'Authentication',
       tags: ['smoke', 'login'],
-      title: 'Sign in with valid credentials',
-      preconditions: ['A test user account is available'],
+      title: 'Sign in with valid demo credentials',
+      preconditions: ['The Practice Test Automation login page is available'],
       steps: [
         { type: 'navigate', url: sourceUrl },
-        { type: 'fill', target: { strategy: 'css', cssSelector: '#username' }, value: '{{TEST_USERNAME}}' },
-        { type: 'fill', target: { strategy: 'css', cssSelector: '#password' }, value: '{{TEST_PASSWORD}}' },
-        { type: 'click', target: { strategy: 'role', role: 'button', name: 'Sign in' } },
-        { type: 'assertUrl', urlContains: '/dashboard' }
+        { type: 'fill', target: { strategy: 'css', cssSelector: '#username' }, value: 'student' },
+        { type: 'fill', target: { strategy: 'css', cssSelector: '#password' }, value: 'Password123' },
+        {
+          type: 'click',
+          target: { strategy: 'role', role: 'button', name: 'Submit', cssSelector: '#submit' }
+        },
+        { type: 'assertUrl', urlContains: '/logged-in-successfully/' },
+        { type: 'assertText', target: { strategy: 'css', cssSelector: 'strong' }, text: 'Congratulations' },
+        { type: 'assertVisible', target: { strategy: 'role', role: 'link', name: 'Log out' } }
       ],
-      expectedResult: 'The user is signed in and the dashboard is displayed.',
+      expectedResult: 'The success page opens, shows a congratulations message, and displays Log out.',
       type: 'positive',
       priority: 'high',
       automationStatus: 'ready',
       status: 'pending',
       sourceUrl,
-      notes: 'Open Project Settings → Credentials before running this sample.'
+      notes: 'Uses the public demo credentials published on Practice Test Automation.'
     },
     {
       id: 'TC-LOGIN-002',
       module: 'LOGIN',
       folder: 'Authentication',
       tags: ['validation', 'login'],
-      title: 'Show validation when password is empty',
-      preconditions: ['The login page is open'],
+      title: 'Reject an invalid username',
+      preconditions: ['The Practice Test Automation login page is available'],
       steps: [
         { type: 'navigate', url: sourceUrl },
-        { type: 'fill', target: { strategy: 'css', cssSelector: '#username' }, value: 'tester' },
-        { type: 'click', target: { strategy: 'role', role: 'button', name: 'Sign in' } },
-        { type: 'assertText', text: 'Password is required' }
+        { type: 'fill', target: { strategy: 'css', cssSelector: '#username' }, value: 'incorrectUser' },
+        { type: 'fill', target: { strategy: 'css', cssSelector: '#password' }, value: 'Password123' },
+        {
+          type: 'click',
+          target: { strategy: 'role', role: 'button', name: 'Submit', cssSelector: '#submit' }
+        },
+        {
+          type: 'assertText',
+          target: { strategy: 'css', cssSelector: '#error' },
+          text: 'Your username is invalid!'
+        }
       ],
-      expectedResult: 'A password-required validation message is displayed.',
-      type: 'validation',
-      priority: 'medium',
-      automationStatus: 'needs-review',
+      expectedResult: 'The page displays “Your username is invalid!”.',
+      type: 'negative',
+      priority: 'high',
+      automationStatus: 'ready',
       status: 'pending',
       sourceUrl
     },
     {
-      id: 'TC-CART-001',
-      module: 'CART',
-      folder: 'Checkout',
-      tags: ['regression'],
-      title: 'Add a product to the cart',
-      preconditions: ['The product catalog is available'],
+      id: 'TC-LOGIN-003',
+      module: 'LOGIN',
+      folder: 'Authentication',
+      tags: ['validation', 'login'],
+      title: 'Reject an invalid password',
+      preconditions: ['The Practice Test Automation login page is available'],
       steps: [
-        { type: 'navigate', url: 'https://example.com/products' },
-        { type: 'manual', description: 'Choose a product and add it to the cart' }
+        { type: 'navigate', url: sourceUrl },
+        { type: 'fill', target: { strategy: 'css', cssSelector: '#username' }, value: 'student' },
+        { type: 'fill', target: { strategy: 'css', cssSelector: '#password' }, value: 'incorrectPassword' },
+        {
+          type: 'click',
+          target: { strategy: 'role', role: 'button', name: 'Submit', cssSelector: '#submit' }
+        },
+        {
+          type: 'assertText',
+          target: { strategy: 'css', cssSelector: '#error' },
+          text: 'Your password is invalid!'
+        }
       ],
-      expectedResult: 'The cart badge increases by one.',
-      type: 'positive',
-      priority: 'medium',
-      automationStatus: 'manual',
+      expectedResult: 'The page displays “Your password is invalid!”.',
+      type: 'negative',
+      priority: 'high',
+      automationStatus: 'ready',
       status: 'pending',
-      sourceUrl: 'https://example.com/products'
+      sourceUrl
     }
   ]
   return result

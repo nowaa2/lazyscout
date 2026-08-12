@@ -66,8 +66,8 @@ export function NewProjectModal({ projects, onScout, onEmpty, onSample, onOpenPr
                 <b>{th ? 'ลองโปรเจกต์ตัวอย่าง' : 'Try a sample project'}</b>
                 <small>
                   {th
-                    ? 'ทดลอง Test Case ที่เตรียมไว้โดยไม่ต้องเชื่อมเว็บไซต์'
-                    : 'Explore a ready-made Test Case suite without connecting a website.'}
+                    ? 'ทดลอง Login จริงบน Practice Test Automation พร้อม Test Case ที่รันได้ทันที'
+                    : 'Run a ready-made login suite against Practice Test Automation immediately.'}
                 </small>
               </span>
               <em>→</em>
