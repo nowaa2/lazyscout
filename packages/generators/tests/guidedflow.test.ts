@@ -44,4 +44,13 @@ describe('Guided Flow generators', () => {
     expect(source).toContain('cy.contains("Add User").click()')
     expect(source).toContain('cy.contains("User created").should')
   })
+
+  it('waits for URL navigation instead of asserting the current URL', () => {
+    const source = generatePlaywrightFromFlow({
+      ...flow,
+      steps: [{ id: 'wait-url', type: 'wait', mode: 'url', value: '/dashboard' }]
+    })
+    expect(source).toContain('await page.waitForURL(new RegExp("/dashboard"))')
+    expect(source).not.toContain('toHaveURL')
+  })
 })

@@ -51,7 +51,7 @@ function playwrightStep(step: TestStep): string {
     case 'wait':
       if (step.mode === 'timeout')
         return `await page.waitForTimeout(${Math.min(5000, Math.max(0, Number(step.value) || 0))})`
-      if (step.mode === 'url') return `await expect(page).toHaveURL(new RegExp(${quote(step.value)}))`
+      if (step.mode === 'url') return `await page.waitForURL(new RegExp(${quote(step.value)}))`
       if (step.mode === 'text') return `await expect(page).toContainText(${quote(step.value)})`
       return `await expect(${locator(step.target!)}).toBeVisible()`
     case 'assertVisible':
