@@ -34,7 +34,7 @@ Add explicit opt-in execution for safe tabs, accordions and dialogs. Actions mus
 
 ### Cypress local runner
 
-Add Cypress execution only after defining the same cancellation, limits, logging, secret redaction and command-whitelist guarantees used by the Playwright runner.
+Add Cypress execution only after matching the cancellation, limits, logging and secret-redaction behaviour of the Playwright runner. Like that runner, it would execute real test code without a sandbox, so it must stay behind the same loopback-only trust boundary.
 
 ### Reporting and large suites
 

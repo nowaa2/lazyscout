@@ -32,6 +32,10 @@ export function describeStep(step: TestStep): string {
         : `Verify that the page shows "${step.text}"`
     case 'assertUrl':
       return `Verify that the URL contains "${step.urlContains}"`
+    case 'assertInvalid':
+      return `Verify that ${describeTarget(step.target)} is invalid and the form remains open`
+    case 'assertValidation':
+      return 'Wait for a visible validation or error message'
     case 'manual':
       return step.description
   }

@@ -309,8 +309,17 @@ npm.cmd run dev:web</code></pre>
               <h3>Scout a website</h3>
               <p>
                 Scout uses Playwright to visit same-origin pages, inspect accessible controls, observe UI states, and
-                draft Test Cases for review.
+                draft Test Cases for review. It follows links <em>and clicks</em> discovered navigation items, tabs,
+                accordions and dialog triggers to map states — but it never fills or submits a form.
               </p>
+              <div class="docs-note warning">
+                <b>Login pages end a branch</b>
+                <span>
+                  Any URL containing <code>/login</code>, <code>/signin</code> or <code>/auth</code> is treated as a
+                  lost session, and that action is rolled back — even when you were never signed in. Pages reachable
+                  only through a login link stay undiscovered until you use the authenticated workflow below.
+                </span>
+              </div>
               <figure class="docs-figure">
                 <a href="./screenshots/overview.png" target="_blank" rel="noreferrer">
                   <img
@@ -620,15 +629,30 @@ await row.getByRole('button', { name: 'Edit', exact: true }).click()</code></pre
                   automatically.</span
                 >
               </div>
+              <div class="docs-note warning">
+                <b>Run executes the code you see</b>
+                <span>
+                  LazyScout writes the editor contents to a temporary spec file and runs the real
+                  <code>@playwright/test</code> CLI. The code is not sandboxed and runs with your privileges — review it
+                  first. Limits per run: 100 steps, 200,000 characters, 20 seconds per action, 250 log lines. Cypress is
+                  code generation only.
+                </span>
+              </div>
             </article>
 
             <article id="guide-log">
               <p class="docs-kicker">07 · DIAGNOSTICS</p>
               <h3>Scout Log and Explorer</h3>
               <p>
-                Scout Log records discovered pages, observed states, attempted actions, blocked destructive controls,
-                and completion issues. Explorer opens as a modal and groups the discovered pages and states so you can
-                trace a generated Test Case back to its source path.
+                Scout Log records discovered pages, observed states, attempted actions, and completion issues. Explorer
+                opens as a modal and groups the discovered pages and states so you can trace a generated Test Case back
+                to its source path.
+              </p>
+              <p>
+                Two log lines explain most short crawls. <code>Auth lost after action</code> means the branch reached a
+                login-looking URL and was rolled back. <code>Failed: &lt;name&gt;</code> means an action was retried
+                twice and skipped; the run continues. A summary of <code>browser-crash</code> is a catch-all for any
+                error inside the crawl — read the reported issue for the real cause.
               </p>
             </article>
 
@@ -707,11 +731,22 @@ await row.getByRole('button', { name: 'Edit', exact: true }).click()</code></pre
               <p class="docs-kicker">13 · SAFETY</p>
               <h3>Know the safety boundaries</h3>
               <ul class="docs-checklist">
-                <li>Scout stays on the target origin and configured path scope.</li>
-                <li>Destructive UI actions are blocked unless explicitly allowed.</li>
-                <li>Secrets stay in the active browser tab and are not written into Test Cases or logs.</li>
-                <li>Review generated code before running it against production data.</li>
+                <li>Scout stays on the target origin and configured path scope, and never fills or submits a form.</li>
+                <li>
+                  Destructive UI actions are <strong>allowed until you block them</strong>. Add keywords to the Project
+                  click filter in Project Settings — the built-in list is only a suggestion the UI offers.
+                </li>
+                <li>Secrets stay in the active browser tab and are masked in logs by the redaction utility.</li>
+                <li>Artifacts are written unencrypted to your workspace folder. Review before sharing.</li>
               </ul>
+              <div class="docs-note warning">
+                <b>The runner is not a sandbox</b>
+                <span>
+                  Run executes the code in the editor with the real Playwright CLI, at your user's privileges. There is
+                  no statement whitelist. Read the code before pressing Run, and never expose the LazyScout port — the
+                  local API has no authentication, so anything that can reach it can run code as you.
+                </span>
+              </div>
             </article>
 
             <article id="guide-help">
@@ -733,8 +768,21 @@ await row.getByRole('button', { name: 'Edit', exact: true }).click()</code></pre
                   </p>
                 </details>
                 <details>
+                  <summary>Scout only found one or two pages</summary>
+                  <p>
+                    Open Scout Log. <code>Auth lost after action</code> means the branch hit a <code>/login</code>,
+                    <code>/signin</code> or <code>/auth</code> URL and was rolled back, which is expected on a site you
+                    have not signed into yet — use the Project login browser, then Scout again with a Start Path past
+                    the login page.
+                  </p>
+                </details>
+                <details>
                   <summary>Port 4000 is already in use</summary>
-                  <p>Stop the older LazyScout Node process before running <code>npm.cmd run dev:server</code> again.</p>
+                  <p>
+                    Another LazyScout server is running. Stop it, or start yours elsewhere with
+                    <code>PORT=4100 npm.cmd run dev:server</code>. The packaged CLI picks the next free port
+                    automatically; the dev server does not.
+                  </p>
                 </details>
                 <details>
                   <summary>Playwright Chromium is missing</summary>
@@ -762,7 +810,7 @@ npx playwright install --with-deps chromium</code></pre>
             <a href="#guide-automation">Run Playwright</a>
             <a href="#guide-api">API checks</a>
             <a href="#guide-files">Files</a>
-            <div class="docs-version"><span>Guide version</span><b>LazyScout 0.3.11</b></div>
+            <div class="docs-version"><span>Guide version</span><b>LazyScout 0.4.1</b></div>
           </aside>
         </div>
       </section>

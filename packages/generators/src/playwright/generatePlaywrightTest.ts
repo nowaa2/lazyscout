@@ -76,7 +76,7 @@ function playwrightStep(step: TestStep): string {
     case 'click':
       return `await (await ${locator(step.target)}).click()`
     case 'fill':
-      return `await (await ${locator(step.target)}).fill(${quote(runtimeValue(step))})`
+      return `await (await ${locator(step.target)}).fill(${quote(step.value)})`
     case 'select':
       return `await (await ${locator(step.target)}).selectOption(${quote(step.option)})`
     case 'check':
@@ -90,21 +90,19 @@ function playwrightStep(step: TestStep): string {
     case 'assertVisible':
       return `await expect(await ${locator(step.target)}).toBeVisible()`
     case 'assertText':
+      // toContainText requires a Locator; expect(page) has no such matcher.
       return step.target
         ? `await expect(await ${locator(step.target)}).toContainText(${quote(step.text)})`
-        : `await expect(page).toContainText(${quote(step.text)})`
+        : `await expect(page.locator('body')).toContainText(${quote(step.text)})`
     case 'assertUrl':
       return `await expect(page).toHaveURL(new RegExp(${quote(step.urlContains)}))`
+    case 'assertInvalid':
+      return `expect(await (await ${locator(step.target)}).evaluate((element) => element.matches(':invalid'))).toBe(true)`
+    case 'assertValidation':
+      return `await expect(page.locator('[role="alert"], [aria-invalid="true"], .error, .errors, .invalid-feedback, #error').filter({ visible: true }).first()).toBeVisible()`
     case 'manual':
       return `// TODO: ${step.description}`
   }
-}
-function runtimeValue(step: Extract<TestStep, { type: 'fill' }>): string {
-  const hint = `${step.target.name ?? ''} ${step.target.label ?? ''} ${step.target.placeholder ?? ''}`.toLowerCase()
-  if (hint.includes('password') || hint.includes('รหัสผ่าน')) return '{{TEST_PASSWORD}}'
-  if (hint.includes('email') || hint.includes('อีเมล')) return '{{TEST_EMAIL}}'
-  if (hint.includes('username') || hint.includes('user name') || hint.includes('ชื่อผู้ใช้')) return '{{TEST_USERNAME}}'
-  return step.value
 }
 const quote = (value: string): string => JSON.stringify(value)
 

@@ -54,7 +54,7 @@ The current CLI command is `scan`; there is no `analyze` command.
 - CSV/XLSX/JSON import and CSV export
 - Screenshot OCR-assisted import
 - Playwright and Cypress code generation
-- Local Playwright execution with restricted statements, logs and explicit `page.screenshot()` evidence
+- Local execution through the real Playwright Test CLI, with logs and explicit `page.screenshot()` evidence
 - Safe GET/HEAD/OPTIONS API checks
 - Bug Reports with ZIP evidence export
 - HTML/PDF Test Summary
@@ -70,7 +70,9 @@ Version Center contacts npm Registry to check available releases. LazyScout has 
 
 ## Safety
 
-Scouting is same-origin, follows links and blocks destructive labels. Edited automation is interpreted through a Playwright statement whitelist; it is not executed as arbitrary JavaScript or shell source.
+Scouting is same-origin, follows links and blocks destructive labels.
+
+The automation runner writes your generated or edited source to a temporary `.spec.ts` and runs it with the real `@playwright/test` CLI. **That code is not sandboxed** — it runs with the same privileges as LazyScout, so review the editor contents before running. The server binds to `127.0.0.1` and has no authentication; do not expose its port or bind it to a non-loopback address.
 
 > Never commit real test credentials, production data, browser authentication state, Playwright traces, screenshots, HAR files, or API dumps containing sensitive information.
 

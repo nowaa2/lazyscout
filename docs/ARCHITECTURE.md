@@ -65,9 +65,9 @@ Review / import / CSV / reports / generated automation
 
 ### `apps/server`
 
-Fastify exposes fixed routes for analysis, CSV export, Playwright execution, cancellation, API checks, GET load tests and npm version management. It does not expose an arbitrary command endpoint.
+Fastify exposes fixed routes for analysis, CSV export, Playwright execution, cancellation, API checks, GET load tests and npm version management. It does not expose an endpoint that takes a shell command, and it does not evaluate caller-supplied JavaScript inside the server process with `eval` or `new Function`.
 
-Edited Playwright source is interpreted through a statement whitelist. The server does not evaluate it with `eval` or `new Function`.
+Automation runs go through `playwrightCliRunner.ts`, which writes the generated or edited source to a temporary `.spec.ts` and spawns the real `@playwright/test` CLI. That spec is unrestricted TypeScript executed in a child process with the server's own privileges — the runner is a fidelity mechanism, not a sandbox. Pre-run checks are limited to literal `page.goto()` URL policy validation, `{{VARIABLE}}` substitution, a destructive-label heuristic over `.click()` lines, and size limits. See [SAFETY.md](SAFETY.md#4-automation-runner).
 
 ### `apps/web`
 
@@ -98,7 +98,7 @@ lazyscout --workspace <path>
 - Cloud metadata hosts are blocked.
 - Public mode blocks obvious private/loopback hostnames but still requires DNS-level hardening before hosted use.
 - Automation logs pass through shared redaction.
-- Edited code uses supported Playwright statements only.
+- Automation code runs unsandboxed in a Playwright CLI child process; the loopback bind and the absence of any exposed port are the actual boundary, and the local API has no authentication.
 - Automatic API checks allow GET, HEAD and OPTIONS only.
 - npm installation accepts only exact published LazyScout versions and launches npm through Node with an argument array.
 

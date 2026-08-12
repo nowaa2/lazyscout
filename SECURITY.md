@@ -22,12 +22,12 @@ npm install -g lazyscout@latest
 
 - Apply least privilege to browsers, credentials, files and network access.
 - Keep browser execution and Test execution local where possible.
-- Do not execute arbitrary shell commands or arbitrary JavaScript from API input.
+- Do not add endpoints that take a shell command, and do not evaluate caller-supplied JavaScript inside the server process.
 - Pass fixed executables and argument arrays to child processes.
 - Mask secrets in logs and error messages.
 - Do not upload Test artifacts automatically.
 - Use synthetic Test Data whenever possible.
-- Fail closed when an edited automation statement is unsupported.
+- Keep the server bound to loopback, and treat that bind as the boundary that the automation runner itself does not provide.
 
 ## Sensitive Data
 
@@ -57,13 +57,16 @@ Scouting:
 - marks destructive actions as blocked/manual
 - discovers UI interaction hints without automatically opening every state
 
-The automation runner:
+The automation runner **executes real Playwright test code and is not a sandbox.** It writes the generated or edited source to a temporary `.spec.ts` and spawns the real `@playwright/test` CLI. That source is unrestricted TypeScript and runs with the same operating-system privileges as the LazyScout process, including module and filesystem access. Review code in the editor before running it, exactly as you would review any test file.
 
-- executes structured Test Steps or a restricted whitelist of edited Playwright statements
-- rejects arbitrary JavaScript, module access and shell commands
-- checks structured locator attributes and visible text for destructive intent before clicking
-- limits source size, steps, time per action and log lines
-- supports cancellation and closes the active browser
+The runner does:
+
+- validate literal `page.goto()` URLs against the active URL policy (URLs built at runtime are not validated)
+- substitute `{{VARIABLE}}` placeholders and fail the run when one is unconfigured
+- match `.click()` lines against destructive labels and the Project click filter, as a text heuristic
+- limit source size, steps, time per action and log lines
+- redact configured secrets from logs and errors
+- support cancellation by terminating the Playwright process tree
 
 The API Check runner automatically permits only GET, HEAD and OPTIONS. Observed POST, PUT, PATCH and DELETE requests remain review-only.
 
@@ -77,8 +80,23 @@ Child processes are limited to:
 
 - opening the local LazyScout URL with the operating system's browser launcher
 - running the npm CLI through the current Node executable for an exact version verified against npm Registry
+- running the Playwright Test CLI through the current Node executable on a spec file generated for the run
 
-Package names and command arguments are fixed by the application. Version input must match a published LazyScout version.
+Executables and argument arrays are fixed by the application; no caller-supplied string becomes a command or an argument. Version input must match a published LazyScout version.
+
+The spec file is the exception, and it is the important one: its **contents** come from the request. `POST /api/automation/run` therefore executes caller-supplied code by design.
+
+### Trust boundary
+
+The packaged server binds to `127.0.0.1` and has **no authentication**. Anyone able to reach `POST /api/automation/run` can execute code as the user who started LazyScout. Accordingly:
+
+- do not expose the LazyScout port through a tunnel, port forward or reverse proxy
+- do not set `HOST` to a non-loopback address
+- do not run LazyScout as a shared or multi-user service
+
+`LAZYSCOUT_MODE=public` changes only the URL policy applied to Scout targets. It does not sandbox the runner or authenticate the API, and it is not sufficient to expose the server.
+
+Reports that the local API executes code are expected behaviour for a loopback-bound local tool, not vulnerabilities. Reports that this behaviour is reachable from another origin, another host, or without loopback access are in scope — please report those.
 
 ## Log Redaction
 

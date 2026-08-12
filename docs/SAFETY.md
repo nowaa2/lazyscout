@@ -1,95 +1,157 @@
 # Safety & Security
 
-## 1. Explorer ห้ามทำอะไรบ้าง
+## 1. What the Explorer does and does not do
 
-กฎที่บังคับใน MVP (`packages/explorer/src/safety.ts` + `exploreWebsite.ts`):
+Enforced in `packages/explorer/src/scopedExplorer.ts`, `safety.ts` and `packages/core/src/safety/blocklist.ts`.
 
-- **เดินทางด้วย link `href` เท่านั้น** — ไม่คลิกปุ่ม ไม่ submit form เลย
-  จึงไม่มีทางไปกระตุ้น action ที่เปลี่ยนข้อมูลของระบบที่กำลังทดสอบ
-- ไม่เดินตาม link ที่ข้อความเข้าข่าย destructive (เช่น `/logout`, "Delete")
-- Same origin เท่านั้น — ไม่ออกไป external domain
-- ข้ามไฟล์ที่ไม่ใช่หน้าเว็บ (.pdf, .zip, .png …)
+The Explorer:
 
-element ที่เข้าข่าย destructive จะถูก **ตรวจพบและบันทึกไว้** (`UIElement.destructive = true`)
-แล้วสร้างเป็น test case ที่ `automationStatus: "manual"` แทนการคลิก
+- follows same-origin `href` links, and **clicks a bounded set of discovered UI controls** — sidebar and navigation items, tabs, accordions and dialog triggers — in order to build the state graph
+- **never fills or submits forms.** No `fill`, `type` or form submission is issued during exploration, so exploration cannot commit data through a form
+- stays on the same origin and never leaves for an external domain
+- skips non-page resources (`.pdf`, `.zip`, `.png`, …) and any protocol that is not `http:` or `https:`
+- records every discovered interaction in the action graph, including the ones it chose not to execute
 
-### Keyword ที่ถือว่า destructive
+Controls flagged as destructive are **recorded rather than clicked** (`UIElement.destructive = true`) and become Test Cases with `automationStatus: "manual"`.
+
+### Anything that looks like a login page stops exploration
+
+`isAuthLost()` in `scopedExplorer.ts` treats the crawler as logged out whenever the current path contains `/login`, `/signin` or `/auth`:
+
+```ts
+return path.includes('/login') || path.includes('/signin') || path.includes('/auth')
+```
+
+It does not check whether a session ever existed. Any action that lands on such a path is rolled back and the target is never explored, **including on a site you were never signed in to**. Pages reachable only through a login link are therefore invisible to Scout.
+
+Measured on the bundled 9-page demo site (`fixtures/demo-site`), an unauthenticated Scout reaches **2 pages**: `/` and `/register`. `/login` and everything behind it is rolled back with `Auth lost after action`, and `/products` fails its two retries. To reach the rest, use the authenticated workflow — **Project Settings → Open login browser**, sign in, then Scout again with **Start Path** set past the login page.
+
+### Failed actions retry twice, then are recorded
+
+An action that throws is retried up to `maxActionRetries` (2) and then recorded as a `failed` edge in the action graph. Exploration continues; a failed action does not end the run.
+
+### What is actually blocked by default: nothing
+
+This is the important caveat, and it is deliberate.
+
+`UIElement.destructive` is computed by `isBlockedLabel(projectKeywords, …)` in `mapToPageModel.ts`, and **`projectKeywords` is empty for every Project until the operator configures a click filter.** An empty keyword list blocks nothing. A default Project therefore marks no control as destructive and the Explorer may click any discovered control.
+
+The reasoning is recorded in `blocklist.ts`: a built-in blocklist used to cut off most of an application behind a login, and the crawler is meant to click what a tester would click. Blocking is opt-in per Project through **Project Settings → click filter**.
+
+`SUGGESTED_BLOCK_KEYWORDS` is the list the UI offers as a starting point. It is a suggestion, not an enforced policy:
 
 ```
 delete, remove, destroy, erase, drop, reset,
 purchase, buy, checkout, pay, payment, transfer, withdraw, refund,
-send, submit order, place order, confirm payment, confirm order,
-logout, log out, sign out, deactivate, delete account, close account,
-unsubscribe, cancel subscription, archive, publish, approve, reject,
-ลบ, ยกเลิก, ชำระเงิน, จ่าย, โอน, ซื้อ, สั่งซื้อ, ยืนยันการชำระ, ออกจากระบบ, ส่งข้อมูล, บันทึก
+submit order, place order, confirm payment, confirm order,
+deactivate, disable account, delete account, close account,
+unsubscribe, cancel subscription, revoke access, reset database,
+ลบ, ชำระเงิน, จ่าย, โอน, ซื้อ, สั่งซื้อ, ยืนยันการชำระ
 ```
 
-แก้ไขรายการได้ที่ `DESTRUCTIVE_KEYWORDS` ในไฟล์เดียว
+> ⚠️ **Session-ending protection is currently inactive.** `isSessionEndingLabel()` and
+> `isUnsafeAutoClick()` in `blocklist.ts` return `false` unconditionally — they were stubbed
+> out in commit `c7fedf3` and `SESSION_ENDING_KEYWORDS` is now unused. As a result the
+> Explorer may click Log out / Sign out, and the "click safety policy" branches in
+> `automationRun.ts` and `guidedFlowRun.ts` are unreachable unless a Project click filter
+> is configured. Add logout terms to the Project click filter if you need that protection.
 
-## 2. ขอบเขตการ crawl
+## 2. Crawl limits
 
-| ข้อจำกัด         | ค่า                                                           | บังคับที่                          |
-| ---------------- | ------------------------------------------------------------- | ---------------------------------- |
-| จำนวนหน้าสูงสุด  | 20                                                            | `exploreWebsite` + `config.limits` |
-| ความลึกสูงสุด    | 3                                                             | เดียวกัน                           |
-| timeout ต่อหน้า  | 20 วินาที                                                     | `page.goto`                        |
-| timeout ทั้ง job | 120 วินาที                                                    | ตรวจทุกครั้งก่อนเปิดหน้าใหม่       |
-| กันวนลูป         | `Set` ของ URL ที่ normalize แล้ว + ตรวจ URL หลัง redirect ซ้ำ |
+| Limit                       | Value                                                                                   | Enforced in                        |
+| --------------------------- | --------------------------------------------------------------------------------------- | ---------------------------------- |
+| Max pages                   | 20                                                                                      | `config.limits` + `DEFAULT_LIMITS` |
+| Max depth                   | 3                                                                                       | same                               |
+| Max UI states               | 80                                                                                      | `analyze.ts` / `DEFAULT_LIMITS`    |
+| Max actions per state       | 8                                                                                       | `DEFAULT_LIMITS`                   |
+| Max total actions           | 200                                                                                     | `DEFAULT_LIMITS`                   |
+| Action retries              | 2                                                                                       | `DEFAULT_LIMITS`                   |
+| Per-action timeout          | 3 seconds                                                                               | `legacyOptions.actionTimeoutMs`    |
+| Per-page navigation timeout | 25 seconds                                                                              | `legacyOptions.pageTimeoutMs`      |
+| Whole-exploration timeout   | 300 seconds                                                                             | `explorationTimeoutMs`             |
+| Loop prevention             | `Set` of normalized URLs + `Set` of state fingerprints, re-checked after every redirect |
+
+`maxPages` and `maxDepth` accept a smaller value from the request and are clamped to these ceilings; they cannot be raised past them.
+
+### Cancellation is coarse
+
+The abort signal is checked once per queue item, at the top of the main loop in `scopedExplorer.ts`. A single queue item can run for tens of seconds (up to 8 actions, each with 2 retries and a 3-second action timeout), so a cancelled Scout stops at the **next state boundary**, not immediately. The browser is always closed in the `finally` block.
+
+`endReason: "browser-crash"` is a catch-all: every exception escaping the main loop is reported under that name, whatever the real cause. Read `issues[]` for the actual error.
 
 ## 3. SSRF
 
-> **หมายเหตุสำคัญ:** ตั้งแต่เปลี่ยนมาเผยแพร่เป็น CLI บน npm ความเสี่ยง SSRF แทบหมดไป
-> เพราะเบราว์เซอร์รันบนเครื่องของผู้ใช้เอง และผู้ใช้เป็นคนพิมพ์ URL เอง
-> — ไม่มีเซิร์ฟเวอร์ของเราที่ถูกหลอกให้ยิงเข้าเครือข่ายภายในของใคร
-> ส่วนด้านล่างนี้ยังคงไว้สำหรับกรณีที่วันหนึ่งจะทำเวอร์ชันโฮสต์บนคลาวด์
+> **Note:** since LazyScout is distributed as a CLI on npm, SSRF risk is largely moot —
+> the browser runs on the user's own machine and the user types the URL themselves.
+> There is no server of ours that can be tricked into reaching into someone's internal
+> network. This section is retained for a possible future hosted version.
 
-ผู้ใช้ใส่ URL เองได้ ระบบจึงรวม logic การตรวจไว้ที่ **จุดเดียว**:
-`packages/core/src/url/checkTargetUrl.ts` โดยรับ `UrlPolicy` เข้ามา
+Users supply the URL, so all validation lives in **one place**: `packages/core/src/url/checkTargetUrl.ts`, which takes a `UrlPolicy`.
 
 ```ts
-LOCAL_QA_POLICY // MVP: อนุญาต localhost + private IP (จุดประสงค์หลักของ local QA tool)
-PUBLIC_SAAS_POLICY // online version: บล็อก localhost, private IP, metadata
+LOCAL_QA_POLICY // default: allows localhost + private IPs, the core purpose of a local QA tool
+PUBLIC_SAAS_POLICY // hosted version: blocks localhost, private IPs and metadata endpoints
 ```
 
-สลับได้ด้วย environment variable โดยไม่ต้องแก้โค้ด:
+Switch policy through an environment variable without touching code:
 
 ```bash
 LAZYSCOUT_MODE=public npm run dev:server
 ```
 
-สิ่งที่ถูกบล็อกเสมอไม่ว่าโหมดไหน: protocol ที่ไม่ใช่ http/https และ cloud metadata endpoint
-(`169.254.169.254`, `metadata.google.internal`)
+Blocked in every mode: protocols other than `http`/`https`, and cloud metadata endpoints (`169.254.169.254`, `metadata.google.internal`).
 
-### ข้อจำกัดที่ต้องแก้ก่อนขึ้น online จริง
+### Gaps to close before any online deployment
 
-ตอนนี้ตรวจจาก **hostname เท่านั้น ยังไม่ resolve DNS** — จึงยังกัน DNS rebinding
-(โดเมนสาธารณะที่ชี้กลับมา 127.0.0.1) ไม่ได้ ก่อนเปิดใช้งานออนไลน์ต้องเพิ่ม:
+Validation currently inspects the **hostname only and does not resolve DNS**, so it does not stop DNS rebinding (a public domain that resolves to `127.0.0.1`). Before going online you must add:
 
-1. resolve DNS แล้วตรวจ IP จริงทุกตัวที่ได้
-2. ตรวจซ้ำหลัง redirect ทุกครั้ง
-3. จำกัด rate ต่อผู้ใช้ และแยก browser ไปรันในเครื่อง/คอนเทนเนอร์ที่ไม่มีสิทธิ์เข้าเครือข่ายภายใน
+1. DNS resolution with validation of every resolved IP
+2. Re-validation after every redirect
+3. Per-user rate limits, and a browser isolated in a machine or container with no access to internal networks
 
 ## 4. Automation runner
 
-- Structured Test Steps เป็น input หลักของ runner
-- Source ที่แก้ใน editor ถูก parse เป็น Playwright statement ที่ whitelist ไว้ ไม่ได้ส่งเข้า `eval` หรือ `new Function`
-- รองรับเฉพาะ navigation, locator ที่กำหนด, click, fill, select, wait ที่มี limit และ assertions
-- statement ที่ไม่รู้จักจะ fail closed
-- ก่อน click จะตรวจ locator name, aria-label, title, name, id และ visible text เพื่อ block action ที่ดู destructive
-- จำกัดจำนวน steps, source size, timeout ต่อ action และจำนวน log lines
-- logs และ error ผ่าน shared redaction utility
+> **The runner executes real Playwright test code. It is not a sandbox.**
 
-## 5. API และ Load Test
+On Run, LazyScout writes the generated source — or the source edited in the Code Editor — to a temporary `.spec.ts` and spawns the real `@playwright/test` CLI as a child process. That file is ordinary TypeScript: the runner **does not restrict which statements it may contain**, and it executes with the same operating-system privileges as the LazyScout process.
 
-- API observations เก็บ method, URL ที่ redact แล้ว, status, duration และ content type โดยไม่เก็บ request/response body
-- API Check รันอัตโนมัติเฉพาะ GET, HEAD และ OPTIONS
-- POST, PUT, PATCH และ DELETE เป็น observation-only และต้องให้ Tester ตรวจด้วยเครื่องมือที่เหมาะสม
-- Load Test ส่ง GET เท่านั้น มี hard limits และต้องยืนยันว่ามีสิทธิ์ทดสอบ target
+This is deliberate. Running the genuine Playwright CLI is what makes generated code behave in LazyScout exactly as it will in your own test suite. It also means **the code in the editor is code you are about to execute** — review it the same way you would review any test file before running it.
 
-## 6. Credentials และ artifacts
+Checks that do apply before a run:
 
-- Project Settings credentials อยู่ใน memory และหายเมื่อ refresh
-- environment variables เป็นวิธีที่แนะนำสำหรับ runner
-- Projects, results, screenshots, Bug Reports, reports และ logs อยู่ใน file-backed workspace ซึ่งไม่ใช่ encrypted vault
-- screenshot, trace, video, HAR, API dump และ Bug evidence อาจมีข้อมูลอ่อนไหว ต้อง redact ก่อนแชร์
-- directory ของ artifacts ทั่วไปถูกเพิ่มไว้ใน `.gitignore` แต่ผู้ใช้ยังต้องตรวจ `git status` และ `git diff --cached` ก่อน push
+- literal `page.goto('…')` URLs are validated against the active URL policy; a URL assembled from a variable at runtime is not checked
+- `{{VARIABLE}}` placeholders are filled from Project Settings or environment variables, and an unconfigured variable fails the run
+- lines calling `.click()` are matched against destructive labels and the Project click filter — a text heuristic over editor source, not a guarantee, and inert when no click filter is configured (see section 1)
+- the Test Case is limited to 100 steps and the source to 200,000 characters
+
+During a run:
+
+- one worker, headless, 20 seconds per action, navigation and assertion
+- at most 250 log lines; logs and errors pass through the shared redaction utility
+- cancellation terminates the Playwright process tree
+- Cypress is code generation only; the runner returns `unsupported`
+
+### Trust boundary
+
+The server packaged with the CLI binds to `127.0.0.1` and has **no authentication**. Anyone able to reach `POST /api/automation/run` can execute code as the user who started LazyScout. Accordingly:
+
+- do not expose the LazyScout port through a tunnel, port forward or reverse proxy
+- do not set `HOST` to a non-loopback address
+- do not run LazyScout as a shared or multi-user service
+
+`LAZYSCOUT_MODE=public` changes only the URL policy applied to Scout targets. It does not sandbox the runner and does not make the server safe to expose.
+
+## 5. API checks and Load Test
+
+- API observations record method, redacted URL, status, duration and content type, and never capture request or response bodies
+- API Checks run automatically for GET, HEAD and OPTIONS only
+- POST, PUT, PATCH and DELETE are observation-only and must be verified by the Tester with an appropriate tool
+- Load Test issues GET requests only, applies hard limits, and requires confirmation that the target may be tested
+
+## 6. Credentials and artifacts
+
+- Project Settings credentials stay in memory and are cleared on refresh
+- Environment variables are the recommended way to supply credentials to the runner
+- Projects, results, screenshots, Bug Reports, reports and logs live in the file-backed workspace, which is not an encrypted vault
+- Screenshots, traces, videos, HAR files, API dumps and Bug evidence may contain sensitive data and must be redacted before sharing
+- Common artifact directories are listed in `.gitignore`, but you must still review `git status` and `git diff --cached` before pushing

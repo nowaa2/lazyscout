@@ -15,6 +15,13 @@ export type RawElement = {
   options?: string[]
   required: boolean
   disabled: boolean
+  minLength?: number
+  maxLength?: number
+  min?: string
+  max?: string
+  step?: string
+  pattern?: string
+  autocomplete?: string
   cssSelector: string
   matchIndex?: number
   matchCount?: number

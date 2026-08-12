@@ -34,6 +34,23 @@ describe('real Playwright Test CLI runner', () => {
   beforeAll(async () => {
     server = createServer((request, response) => {
       response.setHeader('content-type', 'text/html; charset=utf-8')
+      if (request.url === '/validation') {
+        response.end(`
+          <form id="validation-form">
+            <label for="email">Email</label>
+            <input id="email" name="email" type="email" required>
+            <button id="submit" type="submit">Submit</button>
+            <p id="error" role="alert" hidden>Account was not found</p>
+          </form>
+          <script>
+            document.querySelector('#validation-form').addEventListener('submit', (event) => {
+              event.preventDefault()
+              document.querySelector('#error').hidden = false
+            })
+          </script>
+        `)
+        return
+      }
       if (request.url === '/login') {
         response.end('<h1>Login</h1>')
         return
@@ -64,8 +81,49 @@ describe('real Playwright Test CLI runner', () => {
         addLog: (level, message) => logs.push({ level, message })
       })
 
-      expect(result.status).toBe('passed')
+      expect(result.status, logs.map((entry) => entry.message).join('\n')).toBe('passed')
       expect(logs.some((entry) => entry.message.includes('Running 1 test'))).toBe(true)
+      expect(logs.some((entry) => entry.message.includes('passed'))).toBe(true)
+    },
+    CLI_TEST_TIMEOUT
+  )
+
+  it(
+    'runs native and server validation assertions through the real CLI',
+    async () => {
+      const validationCase: TestCase = {
+        ...testCase,
+        id: 'TC-VALIDATION-001',
+        title: 'Validation matrix is executable',
+        sourceUrl: `${url}/validation`,
+        steps: [
+          { type: 'navigate', url: `${url}/validation` },
+          {
+            type: 'fill',
+            target: { role: 'textbox', name: 'Email', cssSelector: '#email' },
+            value: 'invalid-email'
+          },
+          { type: 'click', target: { role: 'button', name: 'Submit', cssSelector: '#submit' } },
+          { type: 'assertInvalid', target: { role: 'textbox', name: 'Email', cssSelector: '#email' } },
+          {
+            type: 'fill',
+            target: { role: 'textbox', name: 'Email', cssSelector: '#email' },
+            value: 'tester@example.com'
+          },
+          { type: 'click', target: { role: 'button', name: 'Submit', cssSelector: '#submit' } },
+          { type: 'assertValidation' }
+        ]
+      }
+      const logs: Array<{ level: 'info' | 'pass' | 'fail' | 'warn'; message: string }> = []
+      const result = await runPlaywrightCli({
+        source: generatePlaywrightTest(validationCase),
+        testCase: validationCase,
+        testCaseId: validationCase.id,
+        secretValues: [],
+        addLog: (level, message) => logs.push({ level, message })
+      })
+
+      expect(result.status, logs.map((entry) => entry.message).join('\n')).toBe('passed')
       expect(logs.some((entry) => entry.message.includes('passed'))).toBe(true)
     },
     CLI_TEST_TIMEOUT

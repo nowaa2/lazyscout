@@ -144,7 +144,7 @@ export function requiredFieldRule(ctx: RuleContext, form: FormInfo): GeneratedTe
   const submit = form.submitButtons.find((button) => !button.disabled)
   const fields = form.fields.filter(isUsable)
 
-  const testableFields = fields.filter((field) => !isToggleField(field)).slice(0, 5)
+  const testableFields = fields.filter((field) => !isToggleField(field)).slice(0, 12)
   if (!submit || testableFields.length === 0) return []
 
   return testableFields.map((field) => {
@@ -155,26 +155,311 @@ export function requiredFieldRule(ctx: RuleContext, form: FormInfo): GeneratedTe
       steps.push(fillFieldStep(other))
     }
 
-    steps.push({
-      type: 'manual',
-      description: `Leave "${labelOf(field)}" empty`
-    })
-    steps.push({ type: 'click', target: toTargetRef(submit) })
+    if (field.required) {
+      steps.push({ type: 'click', target: toTargetRef(submit) })
+      steps.push({
+        type: 'assertInvalid',
+        target: toTargetRef(field),
+        description: `Verify that "${labelOf(field)}" is invalid and the form is not submitted`
+      })
+    } else {
+      steps.push({
+        type: 'manual',
+        description: `Verify whether "${labelOf(field)}" may be empty according to the product requirement`
+      })
+    }
 
     return build(ctx, {
-      title: `${labelOf(field)} is required`,
+      title: field.required ? `${labelOf(field)} is required` : `${labelOf(field)} handles empty input`,
       preconditions: precondition(ctx.page),
       steps,
       expectedResult: field.required
-        ? 'Verify that a validation message is displayed for the empty required field, and the form is not submitted.'
-        : UNKNOWN_BEHAVIOUR,
+        ? 'A required-field validation is displayed and the form is not submitted.'
+        : `${labelOf(field)} accepts or rejects empty input according to the product requirement.`,
       type: 'validation',
       priority: field.required ? 'high' : 'medium',
-      automationStatus: 'needs-review',
+      automationStatus: field.required ? 'ready' : 'needs-review',
+      tags: ['validation', field.required ? 'required' : 'empty-input'],
       notes: field.required
-        ? 'Evidence: the field has the HTML "required" attribute.'
-        : 'No "required" attribute found — confirm with the specification whether this field is mandatory.'
+        ? 'Evidence: the field has the HTML "required" attribute. Playwright waits for the field to become invalid.'
+        : 'No required attribute was detected. Confirm whether an empty value is allowed before automating submission.'
     })
+  })
+}
+
+type ValidationScenario = {
+  title: string
+  value: string
+  expectedResult: string
+  notes: string
+  automationStatus?: TestCase['automationStatus']
+  manualCheck?: string
+}
+
+export function validationMatrixRule(ctx: RuleContext, form: FormInfo): GeneratedTestCase[] {
+  const submit = form.submitButtons.find((button) => !button.disabled && !button.destructive)
+  const fields = form.fields.filter(isUsable)
+  if (!submit) return []
+
+  const cases: GeneratedTestCase[] = []
+  for (const field of fields.slice(0, 12)) {
+    for (const scenario of validationScenarios(field).slice(0, 8)) {
+      const steps: TestStep[] = [navigateStep(ctx.page)]
+      for (const other of fields) {
+        if (other === field) continue
+        steps.push(fillFieldStep(other))
+      }
+      steps.push({ type: 'fill', target: toTargetRef(field), value: scenario.value })
+      steps.push({ type: 'click', target: toTargetRef(submit) })
+      if (scenario.manualCheck) {
+        steps.push({ type: 'wait', mode: 'timeout', value: '750' })
+        steps.push({ type: 'manual', description: scenario.manualCheck })
+      } else {
+        steps.push({ type: 'assertInvalid', target: toTargetRef(field) })
+      }
+      cases.push(
+        build(ctx, {
+          title: `${labelOf(field)} ${scenario.title}`,
+          preconditions: precondition(ctx.page),
+          steps,
+          expectedResult: scenario.expectedResult,
+          type: 'validation',
+          priority: 'high',
+          automationStatus: scenario.automationStatus ?? 'ready',
+          tags: ['validation', 'generated-matrix'],
+          notes: scenario.notes
+        })
+      )
+    }
+  }
+  return cases
+}
+
+export function loginFailureRule(ctx: RuleContext, form: FormInfo): GeneratedTestCase[] {
+  const submit = form.submitButtons.find((button) => !button.disabled && !button.destructive)
+  const fields = form.fields.filter(isUsable)
+  if (!submit || !isLoginForm(ctx.page, form, fields, submit)) return []
+
+  const username = fields.find((field) => {
+    const hint = `${field.name ?? ''} ${field.accessibleName} ${field.autocomplete ?? ''}`.toLowerCase()
+    return /username|user name|email|อีเมล|ชื่อผู้ใช้/.test(hint) && field.inputType !== 'password'
+  })
+  const password = fields.find((field) => field.inputType === 'password')
+  const scenarios = [
+    username &&
+      !username.required && {
+        field: username,
+        value: '',
+        title: 'Reject empty username',
+        expected: 'The application keeps the user signed out and displays a username validation error.'
+      },
+    password &&
+      !password.required && {
+        field: password,
+        value: '',
+        title: 'Reject empty password',
+        expected: 'The application keeps the user signed out and displays a password validation error.'
+      },
+    username && {
+      field: username,
+      value: username.inputType === 'email' ? 'lazyscout.invalid@example.com' : 'lazyscout-invalid-user',
+      title: 'Reject invalid username',
+      expected: 'The application keeps the user signed out and displays an authentication error.'
+    },
+    password && {
+      field: password,
+      value: 'LazyScout-Wrong-Password-123!',
+      title: 'Reject invalid password',
+      expected: 'The application keeps the user signed out and displays an authentication error.'
+    }
+  ].filter(Boolean) as Array<{ field: UIElement; value: string; title: string; expected: string }>
+
+  return scenarios.map((scenario) => {
+    const steps: TestStep[] = [navigateStep(ctx.page)]
+    for (const field of fields) {
+      steps.push(
+        field === scenario.field
+          ? { type: 'fill', target: toTargetRef(field), value: scenario.value }
+          : fillFieldStep(field)
+      )
+    }
+    steps.push({ type: 'click', target: toTargetRef(submit) })
+    steps.push({ type: 'assertValidation' })
+    return build(ctx, {
+      title: scenario.title,
+      preconditions: [
+        ...precondition(ctx.page),
+        'Use a test environment where failed logins cannot lock a real account'
+      ],
+      steps,
+      expectedResult: scenario.expected,
+      type: 'negative',
+      priority: 'high',
+      automationStatus: 'needs-review',
+      tags: ['login', 'negative', 'server-validation'],
+      notes: 'Runs one failed login attempt only. Review the observed server message before marking this case ready.'
+    })
+  })
+}
+
+function validationScenarios(field: UIElement): ValidationScenario[] {
+  if (field.kind === 'select' || isToggleField(field)) return []
+  const label = labelOf(field)
+  const scenarios: ValidationScenario[] = []
+  if (field.inputType === 'email')
+    scenarios.push({
+      title: 'rejects an invalid email format',
+      value: 'invalid-email',
+      expectedResult: `${label} is marked invalid and the form is not submitted.`,
+      notes: 'Generated from input type="email".'
+    })
+  if (field.inputType === 'url')
+    scenarios.push({
+      title: 'rejects an invalid URL format',
+      value: 'not-a-url',
+      expectedResult: `${label} is marked invalid and the form is not submitted.`,
+      notes: 'Generated from input type="url".'
+    })
+  if (field.required && isTextLikeField(field))
+    scenarios.push({
+      title: 'handles whitespace-only input',
+      value: '   ',
+      expectedResult: `${label} rejects whitespace-only input when meaningful text is required.`,
+      notes: 'HTML required accepts whitespace. Review this case against the product rule and the displayed message.',
+      automationStatus: 'needs-review',
+      manualCheck: `Verify whether ${label} rejects whitespace-only input and shows the correct validation message`
+    })
+  if (isUsernameField(field)) {
+    scenarios.push(
+      {
+        title: 'handles characters from another writing system',
+        value: 'ผู้ใช้ทดสอบ',
+        expectedResult: `${label} accepts or rejects characters from another writing system according to the username policy.`,
+        notes:
+          'No username character policy is inferred unless the HTML exposes a pattern. Review the result against requirements.',
+        automationStatus: 'needs-review',
+        manualCheck: `Verify the username character policy and the validation message shown for ${label}`
+      },
+      {
+        title: 'handles special characters',
+        value: 'user!@#$',
+        expectedResult: `${label} accepts or rejects special characters according to the username policy.`,
+        notes: 'Generated as a business-rule review because HTML may not expose the server username policy.',
+        automationStatus: 'needs-review',
+        manualCheck: `Verify whether ${label} permits special characters and shows the correct validation message`
+      }
+    )
+  }
+  if (field.minLength && field.minLength > 0)
+    scenarios.push({
+      title: `rejects fewer than ${field.minLength} characters`,
+      value: 'a'.repeat(Math.max(0, field.minLength - 1)),
+      expectedResult: `${label} remains invalid below the minimum length of ${field.minLength}.`,
+      notes: `Generated from minlength="${field.minLength}".`
+    })
+  if (field.pattern) {
+    const mismatch = patternMismatch(field.pattern)
+    if (mismatch)
+      scenarios.push({
+        title: 'rejects a value outside the required pattern',
+        value: mismatch,
+        expectedResult: `${label} remains invalid when its pattern is not satisfied.`,
+        notes: `Generated from pattern="${field.pattern}".`
+      })
+  }
+  if (field.inputType === 'number' && field.min !== undefined) {
+    const min = Number(field.min)
+    if (Number.isFinite(min))
+      scenarios.push({
+        title: `rejects a value below ${field.min}`,
+        value: String(min - 1),
+        expectedResult: `${label} remains invalid below the minimum value ${field.min}.`,
+        notes: `Generated from min="${field.min}".`
+      })
+  }
+  if (field.inputType === 'number' && field.max !== undefined) {
+    const max = Number(field.max)
+    if (Number.isFinite(max))
+      scenarios.push({
+        title: `rejects a value above ${field.max}`,
+        value: String(max + 1),
+        expectedResult: `${label} remains invalid above the maximum value ${field.max}.`,
+        notes: `Generated from max="${field.max}".`
+      })
+  }
+  if (field.maxLength && field.maxLength > 0)
+    scenarios.push({
+      title: `handles more than ${field.maxLength} characters`,
+      value: 'A'.repeat(Math.min(field.maxLength + 1, 256)),
+      expectedResult: `${label} prevents or rejects input above ${field.maxLength} characters.`,
+      notes: `Generated from maxlength="${field.maxLength}". Browser behavior can truncate typed input, so review the result.`,
+      automationStatus: 'needs-review',
+      manualCheck: `Verify that ${label} does not accept more than ${field.maxLength} characters`
+    })
+  if (field.inputType === 'password') scenarios.push(...passwordPolicyScenarios(field))
+  return uniqueScenarios(scenarios)
+}
+
+function passwordPolicyScenarios(field: UIElement): ValidationScenario[] {
+  const pattern = field.pattern ?? ''
+  const requirements: Array<[(pattern: string) => boolean, string, string]> = [
+    [(value) => /\[A-Z\]|\\p\{Lu\}/.test(value), 'rejects a password without an uppercase letter', 'lowercase123!'],
+    [(value) => /\[a-z\]|\\p\{Ll\}/.test(value), 'rejects a password without a lowercase letter', 'UPPERCASE123!'],
+    [(value) => /\\d|\[0-9\]/.test(value), 'rejects a password without a number', 'NoNumbersHere!'],
+    [
+      (value) => /\\W|special|symbol|\[[^\]]*[!@#$%^&][^\]]*\]/i.test(value),
+      'rejects a password without a special character',
+      'NoSpecial123'
+    ]
+  ]
+  const scenarios: ValidationScenario[] = []
+  for (const [hasRequirement, title, value] of requirements) {
+    if (!hasRequirement(pattern)) continue
+    scenarios.push({
+      title,
+      value,
+      expectedResult: `${labelOf(field)} remains invalid until the password policy is satisfied.`,
+      notes: `Generated from the password pattern="${pattern}".`
+    })
+  }
+  if (!field.minLength && !field.maxLength && !field.pattern)
+    scenarios.push({
+      title: 'policy requires specification review',
+      value: 'password',
+      expectedResult: 'Confirm whether uppercase, lowercase, number, special-character, and length rules are required.',
+      notes: 'No minlength, maxlength, or pattern was found in the HTML. LazyScout does not invent a password policy.',
+      automationStatus: 'needs-review',
+      manualCheck: 'Review the password policy with the product requirement and verify the displayed validation message'
+    })
+  return scenarios
+}
+
+function isTextLikeField(field: UIElement): boolean {
+  return !field.inputType || ['text', 'search', 'email', 'url', 'tel', 'password'].includes(field.inputType)
+}
+
+function isUsernameField(field: UIElement): boolean {
+  const hint =
+    `${field.name ?? ''} ${field.accessibleName ?? ''} ${field.placeholder ?? ''} ${field.autocomplete ?? ''}`.toLowerCase()
+  return /username|user name|ชื่อผู้ใช้/.test(hint)
+}
+
+function patternMismatch(pattern: string): string | undefined {
+  try {
+    const expression = new RegExp(`^(?:${pattern})$`, 'u')
+    return ['!', 'invalid', 'abc', '123', 'lowercase', 'UPPERCASE'].find((candidate) => !expression.test(candidate))
+  } catch {
+    return undefined
+  }
+}
+
+function uniqueScenarios(scenarios: ValidationScenario[]): ValidationScenario[] {
+  const seen = new Set<string>()
+  return scenarios.filter((scenario) => {
+    const key = `${scenario.title}|${scenario.value}`
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
   })
 }
 

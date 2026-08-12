@@ -246,7 +246,6 @@ export function AnalyzeForm({
             </span>
           </div>
         )}
-        <p className="mt-3 text-xs text-slate-500">{t('safetyNotice')}</p>
 
         {/* Targeted Exploration */}
         <div className="mt-3 border-t border-slate-100 pt-3">

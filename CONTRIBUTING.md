@@ -46,7 +46,9 @@ Use `npm run release:check` when changing package or release behavior.
 - Keep unrelated refactors out of the Pull Request.
 - Add or update tests for behavior changes where practical.
 - Update user-facing documentation when commands, limits or safety behavior change.
-- Do not weaken URL checks, destructive-action blocking, automation whitelists or log redaction without a documented security review.
+- Do not weaken URL checks, destructive-action blocking, run limits or log redaction without a documented security review.
+- Keep scratch and verification artifacts out of the Pull Request: throwaway probe scripts, Scout result dumps, exported CSVs, screenshots and Project folders. Stage files by path rather than with `git add -A`, and confirm `git status --untracked-files=all` is clean. AI agents working in this repository follow [CLAUDE.md](CLAUDE.md), which spells this out.
+- Do not bind the server to a non-loopback address or add an endpoint reachable off-host. The automation runner executes unsandboxed test code, so the loopback bind is the security boundary.
 - Confirm that generated and edited Test Cases remain drafts requiring Tester review.
 
 ## Sensitive Data

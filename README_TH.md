@@ -79,6 +79,14 @@ Version Center จะติดต่อ npm Registry เพื่อดูรา
 
 > ตรวจ Draft Test Case และ automation code ก่อนรันกับระบบสำคัญทุกครั้ง
 
+**Local runner รันโค้ด Playwright จริง ไม่ใช่ sandbox** — source ที่ generate ไว้หรือที่แก้ใน Code Editor
+จะถูกเขียนลงไฟล์ `.spec.ts` ชั่วคราวแล้วรันด้วย `@playwright/test` CLI ตัวจริง
+โค้ดนั้นรันด้วยสิทธิ์เท่ากับ process ของ LazyScout จึงต้องอ่านทบทวนก่อนกด Run เสมอ
+
+Server bind ที่ `127.0.0.1` และไม่มี authentication ใครยิงถึง API ได้ = รันโค้ดในสิทธิ์ของผู้ใช้ได้
+อย่าเปิด port ออกผ่าน tunnel / port forward / reverse proxy อย่าตั้ง `HOST` เป็น address ที่ไม่ใช่ loopback
+และอย่ารันเป็น service ที่ใช้ร่วมกันหลายคน (`LAZYSCOUT_MODE=public` เปลี่ยนแค่ URL policy ไม่ได้ sandbox runner)
+
 Screenshot, video, trace, network metadata, form values และ Bug evidence อาจมีข้อมูลส่วนตัวหรือข้อมูลภายใน แม้ `.gitignore` จะช่วยกันไฟล์เหล่านี้ไว้ ผู้ใช้ยังต้องตรวจไฟล์ก่อนส่งให้ผู้อื่น
 
 ควรทดสอบใน DEV, UAT, sandbox หรือ test environment ก่อน production และต้องได้รับอนุญาตก่อน Scout, Run API Check หรือ Load Test เว็บไซต์ใด ๆ
@@ -102,7 +110,8 @@ LAZYSCOUT_API_TOKEN
 
 - Test Case ที่สร้างเป็น Draft และต้องให้ Tester ตรวจ
 - Explorer ยังไม่กดเปิดทุก Modal/Tab/Dropdown ให้อัตโนมัติ
-- Local runner รองรับ Playwright เท่านั้น
+- Local runner รองรับ Playwright เท่านั้น และรัน test code แบบไม่มี sandbox บนเครื่องผู้ใช้
+- API ภายในเครื่องไม่มี authentication จึงต้อง bind อยู่ที่ loopback เท่านั้น
 - Load Test เป็น GET runner ขนาดเล็ก ไม่ใช่ JMeter หรือ production load-testing platform
 - Project ไม่ sync ข้ามเครื่อง
 - Online/public mode ยังไม่พร้อมใช้งานเป็น hosted service

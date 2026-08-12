@@ -71,6 +71,17 @@ export type AssertUrlStep = {
   description?: string
 }
 
+export type AssertInvalidStep = {
+  type: 'assertInvalid'
+  target: TargetRef
+  description?: string
+}
+
+export type AssertValidationStep = {
+  type: 'assertValidation'
+  description?: string
+}
+
 export type ManualStep = {
   type: 'manual'
   description: string
@@ -86,6 +97,8 @@ export type TestStep =
   | AssertVisibleStep
   | AssertTextStep
   | AssertUrlStep
+  | AssertInvalidStep
+  | AssertValidationStep
   | ManualStep
 
 export type TestCaseType = 'positive' | 'negative' | 'validation'

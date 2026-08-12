@@ -30,7 +30,7 @@ The main workflow is:
 - CSV export for Test Cases and Test Data
 - Screenshot OCR-assisted Test Case import
 - Playwright and Cypress code generation from structured Test Steps
-- Local Playwright execution with a restricted statement whitelist, cancellation and logs
+- Local execution through the real Playwright Test CLI, with cancellation, run limits and redacted logs
 - Explicit Playwright screenshots and a local Screenshot Gallery
 - Optional XHR/fetch observation and safe API checks for GET, HEAD and OPTIONS
 - Bug Reports with image evidence and ZIP export
@@ -47,7 +47,7 @@ The main workflow is:
 
 - Opt-in exploration that actively opens approved tabs, accordions and dialogs
 - Local Cypress execution; Cypress is currently code generation only
-- Additional automation statement support without allowing arbitrary JavaScript execution
+- Optional sandboxing (container or restricted OS user) for the local Playwright runner
 
 ## Quick Start
 
@@ -198,16 +198,35 @@ The workspace is not encrypted. Do not use production credentials or retain sens
 
 ## Automation Safety
 
-The local Playwright runner does not execute arbitrary shell commands or arbitrary JavaScript source. Edited code is interpreted as a restricted set of Playwright statements such as navigation, approved locators, click, fill, select and assertions. Unsupported statements fail closed.
+**The local runner executes real Playwright test code. It is not a sandbox.**
 
-The runner also:
+When you run a Test Case, LazyScout writes the generated source — or the source you edited in the Code Editor — to a temporary `.spec.ts` file and runs it with the real `@playwright/test` CLI in a child process. That file is ordinary TypeScript: the runner does not restrict which statements it may contain, and whatever it contains runs with the same operating-system privileges as the LazyScout process.
 
-- limits steps, source size, action time and log lines
-- masks configured secrets and common sensitive fields in logs
-- blocks destructive labels before clicking
-- validates navigation URLs using the active local/public URL policy
-- supports cancellation and closes the active browser
-- runs Cypress code generation only; Cypress execution is not implemented
+This is deliberate. Running the genuine Playwright CLI is what makes generated code behave in LazyScout exactly as it will in your own test suite. It also means **the code in the editor is code you are about to execute** — review it the same way you would review any test file before running it.
+
+Checks that do apply before a run:
+
+- literal `page.goto('…')` URLs are validated against the active local/public URL policy; a URL built at runtime from a variable is not checked
+- `{{VARIABLE}}` placeholders are filled from Project Settings or environment variables, and an unconfigured variable fails the run
+- lines calling `.click()` are matched against destructive labels and the Project click filter — a text heuristic over editor source, not a guarantee
+- the Test Case is limited to 100 steps and the source to 200,000 characters
+
+During a run:
+
+- one worker, headless, 20 seconds per action, navigation and assertion
+- at most 250 log lines; logs and errors pass through shared secret redaction
+- cancellation terminates the Playwright process tree
+- Cypress is code generation only; the runner returns `unsupported`
+
+### Trust boundary
+
+The packaged server binds to `127.0.0.1` and **has no authentication**. Anyone who can reach `POST /api/automation/run` can execute code as the user who started LazyScout. Therefore:
+
+- do not expose the LazyScout port through a tunnel, port forward or reverse proxy
+- do not set `HOST` to a non-loopback address
+- do not run LazyScout as a shared or multi-user service
+
+`LAZYSCOUT_MODE=public` changes only the URL policy used for Scout targets. It does not sandbox the runner and does not make the server safe to expose.
 
 ## Test Credentials
 
@@ -256,7 +275,8 @@ Real, reviewed product screenshots will be added under [`docs/images/`](docs/ima
 - Generated Test Cases are drafts and require Tester review.
 - Expected Results are rule-based and cannot infer undocumented business requirements.
 - Scouting follows links and records interaction hints; it does not fully exercise every UI state.
-- The local runner executes Playwright only.
+- The local runner executes Playwright only, and it runs test code unsandboxed on your machine.
+- The local API has no authentication and must stay bound to loopback.
 - API replay is restricted to GET, HEAD and OPTIONS; state-changing methods are observation-only.
 - The load test is a small local GET runner, not a replacement for JMeter, k6 or a production load-testing platform.
 - Projects are stored in a local file workspace and do not sync between devices.

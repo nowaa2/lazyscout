@@ -26,7 +26,7 @@ function cypressStep(step: TestStep): string {
     case 'click':
       return `${locator(step.target)}.click()`
     case 'fill':
-      return `${locator(step.target)}.clear().type(${quote(runtimeValue(step))})`
+      return `${locator(step.target)}.clear().type(${quote(step.value)})`
     case 'select':
       return `${locator(step.target)}.select(${quote(step.option)})`
     case 'check':
@@ -44,15 +44,12 @@ function cypressStep(step: TestStep): string {
         : `cy.contains(${quote(step.text)}).should('be.visible')`
     case 'assertUrl':
       return `cy.url().should('include', ${quote(step.urlContains)})`
+    case 'assertInvalid':
+      return `${locator(step.target)}.should('be.invalid')`
+    case 'assertValidation':
+      return `cy.get('[role="alert"], [aria-invalid="true"], .error, .errors, .invalid-feedback, #error').filter(':visible').first().should('be.visible')`
     case 'manual':
       return `// TODO: ${step.description}`
   }
-}
-function runtimeValue(step: Extract<TestStep, { type: 'fill' }>): string {
-  const hint = `${step.target.name ?? ''} ${step.target.label ?? ''} ${step.target.placeholder ?? ''}`.toLowerCase()
-  if (hint.includes('password') || hint.includes('รหัสผ่าน')) return '{{TEST_PASSWORD}}'
-  if (hint.includes('email') || hint.includes('อีเมล')) return '{{TEST_EMAIL}}'
-  if (hint.includes('username') || hint.includes('user name') || hint.includes('ชื่อผู้ใช้')) return '{{TEST_USERNAME}}'
-  return step.value
 }
 const quote = (value: string): string => JSON.stringify(value)

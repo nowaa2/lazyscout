@@ -66,6 +66,11 @@ const dictionary = {
     testLanguageDescription: 'Language used for generated Test Case details',
     safetyNotice: 'Playwright stays within the same origin and avoids actions that can change or delete data.',
     includeApiChecks: 'Include API checks from XHR/fetch',
+    validationMatrix: 'Full validation matrix included',
+    validationMatrixHelp:
+      'Generates required, invalid format, length, range, password policy, and failed-login Test Cases from detected form rules.',
+    validationMatrixSafety:
+      'Scout only discovers and generates these cases. Failed-login and server validation cases run once only when you start Automation.',
     waitAfterNavigation: 'Wait after navigation',
     debugMode: 'Debug mode',
     scoutAgain: 'Scout again',
@@ -142,6 +147,11 @@ const dictionary = {
     testLanguageDescription: 'ภาษาที่ใช้สร้างรายละเอียด Test Case',
     safetyNotice: 'Playwright จะอยู่ภายใน origin เดียวกัน และหลีกเลี่ยงการกระทำที่อาจเปลี่ยนแปลงหรือลบข้อมูล',
     includeApiChecks: 'รวม API checks จาก XHR/fetch',
+    validationMatrix: 'รวม Validation Matrix แบบครบชุด',
+    validationMatrixHelp:
+      'สร้าง Test Case สำหรับ required, รูปแบบผิด, ความยาว, ช่วงตัวเลข, นโยบายรหัสผ่าน และ Login ไม่สำเร็จ จากกฎที่ตรวจพบในฟอร์ม',
+    validationMatrixSafety:
+      'Scout จะค้นหาและสร้างเคสเท่านั้น ส่วน Login ผิดและ Server validation จะยิงหนึ่งครั้งเมื่อผู้ใช้สั่ง Run Automation',
     waitAfterNavigation: 'รอหลังเปลี่ยนหน้า',
     debugMode: 'โหมด Debug',
     scoutAgain: 'สำรวจอีกครั้ง',

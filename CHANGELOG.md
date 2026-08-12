@@ -2,6 +2,47 @@
 
 All notable changes to LazyScout are documented in this file.
 
+## [0.4.1] - 2026-08-13
+
+### Added
+
+- Validation matrix Test Case generation. Rules now derive negative and boundary cases from the HTML the Explorer collects: invalid email and URL formats, whitespace-only input, other writing systems, special characters, `minlength`, `maxlength`, `pattern`, `min`/`max`, and password composition rules. Cases whose behaviour the HTML cannot prove are generated as `needs-review` with a note rather than guessed at.
+- Login failure Test Cases for recognised login forms — empty and invalid username, empty and invalid password — each generated as `needs-review` with a precondition warning against running them where a real account could be locked.
+- Two Test Step types, `assertInvalid` and `assertValidation`, so a generated case can assert native constraint validation or wait for a server-rendered validation message instead of falling back to a manual step.
+- The DOM collector now records `minlength`, `maxlength`, `min`, `max`, `step`, `pattern` and `autocomplete`, which is what the new rules read.
+
+### Fixed
+
+- **Scout stopped after the first page.** `analyze.ts` wired its abort signal to `request.raw`'s `close` event, which Node emits as soon as the JSON request body has been read — about 1 ms into the run — so every Scout aborted itself almost immediately. The listener now uses `reply.raw`, which closes when the response finishes or when the client actually disconnects. Introduced in `f3df742` and present in 0.3.7 through 0.3.11. Measured against `fixtures/demo-site`: 1 page → 2 pages, 5 → 27 Test Cases, 0 → 5 Test Data rows, 0 → 16 actions executed, and `endReason` from `browser-crash` to `queue-exhausted`.
+- **Every page-structure Test Case failed to run.** The Playwright generator emitted `expect(page).toContainText(...)` for an `assertText` step with no target, but `toContainText` requires a Locator, so the run died with a multi-hundred-line object dump that filled the log budget. It now emits `expect(page.locator('body')).toContainText(...)`. One case per scouted page was affected, each marked `ready`. The Cypress generator already handled this case correctly.
+
+### Security documentation
+
+- Corrected the documented automation-runner security model. Since the switch to the real Playwright Test CLI, the runner writes the generated or edited source to a temporary `.spec.ts` and executes it unsandboxed with the privileges of the LazyScout process. README, README_TH, SECURITY, ARCHITECTURE, SAFETY, API, ROADMAP, CONTRIBUTING and the CLI README previously described a Playwright statement whitelist that fails closed on unsupported statements, which the runner no longer implements.
+- Documented the actual trust boundary: the server binds to `127.0.0.1` and has no authentication, so reaching `POST /api/automation/run` is equivalent to code execution as the user running LazyScout. `LAZYSCOUT_MODE=public` changes only the Scout URL policy and does not sandbox the runner.
+- Corrected the documented Explorer behaviour in SAFETY.md. It stated that the Explorer follows `href` links only and never clicks buttons; `scopedExplorer.ts` does click discovered navigation items, tabs, accordions and dialog triggers to build the state graph. It still never fills or submits forms.
+- Documented that no destructive-action blocking is active by default. `UIElement.destructive` derives from the per-Project click filter, which is empty until an operator configures it, and `SUGGESTED_BLOCK_KEYWORDS` is a suggestion list rather than an enforced policy.
+- Flagged that `isSessionEndingLabel()` and `isUnsafeAutoClick()` return `false` unconditionally after commit `c7fedf3`, leaving logout/sign-out protection and the click-safety branches in `automationRun.ts` and `guidedFlowRun.ts` inactive.
+- Corrected the crawl-limit table: the whole-exploration timeout is 300 s (documented as 120 s) and the per-page navigation timeout is 25 s (documented as 20 s). Added the state, action, retry and per-action limits that were missing.
+- No runtime behaviour changed in this entry; these corrections describe how the code already behaves.
+
+- Documented behaviour verified by running the app against `fixtures/demo-site` rather than by reading the code: login-looking URLs (`/login`, `/signin`, `/auth`) end a branch through `isAuthLost()` even when no session existed, failed actions retry twice and are skipped, cancellation is honoured only between queue items, and `browser-crash` is a catch-all `endReason` for any error inside the crawl.
+- Corrected the Test Case CSV header in `docs/API.md`. The real export has 14 quoted columns (`TC_ID, Folder, Title, Type, Priority, Test_Steps, Expected_Result, Automation_Status, Preconditions, Notes, Tags, Module, Requirements, Source_URL`); the documented header listed 10 in a different order.
+- Rewrote `docs/user-guide.md` and the `#docs` guide on the marketing site around the observed workflow, including why an unauthenticated Scout of the 9-page demo site reaches only 2 pages.
+- Corrected the site guide's safety list, which claimed destructive UI actions are blocked unless explicitly allowed. The opposite is true: they are allowed until a Project click filter is configured.
+
+### Documentation language
+
+- Converted `docs/SAFETY.md` and `docs/API.md` to English, matching the rest of `docs/`. `README_TH.md` remains the Thai translation. `docs/PUBLISHING.md` and `docs/TEST-CASE-MODEL.md` are still mixed-language.
+
+### Repository
+
+- Added `CLAUDE.md` with rules for AI coding agents working in this repository: keep scratch and verification artifacts out of the working tree, never stage with a wildcard, leave `git status --untracked-files=all` clean, and clean up background servers and `.lazyscout-run-*` temp directories. `.gitignore` now backs this with `scratch-*`, `*.scratch.*`, `*-tmp.mjs`, `*-probe.mjs`, `probe*.mjs` and `.lazyscout-run-*` patterns.
+
+### Release
+
+- CLI, bundled web application, Node server and internal workspaces are aligned at version 0.4.1.
+
 ## [0.3.7] - 2026-08-11
 
 ### Added

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { PageInfo, UIElement } from '@lazyscout/core'
-import { generateTestCases } from '@lazyscout/generators'
+import { generatePlaywrightTest, generateTestCases } from '@lazyscout/generators'
 
 function element(partial: Partial<UIElement> & Pick<UIElement, 'kind' | 'role' | 'accessibleName'>): UIElement {
   return {
@@ -13,15 +13,31 @@ function element(partial: Partial<UIElement> & Pick<UIElement, 'kind' | 'role' |
   }
 }
 
-const email = element({ kind: 'input', role: 'textbox', accessibleName: 'Email', inputType: 'email', required: true })
+const email = element({
+  kind: 'input',
+  role: 'textbox',
+  accessibleName: 'Email',
+  inputType: 'email',
+  required: true,
+  cssSelector: '#email'
+})
 const password = element({
   kind: 'input',
   role: 'textbox',
   accessibleName: 'Password',
   inputType: 'password',
-  required: true
+  required: true,
+  minLength: 8,
+  pattern: '(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[!@#$]).{8,}',
+  cssSelector: '#password'
 })
-const loginButton = element({ kind: 'button', role: 'button', accessibleName: 'Login', tagName: 'button' })
+const loginButton = element({
+  kind: 'button',
+  role: 'button',
+  accessibleName: 'Login',
+  tagName: 'button',
+  cssSelector: '#login'
+})
 const deleteButton = element({
   kind: 'button',
   role: 'button',
@@ -67,9 +83,13 @@ describe('generateTestCases', () => {
     expect(login?.automationStatus).toBe('ready')
     expect(login?.steps).toEqual(
       expect.arrayContaining([
-        { type: 'fill', target: { role: 'textbox', name: 'Email', cssSelector: '#x' }, value: '{{TEST_EMAIL}}' },
-        { type: 'fill', target: { role: 'textbox', name: 'Password', cssSelector: '#x' }, value: '{{TEST_PASSWORD}}' },
-        { type: 'click', target: { role: 'button', name: 'Login', cssSelector: '#x' } }
+        { type: 'fill', target: { role: 'textbox', name: 'Email', cssSelector: '#email' }, value: '{{TEST_EMAIL}}' },
+        {
+          type: 'fill',
+          target: { role: 'textbox', name: 'Password', cssSelector: '#password' },
+          value: '{{TEST_PASSWORD}}'
+        },
+        { type: 'click', target: { role: 'button', name: 'Login', cssSelector: '#login' } }
       ])
     )
   })
@@ -88,10 +108,88 @@ describe('generateTestCases', () => {
     expect(titles).toContain('Navigate to Forgot Password')
   })
 
-  it('ไม่เดา expected result ของ validation แต่ตั้ง automationStatus เป็น needs-review', () => {
+  it('สร้าง required validation ที่ Playwright รันและรอ invalid state ได้', () => {
     const validation = testCases.find((testCase) => testCase.title === 'Email is required')
     expect(validation?.type).toBe('validation')
-    expect(validation?.automationStatus).toBe('needs-review')
+    expect(validation?.automationStatus).toBe('ready')
+    expect(validation?.steps.at(-1)).toEqual({
+      type: 'assertInvalid',
+      target: { role: 'textbox', name: 'Email', cssSelector: '#email' },
+      description: 'Verify that "Email" is invalid and the form is not submitted'
+    })
+  })
+
+  it('สร้าง validation matrix จาก type, minlength และ password pattern', () => {
+    const titles = testCases.map((testCase) => testCase.title)
+    expect(titles).toContain('Email rejects an invalid email format')
+    expect(titles).toContain('Password rejects fewer than 8 characters')
+    expect(titles).toContain('Password rejects a password without an uppercase letter')
+    expect(titles).toContain('Password rejects a password without a lowercase letter')
+    expect(titles).toContain('Password rejects a password without a number')
+    expect(titles).toContain('Password rejects a password without a special character')
+  })
+
+  it('ใช้ค่า invalid ของแต่ละเคสจริงใน Playwright โดยไม่ถูกแทนด้วย test variable', () => {
+    const invalidEmail = testCases.find((testCase) => testCase.title === 'Email rejects an invalid email format')
+    expect(invalidEmail).toBeDefined()
+    const source = generatePlaywrightTest(invalidEmail!)
+    expect(source).toContain('.fill("invalid-email")')
+    expect(source).not.toContain('.fill("{{TEST_EMAIL}}")')
+    expect(source).toContain("element.matches(':invalid')")
+  })
+
+  it('สร้างเคส Username สำหรับค่าว่าง ช่องว่าง ภาษาอื่น และอักขระพิเศษ', () => {
+    const username = element({
+      kind: 'input',
+      role: 'textbox',
+      accessibleName: 'Username',
+      name: 'username',
+      inputType: 'text',
+      required: true,
+      cssSelector: '#username'
+    })
+    const usernamePage: PageInfo = {
+      ...loginPage,
+      inputs: [username, password],
+      forms: [{ method: 'post', fields: [username, password], submitButtons: [loginButton] }]
+    }
+    const generated = generateTestCases([usernamePage])
+    const titles = generated.map((testCase) => testCase.title)
+
+    expect(titles).toContain('Username is required')
+    expect(titles).toContain('Username handles whitespace-only input')
+    expect(titles).toContain('Username handles characters from another writing system')
+    expect(titles).toContain('Username handles special characters')
+    expect(
+      generated.find((testCase) => testCase.title === 'Username handles special characters')?.automationStatus
+    ).toBe('needs-review')
+    expect(generated.find((testCase) => testCase.title === 'Username is required')?.tags).toContain('required')
+  })
+
+  it('ไม่เดาว่าช่อง optional เป็น required แต่สร้างเคสเว้นว่างให้ตรวจสอบ', () => {
+    const optionalEmail = { ...email, required: false }
+    const optionalPassword = { ...password, required: false }
+    const optionalPage: PageInfo = {
+      ...loginPage,
+      inputs: [optionalEmail, optionalPassword],
+      forms: [{ method: 'post', fields: [optionalEmail, optionalPassword], submitButtons: [loginButton] }]
+    }
+    const generated = generateTestCases([optionalPage])
+
+    expect(generated.find((testCase) => testCase.title === 'Email handles empty input')?.automationStatus).toBe(
+      'needs-review'
+    )
+    expect(generated.some((testCase) => testCase.title === 'Reject empty username')).toBe(true)
+    expect(generated.some((testCase) => testCase.title === 'Reject empty password')).toBe(true)
+  })
+
+  it('สร้าง failed-login cases แบบยิงครั้งเดียวและรอ validation จริง', () => {
+    const invalidUsername = testCases.find((testCase) => testCase.title === 'Reject invalid username')
+    const invalidPassword = testCases.find((testCase) => testCase.title === 'Reject invalid password')
+    expect(invalidUsername?.automationStatus).toBe('needs-review')
+    expect(invalidPassword?.automationStatus).toBe('needs-review')
+    expect(invalidUsername?.steps.at(-1)).toEqual({ type: 'assertValidation' })
+    expect(invalidPassword?.steps.at(-1)).toEqual({ type: 'assertValidation' })
   })
 
   it('บันทึก destructive action เป็น manual ไม่ใช่ automation', () => {
@@ -114,9 +212,10 @@ describe('generateTestCases', () => {
     const destructive = thaiCases.find((testCase) => testCase.title.includes('Delete Account'))
 
     expect(required?.preconditions[0]).toBe('ระบบพร้อมใช้งานที่ http://localhost:5173')
-    expect(required?.steps.some((step) => step.description === 'เว้นช่อง "Email" ว่างไว้')).toBe(true)
-    expect(required?.expectedResult).toContain('ข้อความแจ้งเตือน')
+    expect(required?.steps.some((step) => step.type === 'assertInvalid')).toBe(true)
+    expect(required?.expectedResult).toContain('validation')
     expect(required?.notes).toContain('หลักฐาน')
+    expect(thaiCases.some((testCase) => testCase.title === 'Email ไม่ยอมรับรูปแบบอีเมลที่ไม่ถูกต้อง')).toBe(true)
     expect(submit?.preconditions).toContain('เตรียมข้อมูลทดสอบที่ถูกต้องแล้ว')
     expect(destructive?.notes).toContain('การกระทำที่ทำลายข้อมูล')
   })

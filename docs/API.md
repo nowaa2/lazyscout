@@ -1,10 +1,12 @@
 # API
 
-Base URL: `http://127.0.0.1:4000` (Vite proxy `/api` ไปให้อัตโนมัติตอน dev)
+Base URL in development: `http://127.0.0.1:4000` (Vite proxies `/api` to it automatically). The packaged CLI serves the API and the UI together on `http://localhost:4321`.
+
+All routes bind to loopback and have **no authentication**. See [SAFETY.md](SAFETY.md#trust-boundary).
 
 ## POST /api/analyze
 
-สำรวจเว็บไซต์แล้วสร้าง draft test case (ทำงานแบบ synchronous — MVP ยังไม่ใช้ queue)
+Explores a website and generates draft Test Cases. Runs synchronously — there is no queue.
 
 **Request**
 
@@ -12,11 +14,11 @@ Base URL: `http://127.0.0.1:4000` (Vite proxy `/api` ไปให้อัตโ
 { "url": "http://localhost:5173", "maxPages": 20, "maxDepth": 3 }
 ```
 
-| field      | ค่าเริ่มต้น | ขอบเขต                                                            |
-| ---------- | ----------- | ----------------------------------------------------------------- |
-| `url`      | (จำเป็น)    | http/https — ใส่แค่ `localhost:5173` ก็ได้ ระบบเติม `http://` ให้ |
-| `maxPages` | 20          | 1–20                                                              |
-| `maxDepth` | 3           | 0–3                                                               |
+| field      | default    | range                                                                    |
+| ---------- | ---------- | ------------------------------------------------------------------------ |
+| `url`      | (required) | http/https — `localhost:5173` is accepted and `http://` is added for you |
+| `maxPages` | 20         | 1–20                                                                     |
+| `maxDepth` | 3          | 0–3                                                                      |
 
 **Response 200**
 
@@ -37,16 +39,18 @@ Base URL: `http://127.0.0.1:4000` (Vite proxy `/api` ไปให้อัตโ
       "invalidValue": "invalid-email"
     }
   ],
-  "issues": [{ "url": "...", "code": "http-error", "message": "เซิร์ฟเวอร์ตอบกลับ HTTP 404" }],
+  "issues": [{ "url": "...", "code": "http-error", "message": "The server responded with HTTP 404" }],
   "stats": { "pagesVisited": 6, "urlsSkipped": 1, "durationMs": 3420, "limitReached": "none" }
 }
 ```
 
-`issues` = หน้าที่เปิดไม่สำเร็จ แต่ **ไม่ทำให้ทั้ง job ล้ม** — หน้าอื่นยังถูกสำรวจต่อ
+`issues` lists pages that could not be opened. They **do not fail the whole job** — the remaining pages are still explored.
+
+If the HTTP client disconnects mid-run, the exploration is aborted and the browser is closed.
 
 ## POST /api/export/csv
 
-รับ test case (และ test data ถ้ามี) ที่ Tester แก้ไขแล้วจาก UI แล้วคืนไฟล์ CSV
+Takes the Test Cases (and Test Data, if present) that the Tester edited in the UI and returns a CSV file.
 
 ```json
 {
@@ -55,107 +59,122 @@ Base URL: `http://127.0.0.1:4000` (Vite proxy `/api` ไปให้อัตโ
 }
 ```
 
-ตอบกลับเป็น `text/csv; charset=utf-8` พร้อม UTF-8 BOM — ไฟล์เดียวมีสองส่วน
+Responds with `text/csv; charset=utf-8` and a UTF-8 BOM. Every value is quoted. One file contains two sections:
 
 ```
-TC_ID, Module, Title, Preconditions, Test_Steps, Expected_Result, Type, Priority, Automation_Status, Source_URL
-...แถวของ test case...
-                                          ← บรรทัดว่างคั่น
-"TEST DATA"                               ← หัวข้อของส่วนที่สอง
-TD_ID, Module, Field, Input_Type, Required, Valid_Value, Invalid_Value, Note, Source_URL
-...แถวของ test data...
+"TC_ID","Folder","Title","Type","Priority","Test_Steps","Expected_Result",
+"Automation_Status","Preconditions","Notes","Tags","Module","Requirements","Source_URL"
+...test case rows...
+                                          ← blank separator line
+"TEST DATA"                               ← second section header
+"TD_ID","Module","Field","Input_Type","Required","Valid_Value","Invalid_Value","Note","Source_URL"
+...test data rows...
 ```
 
-`testData` เป็น optional — ถ้าไม่ส่งมา จะได้เฉพาะส่วน test case เหมือนเดิม
+`Test_Steps` holds the numbered steps of one Test Case in a single cell, separated by newlines.
+
+`testData` is optional. Omit it and you get the Test Case section only.
 
 ## GET /api/health
 
 ```json
-{ "status": "ok", "version": "0.3.3", "workspaceRoot": "C:\\Users\\Example\\LazyScout" }
+{ "status": "ok", "version": "0.4.1", "workspaceRoot": "C:\\Users\\Example\\LazyScout" }
 ```
 
 ## GET /api/versions
 
-คืนค่าเวอร์ชันที่กำลังรันและรายการเวอร์ชันที่เผยแพร่ล่าสุดสูงสุด 20 รายการจาก npm Registry สำหรับ Version Center ก่อนเปิด Project
+Returns the running version and up to 20 recently published versions from the npm Registry, for the Version Center shown before a Project is opened.
 
 ```json
 {
   "packageName": "lazyscout",
-  "currentVersion": "0.3.3",
-  "latestVersion": "0.2.0",
+  "currentVersion": "0.4.1",
+  "latestVersion": "0.4.1",
   "updateAvailable": false,
   "registryAvailable": true,
-  "versions": [{ "version": "0.2.0", "tags": ["latest"] }]
+  "versions": [{ "version": "0.4.1", "tags": ["latest"] }]
 }
 ```
 
 ## POST /api/versions/install
 
-ติดตั้ง LazyScout เวอร์ชันที่เลือกแบบ global โดยรับเฉพาะเลขเวอร์ชันที่มีอยู่จริงใน npm Registry ไม่รับชื่อ package หรือ argument ของคำสั่งจากผู้ใช้
+Installs the selected LazyScout version globally. It accepts only a version number that exists in the npm Registry; the package name and command arguments are fixed by the application and never taken from user input.
 
 ```json
-{ "version": "0.2.0" }
+{ "version": "0.4.1" }
 ```
 
-หลังติดตั้งต้องปิด Terminal เดิมแล้วรัน `lazyscout` ใหม่ เพราะ process ปัจจุบันยังใช้โค้ดของเวอร์ชันเดิมอยู่
+After installing, close the current terminal and run `lazyscout` again — the running process still holds the previous version's code.
 
 ## POST /api/automation/run
 
-รัน structured Test Steps หรือ edited Playwright source ที่อยู่ใน statement whitelist เท่านั้น ไม่ evaluate JavaScript อิสระ
+Writes the generated Playwright source for the structured Test Steps, or the edited source supplied in `code`, to a temporary `.spec.ts` and runs it with the real `@playwright/test` CLI in a child process.
 
-ขีดจำกัดหลัก:
+> ⚠️ Source sent to this endpoint is executed as ordinary TypeScript with the privileges of the
+> LazyScout process. There is no statement whitelist and no sandbox — see
+> [SAFETY.md](SAFETY.md#4-automation-runner).
+
+Main limits:
 
 - 100 steps
-- source 200,000 characters
-- 20 seconds ต่อ action
+- 200,000 characters of source
+- 20 seconds per action
 - 250 log lines
-- Cypress runner ตอบ `unsupported`; Cypress รองรับเฉพาะ code generation
+- the Cypress runner responds `unsupported`; Cypress is code generation only
 
-ถ้าส่ง `projectId` ระบบจะบันทึก log ของ run ลง `projects/<project-id>/logs/`
+Pre-run checks: literal `page.goto()` URLs are validated against the URL policy, `{{VARIABLE}}` placeholders are substituted (an unconfigured variable fails the run), and `.click()` lines are matched against destructive labels and the Project click filter.
+
+Passing `projectId` saves the run log to `projects/<project-id>/logs/`.
 
 ## POST /api/automation/stop
 
-รับ `{ "runId": "..." }` เพื่อปิด browser ของ run ที่กำลังทำงาน
+Takes `{ "runId": "..." }` and terminates the running Playwright process tree.
 
 ## POST /api/api-check/run
 
-รัน observed API เฉพาะ GET, HEAD และ OPTIONS หลังผ่าน URL policy ส่วน POST, PUT, PATCH และ DELETE จะถูก block เป็น review-only
+Replays observed API requests for GET, HEAD and OPTIONS only, after the URL policy check. POST, PUT, PATCH and DELETE are blocked as review-only.
 
 ## POST /api/load-test/run
 
-GET load test ขนาดเล็ก ต้องส่ง `confirmed: true` จำกัด virtual users สูงสุด 20, requests ต่อ user สูงสุด 100 และ timeout ต่อ request 15 วินาที
+A small GET load test. Requires `confirmed: true`. Limits: at most 20 virtual users, 100 requests per user, an interval up to 10 seconds, and a 15-second timeout per request. Only the URL protocol is checked here, not the full URL policy.
 
 ## File Workspace API
 
-CLI จะสร้าง workspace ที่ `~/LazyScout` ก่อนเปิด UI หรือใช้ path จาก `--workspace <path>`
+The CLI creates the workspace at `~/LazyScout` before opening the UI, or uses the path given by `--workspace <path>`.
 
-- `GET /api/workspace` คืน path และ Projects ที่โหลดจากไฟล์
-- `POST /api/workspace/open` เปิด workspace ด้วย file manager ของระบบ
-- `PUT /api/workspace/projects/:projectId` บันทึก Project พร้อม JSON และ CSV
-- `DELETE /api/workspace/projects/:projectId` ย้าย Project ไป `backups/`
-- `GET/POST/DELETE /api/workspace/projects/:projectId/screenshots` จัดการภาพที่ผู้ใช้สั่งจับ
-- `GET/PUT/DELETE /api/workspace/projects/:projectId/bugs` จัดการ Bug Report
-- `GET/PUT /api/workspace/projects/:projectId/automation` จัดการโค้ดที่แก้เอง
-- `POST /api/workspace/projects/:projectId/reports` บันทึก HTML report
+- `GET /api/workspace` returns the workspace path and the Projects loaded from disk
+- `POST /api/workspace/open` opens the workspace in the operating system's file manager
+- `PUT /api/workspace/projects/:projectId` saves a Project together with its JSON and CSV files
+- `DELETE /api/workspace/projects/:projectId` moves a Project to `backups/`
+- `GET/POST/DELETE /api/workspace/projects/:projectId/screenshots` manages user-captured screenshots
+- `GET/PUT/DELETE /api/workspace/projects/:projectId/bugs` manages Bug Reports
+- `GET/PUT /api/workspace/projects/:projectId/automation` manages hand-edited automation code
+- `POST /api/workspace/projects/:projectId/reports` saves an HTML report
 
-ชื่อ Project, ไฟล์ และ path ผ่าน validation และทุก path ต้องอยู่ภายใน workspace เท่านั้น
+Project names, file names and paths are validated, and every path must resolve inside the workspace.
 
-## รูปแบบ Error
+## Error format
 
-ทุก error ตอบกลับด้วยรูปแบบเดียวกัน และ **ไม่มี stack trace**
+Every error uses the same shape and **never includes a stack trace**.
 
 ```json
-{ "error": { "code": "connection-refused", "message": "เชื่อมต่อไม่ได้ ...", "hint": "ตรวจสอบว่า URL ถูกต้อง ..." } }
+{
+  "error": {
+    "code": "connection-refused",
+    "message": "Could not connect ...",
+    "hint": "Check that the URL is correct ..."
+  }
+}
 ```
 
-| code                 | HTTP | เกิดเมื่อ                                              |
-| -------------------- | ---- | ------------------------------------------------------ |
-| `invalid-url`        | 400  | URL ผิดรูปแบบ / ไม่ได้ใส่ URL                          |
-| `blocked-url`        | 400  | protocol ไม่รองรับ, cloud metadata, ถูกบล็อกโดย policy |
-| `connection-refused` | 502  | เว็บไซต์ไม่ได้เปิดอยู่                                 |
-| `dns-error`          | 502  | หาโดเมนไม่พบ                                           |
-| `ssl-error`          | 502  | ใบรับรอง SSL มีปัญหา                                   |
-| `timeout`            | 502  | เปิดหน้าไม่ทันเวลา                                     |
-| `page-crash`         | 502  | หน้าเว็บทำให้ browser ค้าง                             |
-| `browser-error`      | 502  | ยังไม่ได้ `npx playwright install chromium`            |
-| `internal-error`     | 500  | error อื่นที่ไม่คาดคิด                                 |
+| code                 | HTTP | raised when                                                     |
+| -------------------- | ---- | --------------------------------------------------------------- |
+| `invalid-url`        | 400  | the URL is malformed or missing                                 |
+| `blocked-url`        | 400  | unsupported protocol, cloud metadata host, or blocked by policy |
+| `connection-refused` | 502  | the website is not running                                      |
+| `dns-error`          | 502  | the domain could not be resolved                                |
+| `ssl-error`          | 502  | the SSL certificate is not valid                                |
+| `timeout`            | 502  | the page did not load in time                                   |
+| `page-crash`         | 502  | the page crashed the browser                                    |
+| `browser-error`      | 502  | `npx playwright install chromium` has not been run              |
+| `internal-error`     | 500  | any other unexpected error                                      |

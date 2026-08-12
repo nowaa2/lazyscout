@@ -31,7 +31,10 @@ export function registerAnalyzeRoute(app: FastifyInstance, workspaceRoot: string
     try {
       const abortController = new AbortController()
       let completed = false
-      request.raw.once('close', () => {
+      // Must be reply.raw, not request.raw: the request stream closes as soon as
+      // the JSON body is read (~1ms), which would abort every Scout immediately.
+      // The response stream closes when we finish, or early if the client leaves.
+      reply.raw.once('close', () => {
         if (!completed) abortController.abort()
       })
       const result = await exploreWithScope(

@@ -157,6 +157,23 @@ export function collectPageData(): RawPageData {
       options,
       required,
       disabled,
+      minLength:
+        el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement
+          ? el.minLength >= 0
+            ? el.minLength
+            : undefined
+          : undefined,
+      maxLength:
+        el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement
+          ? el.maxLength >= 0
+            ? el.maxLength
+            : undefined
+          : undefined,
+      min: el instanceof HTMLInputElement ? attr(el, 'min') : undefined,
+      max: el instanceof HTMLInputElement ? attr(el, 'max') : undefined,
+      step: el instanceof HTMLInputElement ? attr(el, 'step') : undefined,
+      pattern: el instanceof HTMLInputElement ? attr(el, 'pattern') : undefined,
+      autocomplete: attr(el, 'autocomplete'),
       cssSelector: cssSelector(el),
       contextText: contextText || undefined,
       contextSelector: context ? cssSelector(context) : undefined,
