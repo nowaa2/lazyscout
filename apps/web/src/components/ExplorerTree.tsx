@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import type { AnalyzeResponse } from '../types'
+import { useLanguage } from '../i18n'
 
 type Props = { result: AnalyzeResponse; activeUrl?: string; onSelect: (url: string) => void }
 
 export function ExplorerTree({ result, activeUrl, onSelect }: Props) {
   const [collapsed, setCollapsed] = useState(false)
+  const { language } = useLanguage()
   const grouped = result.pages.reduce<Record<string, typeof result.pages>>((all, page) => {
     const key = new URL(page.finalUrl).pathname || '/'
     ;(all[key] ??= []).push(page)
@@ -17,8 +19,24 @@ export function ExplorerTree({ result, activeUrl, onSelect }: Props) {
           type="button"
           className="tree-panel-toggle"
           onClick={() => setCollapsed((current) => !current)}
-          aria-label={collapsed ? 'ขยาย Explorer' : 'พับ Explorer'}
-          title={collapsed ? 'ขยาย Explorer' : 'พับ Explorer'}
+          aria-label={
+            collapsed
+              ? language === 'th'
+                ? 'ขยาย Explorer'
+                : 'Expand Explorer'
+              : language === 'th'
+                ? 'พับ Explorer'
+                : 'Collapse Explorer'
+          }
+          title={
+            collapsed
+              ? language === 'th'
+                ? 'ขยาย Explorer'
+                : 'Expand Explorer'
+              : language === 'th'
+                ? 'พับ Explorer'
+                : 'Collapse Explorer'
+          }
         >
           {collapsed ? '›' : '‹'}
         </button>

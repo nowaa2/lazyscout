@@ -42,7 +42,7 @@ export function ClickFilterPanel({ filter, onChange }: Props) {
             rows={5}
             value={text}
             onChange={(event) => commit(event.target.value)}
-            placeholder={'delete\nชำระเงิน\ntransfer'}
+            placeholder={'delete\npay now\ntransfer'}
           />
           <p className="click-filter-help">
             One word per line. Matching ignores case and looks at the label, title, name, id and link URL of a control.

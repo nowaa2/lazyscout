@@ -9,6 +9,9 @@ import {
 import { RecorderPanel } from './RecorderPanel'
 import { ClickFilterPanel } from './ClickFilterPanel'
 import type { ClickFilter } from '../hooks/useClickFilter'
+import { useLanguage } from '../i18n'
+
+export type ProjectSettingsTab = 'credentials' | 'session' | 'safety' | 'recorder'
 
 type Props = {
   projectName?: string
@@ -21,6 +24,7 @@ type Props = {
   onSaveRecording?: (steps: TestStep[], title: string, sourceUrl: string) => void
   clickFilter: ClickFilter
   onChangeClickFilter: (filter: ClickFilter) => void
+  initialTab?: ProjectSettingsTab
 }
 
 export function ProjectSettings({
@@ -33,8 +37,12 @@ export function ProjectSettings({
   onClose,
   onSaveRecording,
   clickFilter,
-  onChangeClickFilter
+  onChangeClickFilter,
+  initialTab = 'credentials'
 }: Props) {
+  const { language } = useLanguage()
+  const th = language === 'th'
+  const [activeTab, setActiveTab] = useState<ProjectSettingsTab>(initialTab)
   const [draft, setDraft] = useState<ProjectSecrets>(secrets)
   const [authStatus, setAuthStatus] = useState<WorkspaceAuthSessionStatus>()
   const [authStatusLoading, setAuthStatusLoading] = useState(false)
@@ -74,74 +82,139 @@ export function ProjectSettings({
       >
         <div className="modal-head">
           <div>
-            <p className="eyebrow">Project settings</p>
-            <h2 id="project-settings-title">Test credentials</h2>
-            <p>{projectName ?? 'Current project'} · Used by Automation and Test API</p>
+            <p className="eyebrow">{th ? 'ตั้งค่าโปรเจกต์' : 'Project settings'}</p>
+            <h2 id="project-settings-title">
+              {activeTab === 'credentials'
+                ? th
+                  ? 'ข้อมูลสำหรับทดสอบ'
+                  : 'Test credentials'
+                : activeTab === 'session'
+                  ? th
+                    ? 'Browser session'
+                    : 'Browser session'
+                  : activeTab === 'safety'
+                    ? th
+                      ? 'กฎความปลอดภัย'
+                      : 'Safety rules'
+                    : th
+                      ? 'บันทึก Flow'
+                      : 'Record a flow'}
+            </h2>
+            <p>
+              {projectName ?? (th ? 'โปรเจกต์ปัจจุบัน' : 'Current project')} ·{' '}
+              {th ? 'ตั้งค่าทีละหมวด' : 'Configure one task at a time'}
+            </p>
           </div>
           <button type="button" className="icon-btn" onClick={onClose} aria-label="Close">
             ×
           </button>
         </div>
+        <nav className="settings-tabs" aria-label="Project settings sections">
+          {(
+            [
+              [
+                'credentials',
+                th ? 'ข้อมูลทดสอบ' : 'Credentials',
+                th ? 'ตัวแปรสำหรับ Login และ API' : 'Variables used by login and API steps'
+              ],
+              [
+                'session',
+                'Browser Session',
+                th ? 'Google, SSO และ Cookie ที่บันทึกไว้' : 'Google, SSO, and saved cookies'
+              ],
+              [
+                'safety',
+                th ? 'ความปลอดภัย' : 'Safety',
+                th ? 'ป้องกันการคลิกที่มีความเสี่ยง' : 'Block risky clicks and actions'
+              ],
+              [
+                'recorder',
+                'Recorder',
+                th ? 'เปลี่ยนการกดของคุณเป็น Test Step' : 'Turn your browser actions into Test Steps'
+              ]
+            ] as Array<[ProjectSettingsTab, string, string]>
+          ).map(([key, label, hint]) => (
+            <button
+              key={key}
+              type="button"
+              className={activeTab === key ? 'is-active' : ''}
+              onClick={() => setActiveTab(key)}
+            >
+              <b>{label}</b>
+              <small>{hint}</small>
+            </button>
+          ))}
+        </nav>
         <div className="modal-body">
-          <div className="settings-notice">
-            <b>Memory only</b>
-            <span>
-              Values stay in this browser tab, are cleared on refresh and are never written to Test Cases or logs.
-            </span>
-          </div>
-          <div className="settings-grid">
-            <label>
-              <span>Email</span>
-              <input
-                type="email"
-                value={draft.email ?? ''}
-                onChange={(event) => update('email', event.target.value)}
-                placeholder="Test email"
-                autoComplete="off"
-              />
-            </label>
-            <label>
-              <span>Username</span>
-              <input
-                value={draft.username ?? ''}
-                onChange={(event) => update('username', event.target.value)}
-                placeholder="Test username"
-                autoComplete="off"
-              />
-            </label>
-            <label>
-              <span>Password</span>
-              <input
-                type="password"
-                value={draft.password ?? ''}
-                onChange={(event) => update('password', event.target.value)}
-                placeholder="Test password"
-                autoComplete="off"
-              />
-            </label>
-            <label>
-              <span>API Token</span>
-              <input
-                type="password"
-                value={draft.apiToken ?? ''}
-                onChange={(event) => update('apiToken', event.target.value)}
-                placeholder="API token"
-                autoComplete="off"
-              />
-            </label>
-          </div>
-          <p className="settings-help">
-            Use <code>{'{{TEST_PASSWORD}}'}</code>, <code>{'{{TEST_EMAIL}}'}</code>, <code>{'{{TEST_USERNAME}}'}</code>{' '}
-            or <code>{'{{API_TOKEN}}'}</code> in a Test Case. Values are passed to the runner only while it runs.
-          </p>
-          <div className="settings-notice settings-notice-stacked">
-            <b>How to connect credentials to Guided Flow</b>
-            <span>
-              In a Fill step, leave Value empty and put <code>TEST_USERNAME</code>, <code>TEST_PASSWORD</code>, or{' '}
-              <code>TEST_EMAIL</code> in Value reference. LazyScout replaces the reference only during the run.
-            </span>
-          </div>
-          {projectId && targetUrl && (
+          {activeTab === 'credentials' && (
+            <div className="settings-section">
+              <div className="settings-notice">
+                <b>{th ? 'เก็บในหน่วยความจำเท่านั้น' : 'Memory only'}</b>
+                <span>
+                  {th
+                    ? 'ข้อมูลจะอยู่ในแท็บนี้เท่านั้น ถูกล้างเมื่อ Refresh และไม่ถูกเขียนลง Test Case หรือ Log'
+                    : 'Values stay in this browser tab, are cleared on refresh and are never written to Test Cases or logs.'}
+                </span>
+              </div>
+              <div className="settings-grid">
+                <label>
+                  <span>Email</span>
+                  <input
+                    type="email"
+                    value={draft.email ?? ''}
+                    onChange={(event) => update('email', event.target.value)}
+                    placeholder="Test email"
+                    autoComplete="off"
+                  />
+                </label>
+                <label>
+                  <span>Username</span>
+                  <input
+                    value={draft.username ?? ''}
+                    onChange={(event) => update('username', event.target.value)}
+                    placeholder="Test username"
+                    autoComplete="off"
+                  />
+                </label>
+                <label>
+                  <span>Password</span>
+                  <input
+                    type="password"
+                    value={draft.password ?? ''}
+                    onChange={(event) => update('password', event.target.value)}
+                    placeholder="Test password"
+                    autoComplete="off"
+                  />
+                </label>
+                <label>
+                  <span>API Token</span>
+                  <input
+                    type="password"
+                    value={draft.apiToken ?? ''}
+                    onChange={(event) => update('apiToken', event.target.value)}
+                    placeholder="API token"
+                    autoComplete="off"
+                  />
+                </label>
+              </div>
+              <p className="settings-help">
+                Use <code>{'{{TEST_PASSWORD}}'}</code>, <code>{'{{TEST_EMAIL}}'}</code>,{' '}
+                <code>{'{{TEST_USERNAME}}'}</code> or <code>{'{{API_TOKEN}}'}</code> in a Test Case. Values are passed
+                to the runner only while it runs.
+              </p>
+              <div className="settings-notice settings-notice-stacked">
+                <b>{th ? 'วิธีใช้ข้อมูลทดสอบกับ Guided Flow' : 'How to connect credentials to Guided Flow'}</b>
+                <span>
+                  {th ? 'ในขั้นตอน Fill ให้เว้น Value ว่าง แล้วใส่ ' : 'In a Fill step, leave Value empty and put '}
+                  <code>TEST_USERNAME</code>, <code>TEST_PASSWORD</code>, {th ? 'หรือ' : 'or'} <code>TEST_EMAIL</code>{' '}
+                  {th
+                    ? 'ใน Value reference โดย LazyScout จะแทนค่าตอนรันเท่านั้น'
+                    : 'in Value reference. LazyScout replaces the reference only during the run.'}
+                </span>
+              </div>
+            </div>
+          )}
+          {activeTab === 'session' && projectId && targetUrl && (
             <div className="settings-notice settings-notice-stacked">
               <b>Google / SSO session</b>
               <span>
@@ -221,35 +294,59 @@ export function ProjectSettings({
               </small>
             </div>
           )}
-          <ClickFilterPanel filter={clickFilter} onChange={onChangeClickFilter} />
-          {projectId && targetUrl && onSaveRecording && (
+          {activeTab === 'session' && (!projectId || !targetUrl) && (
+            <div className="settings-empty-state">
+              <b>{th ? 'Scout เว็บไซต์ก่อน' : 'Scout a website first'}</b>
+              <span>
+                {th
+                  ? 'ต้องมี Target URL ก่อน LazyScout จึงจะสร้าง Browser Session ที่ใช้ซ้ำได้'
+                  : 'A target URL is required before LazyScout can create a reusable browser session.'}
+              </span>
+            </div>
+          )}
+          {activeTab === 'safety' && <ClickFilterPanel filter={clickFilter} onChange={onChangeClickFilter} />}
+          {activeTab === 'recorder' && projectId && targetUrl && onSaveRecording && (
             <RecorderPanel projectId={projectId} targetUrl={targetUrl} onSaveRecording={onSaveRecording} />
+          )}
+          {activeTab === 'recorder' && (!projectId || !targetUrl) && (
+            <div className="settings-empty-state">
+              <b>{th ? 'เพิ่ม Target URL ก่อน' : 'Add a target URL first'}</b>
+              <span>
+                {th
+                  ? 'Scout เว็บไซต์หนึ่งครั้ง แล้วกลับมาบันทึก Login และ Business Flow ที่นี่'
+                  : 'Scout a website once, then return here to record login and business flows.'}
+              </span>
+            </div>
           )}
         </div>
         <div className="modal-footer">
-          <button
-            type="button"
-            className="btn btn-secondary mr-auto"
-            onClick={() => {
-              onClear()
-              setDraft({})
-            }}
-          >
-            Clear secrets
-          </button>
+          {activeTab === 'credentials' && (
+            <button
+              type="button"
+              className="btn btn-secondary mr-auto"
+              onClick={() => {
+                onClear()
+                setDraft({})
+              }}
+            >
+              {th ? 'ล้างข้อมูลทดสอบ' : 'Clear secrets'}
+            </button>
+          )}
           <button type="button" className="btn btn-secondary" onClick={onClose}>
-            Cancel
+            {th ? 'ปิด' : 'Close'}
           </button>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => {
-              onSave(draft)
-              onClose()
-            }}
-          >
-            Save settings
-          </button>
+          {activeTab === 'credentials' && (
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => {
+                onSave(draft)
+                onClose()
+              }}
+            >
+              {th ? 'บันทึกข้อมูลทดสอบ' : 'Save credentials'}
+            </button>
+          )}
         </div>
       </section>
     </div>

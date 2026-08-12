@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { FlowStep, GuidedFlow, TargetRef, TestCase, ProjectSecrets } from '../types'
 import { generateCypressFromFlow, generatePlaywrightFromFlow, flowToTestCase } from '@lazyscout/generators'
 import { runGuidedFlow, stopGuidedFlow, type GuidedFlowRunResponse } from '../api/client'
+import { RecorderPanel } from './RecorderPanel'
 
 type Props = {
   flows: GuidedFlow[]
@@ -319,6 +320,8 @@ export function GuidedFlowBuilder({ flows, baseUrl, projectId, secrets, onSave, 
                   index={index}
                   step={step}
                   status={stepStatus.get(step.id)}
+                  projectId={projectId}
+                  baseUrl={draft.baseUrl || baseUrl}
                   onChange={(next) => updateStep(index, next)}
                   onDelete={() => removeStep(index)}
                   onMove={moveStep}
@@ -507,7 +510,9 @@ function FlowStepEditor({
   status,
   onChange,
   onDelete,
-  onMove
+  onMove,
+  projectId,
+  baseUrl
 }: {
   index: number
   step: FlowStep
@@ -515,6 +520,8 @@ function FlowStepEditor({
   onChange: (step: FlowStep) => void
   onDelete: () => void
   onMove: (index: number, direction: -1 | 1) => void
+  projectId?: string
+  baseUrl: string
 }) {
   return (
     <article className={`guided-flow-step ${status ? `is-${status}` : ''}`}>
@@ -534,12 +541,22 @@ function FlowStepEditor({
           </button>
         </div>
       </header>
-      <StepFields step={step} onChange={onChange} />
+      <StepFields step={step} onChange={onChange} projectId={projectId} baseUrl={baseUrl} />
     </article>
   )
 }
 
-function StepFields({ step, onChange }: { step: FlowStep; onChange: (step: FlowStep) => void }) {
+function StepFields({
+  step,
+  onChange,
+  projectId,
+  baseUrl
+}: {
+  step: FlowStep
+  onChange: (step: FlowStep) => void
+  projectId?: string
+  baseUrl: string
+}) {
   if (step.type === 'navigate')
     return (
       <label>
@@ -554,7 +571,12 @@ function StepFields({ step, onChange }: { step: FlowStep; onChange: (step: FlowS
   if (step.type === 'click' || step.type === 'fill' || step.type === 'select' || step.type === 'check')
     return (
       <>
-        <TargetFields target={step.target} onChange={(target) => onChange({ ...step, target } as FlowStep)} />
+        <TargetFields
+          target={step.target}
+          projectId={projectId}
+          baseUrl={baseUrl}
+          onChange={(target) => onChange({ ...step, target } as FlowStep)}
+        />
         {step.type === 'fill' && (
           <div className="guided-flow-inline-fields">
             <label>
@@ -633,7 +655,12 @@ function StepFields({ step, onChange }: { step: FlowStep; onChange: (step: FlowS
           />
         </label>
         {step.mode === 'visible' && (
-          <TargetFields target={step.target ?? defaultTarget()} onChange={(target) => onChange({ ...step, target })} />
+          <TargetFields
+            target={step.target ?? defaultTarget()}
+            projectId={projectId}
+            baseUrl={baseUrl}
+            onChange={(target) => onChange({ ...step, target })}
+          />
         )}
       </div>
     )
@@ -662,6 +689,8 @@ function StepFields({ step, onChange }: { step: FlowStep; onChange: (step: FlowS
       {step.assertion.type === 'visible' ? (
         <TargetFields
           target={step.assertion.target}
+          projectId={projectId}
+          baseUrl={baseUrl}
           onChange={(target) => onChange({ ...step, assertion: { type: 'visible', target } })}
         />
       ) : (
@@ -688,13 +717,48 @@ function StepFields({ step, onChange }: { step: FlowStep; onChange: (step: FlowS
 
 type GuidedTarget = TargetRef & { strategy: NonNullable<TargetRef['strategy']> }
 
-function TargetFields({ target, onChange }: { target: GuidedTarget; onChange: (target: GuidedTarget) => void }) {
+function TargetFields({
+  target,
+  onChange,
+  projectId,
+  baseUrl
+}: {
+  target: GuidedTarget
+  onChange: (target: GuidedTarget) => void
+  projectId?: string
+  baseUrl: string
+}) {
+  const [pickerOpen, setPickerOpen] = useState(false)
   const value =
     target.strategy === 'role'
       ? (target.name ?? '')
       : target[target.strategy === 'testid' ? 'testId' : target.strategy === 'css' ? 'cssSelector' : target.strategy]
   return (
     <div className="guided-flow-target">
+      <div className="guided-flow-picker-head">
+        <span>Target element</span>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          disabled={!projectId || !baseUrl}
+          onClick={() => setPickerOpen((current) => !current)}
+        >
+          ◎ Pick from page
+        </button>
+      </div>
+      {pickerOpen && projectId && baseUrl && (
+        <div className="guided-flow-picker">
+          <RecorderPanel
+            projectId={projectId}
+            targetUrl={baseUrl}
+            onSaveRecording={() => undefined}
+            onPickTarget={(picked) => {
+              onChange({ ...defaultTarget(), ...picked } as GuidedTarget)
+              setPickerOpen(false)
+            }}
+          />
+        </div>
+      )}
       <label>
         Locator
         <select

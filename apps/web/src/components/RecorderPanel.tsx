@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type WheelEvent } from 'react'
-import { describeStep } from '@lazyscout/core'
-import type { TestStep } from '../types'
+import { describeStep, type RecorderInspection } from '@lazyscout/core'
+import type { TargetRef, TestStep } from '../types'
 import { useRecorder } from '../hooks/useRecorder'
 import { SECRET_PLACEHOLDER } from '../lib/recorderText'
 import { recorderFrameUrl } from '../api/client'
@@ -9,12 +9,13 @@ type Props = {
   projectId: string
   targetUrl: string
   onSaveRecording: (steps: TestStep[], title: string, sourceUrl: string) => void
+  onPickTarget?: (target: TargetRef) => void
 }
 
 const DEFAULT_TITLE = 'Recorded login'
 const FRAME_DELAY_MS = 160
 
-export function RecorderPanel({ projectId, targetUrl, onSaveRecording }: Props) {
+export function RecorderPanel({ projectId, targetUrl, onSaveRecording, onPickTarget }: Props) {
   const { state, recording, busy, error, start, stop, reset, inspectMode, toggleInspectMode, interact } =
     useRecorder(projectId)
   const [title, setTitle] = useState(DEFAULT_TITLE)
@@ -122,6 +123,15 @@ export function RecorderPanel({ projectId, targetUrl, onSaveRecording }: Props) 
   const save = () => {
     onSaveRecording(steps, title.trim() || 'Recorded flow', state.startUrl || targetUrl)
     clear()
+  }
+
+  const pickTarget = async (inspection: RecorderInspection) => {
+    if (!onPickTarget) return
+    const target = targetFromInspection(inspection)
+    await stop()
+    reset()
+    setWorkspaceOpen(false)
+    onPickTarget(target)
   }
 
   return (
@@ -304,6 +314,15 @@ export function RecorderPanel({ projectId, targetUrl, onSaveRecording }: Props) 
                     >
                       Copy locator
                     </button>
+                    {onPickTarget && state.inspection.locked && (
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={() => void pickTarget(state.inspection!)}
+                      >
+                        Use this element
+                      </button>
+                    )}
                   </div>
                 )}
                 {steps.length > 0 && (
@@ -448,4 +467,16 @@ export function RecorderPanel({ projectId, targetUrl, onSaveRecording }: Props) 
       )}
     </div>
   )
+}
+
+function targetFromInspection(inspection: RecorderInspection): TargetRef {
+  if (inspection.role && inspection.accessibleName) {
+    return {
+      strategy: 'role',
+      role: inspection.role,
+      name: inspection.accessibleName,
+      cssSelector: inspection.cssSelector
+    }
+  }
+  return { strategy: 'css', cssSelector: inspection.cssSelector }
 }

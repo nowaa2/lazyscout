@@ -33,6 +33,7 @@ type Session = {
   closed: boolean
   finalSteps?: TestStep[]
   inspection?: RecorderInspection
+  inspectMode: boolean
   pointerCursor: RecorderPointerCursor
   interactionQueue: Promise<void>
 }
@@ -92,6 +93,7 @@ export class RecorderSessions {
       handle,
       close: launched.close,
       closed: false,
+      inspectMode: false,
       pointerCursor: 'default',
       interactionQueue: Promise.resolve()
     }
@@ -114,6 +116,7 @@ export class RecorderSessions {
     const session = this.sessions.get(projectId)
     if (!session || session.closed) return idleRecorderState(projectId)
     await session.handle.setInspectMode(enabled)
+    session.inspectMode = enabled
     if (!enabled) session.inspection = undefined
     return this.state(projectId)
   }
@@ -132,8 +135,10 @@ export class RecorderSessions {
       .then(async () => {
         const page = this.currentPage(session)
         if (!page) throw new Error('The recorder page is not available.')
-        if (interaction.type === 'click') await page.mouse.click(interaction.x, interaction.y)
-        else if (interaction.type === 'move') {
+        if (interaction.type === 'click') {
+          await page.mouse.click(interaction.x, interaction.y)
+          if (session.inspectMode) await page.waitForTimeout(25)
+        } else if (interaction.type === 'move') {
           await page.mouse.move(interaction.x, interaction.y)
           session.pointerCursor = await pointerCursorAt(page, interaction.x, interaction.y)
         } else if (interaction.type === 'text') await page.keyboard.insertText(interaction.text)

@@ -123,17 +123,22 @@ export function useProjects() {
     return id
   }
 
-  function createEmptyProject(name = 'Untitled Test Suite', mode: SavedProject['mode'] = 'empty') {
+  function createEmptyProject(
+    name = 'Untitled Test Suite',
+    mode: SavedProject['mode'] = 'empty',
+    initialResult = emptyResult(),
+    targetUrl = ''
+  ) {
     const now = new Date().toISOString()
     const id = `project-${crypto.randomUUID()}`
     const project: SavedProject = {
       id,
       name: name.trim() || 'Untitled Test Suite',
-      targetUrl: '',
+      targetUrl,
       createdAt: now,
       updatedAt: now,
       mode,
-      result: emptyResult()
+      result: initialResult
     }
     deletingProjectIds.current.delete(id)
     setProjects((current) => [project, ...current])
@@ -166,6 +171,13 @@ export function useProjects() {
       if (activeProjectId === id) setActiveProjectId(id)
       setWorkspaceError(error instanceof Error ? error.message : String(error))
     }
+  }
+
+  function restoreProject(project: SavedProject) {
+    deletingProjectIds.current.delete(project.id)
+    setProjects((current) => (current.some((item) => item.id === project.id) ? current : [project, ...current]))
+    persist(project)
+    setActiveProjectId(project.id)
   }
 
   function renameProject(id: string, name: string) {
@@ -206,6 +218,7 @@ export function useProjects() {
     saveProject,
     createEmptyProject,
     deleteProject,
+    restoreProject,
     renameProject,
     updateProjectResult,
     updateProjectTestCaseLanguage,

@@ -39,7 +39,7 @@ export function DashboardView({
     trend: 'line'
   })
   const statusOf = (testCase: TestCase): 'passed' | 'failed' | 'pending' =>
-    executionStatuses[testCase.id] ?? testCase.status ?? (testCase.automationStatus === 'ready' ? 'passed' : 'pending')
+    executionStatuses[testCase.id] ?? testCase.status ?? 'pending'
   const execution = {
     passed: testCases.filter((item) => statusOf(item) === 'passed').length,
     failed: testCases.filter((item) => statusOf(item) === 'failed').length,

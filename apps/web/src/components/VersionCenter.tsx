@@ -12,7 +12,7 @@ function formatPublishedAt(value?: string): string {
   return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(value))
 }
 
-export function VersionCenter() {
+export function VersionCenter({ compact = false }: { compact?: boolean }) {
   const [info, setInfo] = useState<AppVersionInfo>()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string>()
@@ -64,13 +64,15 @@ export function VersionCenter() {
   }
 
   return (
-    <section className="version-center">
+    <section className={`version-center ${compact ? 'is-compact' : ''}`}>
       <header className="version-center-head">
         <div className="version-center-icon">V</div>
         <div>
           <span className="eyebrow">Version Center</span>
-          <h3>Choose your LazyScout version</h3>
-          <p>Install the latest release or switch to an earlier published version before opening a workspace.</p>
+          <h3>{compact ? 'LazyScout version' : 'Choose your LazyScout version'}</h3>
+          {!compact && (
+            <p>Install the latest release or switch to an earlier published version before opening a workspace.</p>
+          )}
         </div>
         <button type="button" className="version-refresh" onClick={() => void loadVersions()} disabled={loading}>
           {loading ? 'Checking…' : 'Check again'}
@@ -98,55 +100,61 @@ export function VersionCenter() {
             </span>
           </div>
 
-          <div className="version-list" aria-label="Published LazyScout versions">
-            {info.versions.slice(0, 3).map((item) => {
-              const isCurrent = item.version === info.currentVersion
-              const isPending = item.version === pendingVersion
-              const isInstalling = item.version === installingVersion
-              return (
-                <div className={`version-row ${isCurrent ? 'is-current' : ''}`} key={item.version}>
-                  <div className="version-number">
-                    <span>v{item.version}</span>
-                    <small>{formatPublishedAt(item.publishedAt)}</small>
-                  </div>
-                  <div className="version-tags">
-                    {item.tags.map((tag) => (
-                      <span key={tag}>{tag}</span>
-                    ))}
-                    {isCurrent && <span className="current">running</span>}
-                  </div>
-                  <button
-                    type="button"
-                    className="btn btn-secondary version-copy"
-                    onClick={() => void copyCommand(item.version)}
-                  >
-                    {copiedVersion === item.version ? 'Copied' : 'Copy command'}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-primary version-install"
-                    disabled={isCurrent || Boolean(installingVersion)}
-                    onClick={() => setPendingVersion(isPending ? undefined : item.version)}
-                  >
-                    {isCurrent ? 'Current' : isInstalling ? 'Installing…' : 'Install'}
-                  </button>
-                  {isPending && (
-                    <div className="version-confirm">
-                      <span>
-                        Install <b>v{item.version}</b> globally? Restart LazyScout after installation to use it.
-                      </span>
-                      <button type="button" className="btn btn-secondary" onClick={() => setPendingVersion(undefined)}>
-                        Cancel
-                      </button>
-                      <button type="button" className="btn btn-primary" onClick={() => void install(item.version)}>
-                        Install v{item.version}
-                      </button>
+          {!compact && (
+            <div className="version-list" aria-label="Published LazyScout versions">
+              {info.versions.slice(0, 3).map((item) => {
+                const isCurrent = item.version === info.currentVersion
+                const isPending = item.version === pendingVersion
+                const isInstalling = item.version === installingVersion
+                return (
+                  <div className={`version-row ${isCurrent ? 'is-current' : ''}`} key={item.version}>
+                    <div className="version-number">
+                      <span>v{item.version}</span>
+                      <small>{formatPublishedAt(item.publishedAt)}</small>
                     </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
+                    <div className="version-tags">
+                      {item.tags.map((tag) => (
+                        <span key={tag}>{tag}</span>
+                      ))}
+                      {isCurrent && <span className="current">running</span>}
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-secondary version-copy"
+                      onClick={() => void copyCommand(item.version)}
+                    >
+                      {copiedVersion === item.version ? 'Copied' : 'Copy command'}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-primary version-install"
+                      disabled={isCurrent || Boolean(installingVersion)}
+                      onClick={() => setPendingVersion(isPending ? undefined : item.version)}
+                    >
+                      {isCurrent ? 'Current' : isInstalling ? 'Installing…' : 'Install'}
+                    </button>
+                    {isPending && (
+                      <div className="version-confirm">
+                        <span>
+                          Install <b>v{item.version}</b> globally? Restart LazyScout after installation to use it.
+                        </span>
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          onClick={() => setPendingVersion(undefined)}
+                        >
+                          Cancel
+                        </button>
+                        <button type="button" className="btn btn-primary" onClick={() => void install(item.version)}>
+                          Install v{item.version}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </>
       ) : null}
 

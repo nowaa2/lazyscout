@@ -15,8 +15,9 @@ import { ApiChecksTable } from './components/ApiChecksTable'
 import { WorkspaceNav, type WorkspaceView } from './components/WorkspaceNav'
 import { WorkspaceSidebar } from './components/WorkspaceSidebar'
 import { DashboardView } from './components/DashboardView'
+import { EndUserJourney } from './components/EndUserJourney'
 import { ExplorerModal } from './components/ExplorerModal'
-import { ProjectSettings } from './components/ProjectSettings'
+import { ProjectSettings, type ProjectSettingsTab } from './components/ProjectSettings'
 import { ScreenshotImporter } from './components/ScreenshotImporter'
 import { TestCaseImporter } from './components/TestCaseImporter'
 import { NewProjectModal } from './components/NewProjectModal'
@@ -58,6 +59,7 @@ export default function App() {
     saveProject,
     createEmptyProject,
     deleteProject,
+    restoreProject,
     renameProject,
     updateProjectResult,
     updateProjectTestCaseLanguage,
@@ -108,11 +110,14 @@ export default function App() {
     Record<string, { status: string; logs: AutomationLog[]; finishedAt: string }>
   >({})
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [settingsTab, setSettingsTab] = useState<ProjectSettingsTab>('credentials')
   const [screenshotOpen, setScreenshotOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [newProjectOpen, setNewProjectOpen] = useState(false)
   const [navigating, setNavigating] = useState(false)
   const [scoutNotice, setScoutNotice] = useState<{ message: string; detail: string }>()
+  const [projectToDelete, setProjectToDelete] = useState<(typeof projects)[number]>()
+  const [undoNotice, setUndoNotice] = useState<{ message: string; restore: () => void }>()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(
     () => localStorage.getItem('lazyscout-sidebar-collapsed') === 'true'
   )
@@ -123,6 +128,30 @@ export default function App() {
       return !current
     })
   }
+
+  function offerUndo(message: string, restore: () => void) {
+    setUndoNotice({ message, restore })
+  }
+
+  function removeTestCaseWithUndo(id: string) {
+    const removed = testCases.find((item) => item.id === id)
+    if (!removed) return
+    deleteTestCase(id)
+    offerUndo(`Deleted ${removed.id}`, () => addImportedTestCases([removed]))
+  }
+
+  function removeSelectedWithUndo() {
+    const removed = testCases.filter((item) => selectedIds.includes(item.id))
+    if (!removed.length) return
+    deleteSelected()
+    offerUndo(`Deleted ${removed.length} Test Cases`, () => addImportedTestCases(removed))
+  }
+
+  useEffect(() => {
+    if (!undoNotice) return
+    const timer = window.setTimeout(() => setUndoNotice(undefined), 8000)
+    return () => window.clearTimeout(timer)
+  }, [undoNotice])
   function transition(action: () => void) {
     if (navigating) return
     setNavigating(true)
@@ -170,9 +199,18 @@ export default function App() {
     }
   }
   useEffect(() => {
-    if (activeProjectId && result && activeProject?.result === result)
+    if (!activeProjectId || !result || !activeProject?.result) return
+    const timer = window.setTimeout(() => {
+      const stored = activeProject.result
+      if (
+        JSON.stringify(stored.testCases) === JSON.stringify(testCases) &&
+        JSON.stringify(stored.testData) === JSON.stringify(testData)
+      )
+        return
       updateProjectResult(activeProjectId, { ...result, testCases, testData })
-  }, [testCases, testData])
+    }, 150)
+    return () => window.clearTimeout(timer)
+  }, [activeProjectId, activeProject?.result, result, testCases, testData])
 
   useEffect(() => {
     if (projectsLoading) return
@@ -358,9 +396,12 @@ export default function App() {
           })
         }
         onNew={() => setNewProjectOpen(true)}
-        onDelete={deleteProject}
+        onDelete={(id) => setProjectToDelete(projects.find((project) => project.id === id))}
         onRename={renameProject}
-        onSettings={() => setSettingsOpen(true)}
+        onSettings={() => {
+          setSettingsTab('credentials')
+          setSettingsOpen(true)
+        }}
         workspaceRoot={workspaceRoot}
         onOpenWorkspace={openWorkspace}
       />
@@ -489,13 +530,37 @@ export default function App() {
                   }}
                 />
               ) : workspaceView === 'overview' ? (
-                <DashboardView
-                  result={result}
-                  testCases={testCases}
-                  executionStatuses={executionStatuses}
-                  runResults={runResults}
-                  projectId={activeProjectId}
-                />
+                <>
+                  <EndUserJourney
+                    pages={result.pages.length}
+                    testCases={testCases.length}
+                    recordedCases={testCases.filter((item) => item.module === 'MANUAL').length}
+                    completedRuns={
+                      testCases.filter((item) => item.status === 'passed' || item.status === 'failed').length
+                    }
+                    onScout={() => {
+                      const target = document.getElementById('target-url') as HTMLInputElement | null
+                      if (target) {
+                        window.scrollTo({ top: 0, behavior: 'smooth' })
+                        window.setTimeout(() => target.focus(), 250)
+                      } else setNewProjectOpen(true)
+                    }}
+                    onReview={() => setWorkspaceView('testcases')}
+                    onRecord={() => {
+                      setSettingsTab('recorder')
+                      setSettingsOpen(true)
+                    }}
+                    onRun={() => setWorkspaceView('automation')}
+                    onExport={() => void handleExport()}
+                  />
+                  <DashboardView
+                    result={result}
+                    testCases={testCases}
+                    executionStatuses={executionStatuses}
+                    runResults={runResults}
+                    projectId={activeProjectId}
+                  />
+                </>
               ) : (
                 <div className="workspace-shell">
                   <ExplorerTree
@@ -592,7 +657,11 @@ export default function App() {
                               onAdd={handleAdd}
                               onImport={() => setImportOpen(true)}
                               onImportScreenshot={() => setScreenshotOpen(true)}
-                              onDeleteSelected={deleteSelected}
+                              onRecord={() => {
+                                setSettingsTab('recorder')
+                                setSettingsOpen(true)
+                              }}
+                              onDeleteSelected={removeSelectedWithUndo}
                               onExport={handleExport}
                             />
                             <TestCaseTable
@@ -606,7 +675,7 @@ export default function App() {
                                 setDetailId(testCase.id)
                               }}
                               onEdit={setEditing}
-                              onDelete={deleteTestCase}
+                              onDelete={removeTestCaseWithUndo}
                               onReorder={reorderTestCases}
                               onUpdateCell={updateTableCell}
                               executionStatuses={executionStatuses}
@@ -691,7 +760,56 @@ export default function App() {
             onSaveRecording={handleSaveRecording}
             clickFilter={clickFilter}
             onChangeClickFilter={saveClickFilter}
+            initialTab={settingsTab}
           />
+        )}
+        {projectToDelete && (
+          <div className="modern-modal-backdrop" role="presentation">
+            <section className="modern-modal confirm-delete-modal" role="dialog" aria-modal="true">
+              <header className="modal-header">
+                <div>
+                  <p className="eyebrow">Delete project</p>
+                  <h2>Remove “{projectToDelete.name}”?</h2>
+                  <p>The project will be removed from this local workspace. You can undo immediately afterward.</p>
+                </div>
+              </header>
+              <footer className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setProjectToDelete(undefined)}>
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  onClick={() => {
+                    const removed = projectToDelete
+                    setProjectToDelete(undefined)
+                    void deleteProject(removed.id).then(() =>
+                      offerUndo(`Deleted project ${removed.name}`, () => restoreProject(removed))
+                    )
+                  }}
+                >
+                  Delete project
+                </button>
+              </footer>
+            </section>
+          </div>
+        )}
+        {undoNotice && (
+          <div className="undo-toast" role="status" aria-live="polite">
+            <span>{undoNotice.message}</span>
+            <button
+              type="button"
+              onClick={() => {
+                undoNotice.restore()
+                setUndoNotice(undefined)
+              }}
+            >
+              Undo
+            </button>
+            <button type="button" aria-label="Dismiss" onClick={() => setUndoNotice(undefined)}>
+              ×
+            </button>
+          </div>
         )}
         {screenshotOpen && (
           <ScreenshotImporter
@@ -732,6 +850,16 @@ export default function App() {
                 setExecutionStatuses({})
                 setRunResults({})
                 setWorkspaceView('testcases')
+                setNewProjectOpen(false)
+              })
+            }
+            onSample={() =>
+              transition(() => {
+                createEmptyProject('LazyScout Sample', 'empty', createSampleResult(), 'https://example.com')
+                reset()
+                setExecutionStatuses({})
+                setRunResults({})
+                setWorkspaceView('overview')
                 setNewProjectOpen(false)
               })
             }
@@ -813,4 +941,73 @@ function createEmptyExplorerResult(targetUrl: string): AnalyzeResponse {
     runEvents: [],
     apiChecks: []
   }
+}
+
+function createSampleResult(): AnalyzeResponse {
+  const sourceUrl = 'https://example.com/login'
+  const result = createEmptyExplorerResult('https://example.com')
+  result.origin = 'Sample Storefront'
+  result.testCases = [
+    {
+      id: 'TC-LOGIN-001',
+      module: 'LOGIN',
+      folder: 'Authentication',
+      tags: ['smoke', 'login'],
+      title: 'Sign in with valid credentials',
+      preconditions: ['A test user account is available'],
+      steps: [
+        { type: 'navigate', url: sourceUrl },
+        { type: 'fill', target: { strategy: 'css', cssSelector: '#username' }, value: '{{TEST_USERNAME}}' },
+        { type: 'fill', target: { strategy: 'css', cssSelector: '#password' }, value: '{{TEST_PASSWORD}}' },
+        { type: 'click', target: { strategy: 'role', role: 'button', name: 'Sign in' } },
+        { type: 'assertUrl', urlContains: '/dashboard' }
+      ],
+      expectedResult: 'The user is signed in and the dashboard is displayed.',
+      type: 'positive',
+      priority: 'high',
+      automationStatus: 'ready',
+      status: 'pending',
+      sourceUrl,
+      notes: 'Open Project Settings → Credentials before running this sample.'
+    },
+    {
+      id: 'TC-LOGIN-002',
+      module: 'LOGIN',
+      folder: 'Authentication',
+      tags: ['validation', 'login'],
+      title: 'Show validation when password is empty',
+      preconditions: ['The login page is open'],
+      steps: [
+        { type: 'navigate', url: sourceUrl },
+        { type: 'fill', target: { strategy: 'css', cssSelector: '#username' }, value: 'tester' },
+        { type: 'click', target: { strategy: 'role', role: 'button', name: 'Sign in' } },
+        { type: 'assertText', text: 'Password is required' }
+      ],
+      expectedResult: 'A password-required validation message is displayed.',
+      type: 'validation',
+      priority: 'medium',
+      automationStatus: 'needs-review',
+      status: 'pending',
+      sourceUrl
+    },
+    {
+      id: 'TC-CART-001',
+      module: 'CART',
+      folder: 'Checkout',
+      tags: ['regression'],
+      title: 'Add a product to the cart',
+      preconditions: ['The product catalog is available'],
+      steps: [
+        { type: 'navigate', url: 'https://example.com/products' },
+        { type: 'manual', description: 'Choose a product and add it to the cart' }
+      ],
+      expectedResult: 'The cart badge increases by one.',
+      type: 'positive',
+      priority: 'medium',
+      automationStatus: 'manual',
+      status: 'pending',
+      sourceUrl: 'https://example.com/products'
+    }
+  ]
+  return result
 }

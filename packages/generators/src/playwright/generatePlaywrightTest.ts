@@ -30,7 +30,7 @@ function locatorResolverSource(): string[] {
     `    console.log('[Locator] ' + description + ' -> ' + kind)`,
     `    return candidate`,
     `  }`,
-    `  throw new Error('Unable to resolve ' + description + '. ' + attempts.join('; '))`,
+    `  throw new Error('Could not continue at "' + description + '" because the element was not found as one visible, unique target. The page may have changed or an earlier step may have opened a different page. Technical details: ' + attempts.join('; '))`,
     `}`
   ]
 }

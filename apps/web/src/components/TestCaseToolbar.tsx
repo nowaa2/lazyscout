@@ -1,4 +1,5 @@
 import type { TestCaseFilters } from '../types'
+import { useLanguage } from '../i18n'
 
 type Props = {
   filters: TestCaseFilters
@@ -11,6 +12,7 @@ type Props = {
   onAdd: () => void
   onImportScreenshot: () => void
   onImport: () => void
+  onRecord: () => void
   onDeleteSelected: () => void
   onExport: () => void
 }
@@ -26,15 +28,18 @@ export function TestCaseToolbar({
   onAdd,
   onImportScreenshot,
   onImport,
+  onRecord,
   onDeleteSelected,
   onExport
 }: Props) {
+  const { language, t } = useLanguage()
+  const th = language === 'th'
   const update = (patch: Partial<TestCaseFilters>) => onFiltersChange({ ...filters, ...patch })
   return (
     <div className="flex flex-wrap items-end gap-3 border-b border-slate-200 p-4">
       <div className="min-w-56 flex-1">
         <label className="field-label" htmlFor="search">
-          Search
+          {t('search')}
         </label>
         <input
           id="search"
@@ -96,23 +101,27 @@ export function TestCaseToolbar({
       </div>
       <div className="flex items-center gap-2">
         <button type="button" className="btn btn-secondary" onClick={onAdd}>
-          + Add Test Case
+          + {t('addCase')}
         </button>
         <button type="button" className="btn btn-secondary" onClick={onImport}>
-          ⇧ Import
+          ⇧ {th ? 'นำเข้า' : 'Import'}
         </button>
         <button type="button" className="btn btn-secondary" onClick={onImportScreenshot}>
-          ▣ Screenshot
+          ▣ {t('screenshot')}
+        </button>
+        <button type="button" className="btn btn-secondary" onClick={onRecord}>
+          ● {th ? 'บันทึก Flow' : 'Record Flow'}
         </button>
         <button type="button" className="btn btn-danger" onClick={onDeleteSelected} disabled={selectedCount === 0}>
-          Delete ({selectedCount})
+          {t('delete')} ({selectedCount})
         </button>
         <button type="button" className="btn btn-primary" onClick={onExport} disabled={exporting}>
-          {exporting ? 'Exporting…' : 'Export CSV'}
+          {exporting ? (th ? 'กำลัง Export…' : 'Exporting…') : t('export')}
         </button>
       </div>
       <p className="w-full text-xs text-slate-500">
-        Showing {visibleCount} of {totalCount} Test Cases{selectedCount > 0 && ` · ${selectedCount} selected`}
+        {th ? 'แสดง' : 'Showing'} {visibleCount} {th ? 'จาก' : 'of'} {totalCount} Test Cases
+        {selectedCount > 0 && ` · ${selectedCount} ${th ? 'รายการที่เลือก' : 'selected'}`}
       </p>
     </div>
   )
