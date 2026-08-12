@@ -1,6 +1,6 @@
 {
   "name": "lazyscout-monorepo",
-  "version": "0.3.9",
+  "version": "0.3.10",
   "private": true,
   "//": "Monorepo root. The published npm package is apps/cli (lazyscout).",
   "type": "module",
@@ -16,6 +16,7 @@
     "build": "npm run build:packages && npm run build:server && npm run build:web && npm run build:cli",
     "typecheck": "npm run build:packages && npm run typecheck --workspace @lazyscout/server && npm run typecheck --workspace @lazyscout/web && npm run typecheck --workspace lazyscout",
     "check:secrets": "node scripts/check-secrets.mjs",
+    "check:npm-package": "node scripts/verify-npm-package.mjs",
     "check:workspace": "node scripts/check-workspace.mjs",
     "release:check": "npm run check:secrets && npm run format:check && npm run typecheck && npm test && npm run build && npm run check:workspace && npm pack --dry-run --workspace lazyscout",
     "cli": "node apps/cli/dist/index.js",
