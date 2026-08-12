@@ -618,10 +618,10 @@ function StepFields({ step, onChange }: { step: FlowStep; onChange: (step: FlowS
             value={step.mode}
             onChange={(event) => onChange({ ...step, mode: event.target.value as typeof step.mode })}
           >
-            <option value="timeout">Timeout</option>
-            <option value="url">URL</option>
-            <option value="text">Text</option>
-            <option value="visible">Element visible</option>
+            <option value="timeout">Wait for timeout</option>
+            <option value="url">Wait for URL</option>
+            <option value="text">Wait for text</option>
+            <option value="visible">Wait for element visible</option>
           </select>
         </label>
         <label>
