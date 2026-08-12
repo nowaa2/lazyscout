@@ -23,7 +23,7 @@ function locator(target: TargetRef): string {
             ? `page.getByPlaceholder(${quote(target.placeholder)})`
             : target.text
               ? `page.getByText(${quote(target.text)})`
-              : `page.locator(${quote(normalizeCssSelector(target.cssSelector ?? ''))})`
+              : `page.locator(${quoteCssSelector(normalizeCssSelector(target.cssSelector ?? ''))})`
   const context = target.contextTestId
     ? `page.getByTestId(${quote(target.contextTestId)})`
     : target.contextSelector
@@ -77,4 +77,8 @@ const quote = (value: string): string => JSON.stringify(value)
 
 function normalizeCssSelector(value: string): string {
   return value.replace(/\\(["'])/g, '$1')
+}
+
+function quoteCssSelector(value: string): string {
+  return `'${value.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`
 }

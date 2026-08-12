@@ -66,6 +66,6 @@ describe('Guided Flow generators', () => {
         }
       ]
     })
-    expect(source).toContain('page.locator("input[name=\\\"username\\\"]").fill("demo")')
+    expect(source).toContain(`page.locator('input[name="username"]').fill("demo")`)
   })
 })
