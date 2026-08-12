@@ -14,10 +14,16 @@ npx lazyscout@latest
 
 LazyScout starts its UI on `http://localhost:4321` and opens it automatically.
 
-If a supported browser is not installed:
+Install the Playwright Chromium browser before using Scout or running automation:
 
 ```bash
 npx playwright install chromium
+```
+
+For Ubuntu or another Linux distribution, install the required system dependencies too:
+
+```bash
+npx playwright install --with-deps chromium
 ```
 
 ## CLI scan

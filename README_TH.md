@@ -28,6 +28,18 @@ Cypress ในเวอร์ชันนี้รองรับการสร
 npx lazyscout@latest
 ```
 
+ก่อนใช้งานครั้งแรก ให้ติดตั้ง Playwright Chromium ด้วย:
+
+```bash
+npx playwright install chromium
+```
+
+ถ้าใช้ Ubuntu หรือ Linux ให้ติดตั้ง system dependencies เพิ่มด้วย:
+
+```bash
+npx playwright install --with-deps chromium
+```
+
 LazyScout จะสร้าง `~/LazyScout` ให้อัตโนมัติ หากต้องการเลือกตำแหน่งเอง:
 
 ```bash

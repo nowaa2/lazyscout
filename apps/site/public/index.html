@@ -738,7 +738,12 @@ await row.getByRole('button', { name: 'Edit', exact: true }).click()</code></pre
                 </details>
                 <details>
                   <summary>Playwright Chromium is missing</summary>
-                  <pre><code>npx playwright install chromium</code></pre>
+                  <p>Install the browser before using Scout. On Ubuntu/Linux, include the system dependencies:</p>
+                  <pre><code># Windows / macOS
+npx playwright install chromium
+
+# Ubuntu / Linux
+npx playwright install --with-deps chromium</code></pre>
                 </details>
               </div>
               <a class="text-link" href="https://github.com/nowaa2/lazyscout#readme" target="_blank" rel="noreferrer"
