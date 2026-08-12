@@ -68,4 +68,24 @@ describe('Guided Flow generators', () => {
     })
     expect(source).toContain(`page.locator('input[name="username"]').fill("demo")`)
   })
+
+  it('uses the stable CSS target when an accessible name is duplicated', () => {
+    const source = generatePlaywrightFromFlow({
+      ...flow,
+      steps: [
+        {
+          id: 'finance',
+          type: 'click',
+          target: {
+            role: 'link',
+            name: 'การเงิน',
+            cssSelector: 'nav.primary a:nth-of-type(2)',
+            matchCount: 2
+          }
+        }
+      ]
+    })
+    expect(source).toContain("page.locator('nav.primary a:nth-of-type(2)').click()")
+    expect(source).not.toContain('getByRole')
+  })
 })

@@ -12,6 +12,9 @@ export function generatePlaywrightTest(testCase: TestCase): string {
 }
 
 function locator(target: TargetRef): string {
+  if (preferStableCss(target)) {
+    return `page.locator(${quoteCssSelector(normalizeCssSelector(target.cssSelector ?? ''))})`
+  }
   const base =
     target.role && target.name
       ? `page.getByRole(${quote(target.role)}, { name: ${quote(target.name)} })`
@@ -35,6 +38,12 @@ function locator(target: TargetRef): string {
       : `${context}.${base.slice(5)}`
     : base
   return target.nth === undefined ? scoped : `${scoped}.nth(${target.nth})`
+}
+
+function preferStableCss(target: TargetRef): boolean {
+  return Boolean(
+    target.cssSelector && (target.strategy === 'css' || (target.matchCount !== undefined && target.matchCount > 1))
+  )
 }
 function playwrightStep(step: TestStep): string {
   switch (step.type) {

@@ -38,6 +38,9 @@ function playwrightFlowStep(flow: GuidedFlow, step: FlowStep): string {
 }
 
 function locator(target: TargetRef): string {
+  if (preferStableCss(target)) {
+    return `page.locator(${quoteCssSelector(normalizeCssSelector(target.cssSelector ?? target.value ?? ''))})`
+  }
   if (target.strategy === 'role' || (target.role && target.name))
     return `page.getByRole(${JSON.stringify(target.role ?? 'generic')}, { name: ${JSON.stringify(target.name ?? target.value ?? '')}${target.exact ? ', exact: true' : ''} })`
   if (target.strategy === 'label' || target.label)
@@ -49,6 +52,12 @@ function locator(target: TargetRef): string {
   if (target.strategy === 'text' || target.text)
     return `page.getByText(${JSON.stringify(target.text ?? target.value ?? '')})`
   return `page.locator(${quoteCssSelector(normalizeCssSelector(target.cssSelector ?? target.value ?? ''))})`
+}
+
+function preferStableCss(target: TargetRef): boolean {
+  return Boolean(
+    target.cssSelector && (target.strategy === 'css' || (target.matchCount !== undefined && target.matchCount > 1))
+  )
 }
 
 function normalizeCssSelector(value: string): string {
