@@ -242,6 +242,38 @@ export async function stopRecorder(projectId: string): Promise<RecorderState> {
   return requestJson<RecorderState>(`/api/recorder/${encodeURIComponent(projectId)}/stop`, { method: 'POST' })
 }
 
+export async function setRecorderInspectMode(projectId: string, enabled: boolean): Promise<RecorderState> {
+  return requestJson<RecorderState>(`/api/recorder/${encodeURIComponent(projectId)}/inspect`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ enabled })
+  })
+}
+
+export type RecorderInteraction =
+  | { type: 'click'; x: number; y: number }
+  | { type: 'move'; x: number; y: number }
+  | { type: 'text'; text: string }
+  | { type: 'key'; key: string }
+  | { type: 'scroll'; deltaX: number; deltaY: number }
+  | { type: 'navigate'; url: string }
+  | { type: 'back' | 'forward' | 'reload' }
+
+export function recorderFrameUrl(projectId: string, version: number): string {
+  return `/api/recorder/${encodeURIComponent(projectId)}/frame?v=${version}`
+}
+
+export async function interactWithRecorder(
+  projectId: string,
+  interaction: RecorderInteraction
+): Promise<RecorderState> {
+  return requestJson<RecorderState>(`/api/recorder/${encodeURIComponent(projectId)}/interact`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(interaction)
+  })
+}
+
 export async function discardRecorder(projectId: string): Promise<RecorderState> {
   return requestJson<RecorderState>(`/api/recorder/${encodeURIComponent(projectId)}`, { method: 'DELETE' })
 }

@@ -23,6 +23,11 @@ export function recorderInitScript(): void {
   const CLICKABLE =
     'a,button,input,select,textarea,[role="button"],[role="link"],[role="tab"],[role="menuitem"],[role="checkbox"],[role="radio"],[role="option"]'
   const NON_TEXT_INPUTS = ['button', 'submit', 'reset', 'checkbox', 'radio', 'file', 'image']
+  const inspectState = window as unknown as {
+    __lazyscoutInspectMode?: boolean
+    __lazyscoutInspectTarget?: Element
+    __lazyscoutInspectLocked?: boolean
+  }
 
   const send = (event: unknown): void => {
     try {
@@ -138,7 +143,9 @@ export function recorderInitScript(): void {
     const matches =
       role && name
         ? Array.from(document.querySelectorAll(CLICKABLE)).filter(
-            (candidate) => roleOf(candidate) === role && accessibleName(candidate) === name
+            (candidate) =>
+              roleOf(candidate) === role &&
+              accessibleName(candidate)?.localeCompare(name, undefined, { sensitivity: 'accent' }) === 0
           )
         : []
     const target = {
@@ -152,6 +159,96 @@ export function recorderInitScript(): void {
     }
     return matches.length > 1 ? { ...target, matchCount: matches.length } : target
   }
+
+  const inspectionOf = (element: Element, locked: boolean) => {
+    const target = targetOf(element)
+    const playwrightLocator =
+      target.role && target.name
+        ? `page.getByRole(${JSON.stringify(target.role)}, { name: ${JSON.stringify(target.name)}, exact: true })`
+        : `page.locator(${JSON.stringify(target.cssSelector)})`
+    return {
+      locked,
+      tagName: element.tagName.toLowerCase(),
+      role: target.role,
+      accessibleName: target.name,
+      text: clean(element.textContent) || undefined,
+      id: element.getAttribute('id') || undefined,
+      name: element.getAttribute('name') || undefined,
+      cssSelector: target.cssSelector,
+      playwrightLocator
+    }
+  }
+
+  const clearInspectHighlight = (): void => {
+    const previous = inspectState.__lazyscoutInspectTarget
+    if (previous) previous.removeAttribute('data-lazyscout-inspect')
+    inspectState.__lazyscoutInspectTarget = undefined
+  }
+
+  const inspectCandidate = (origin: Element): Element | undefined => {
+    const interactive = origin.closest(CLICKABLE)
+    if (interactive) return interactive
+    const directText = clean(
+      Array.from(origin.childNodes)
+        .filter((node) => node.nodeType === Node.TEXT_NODE)
+        .map((node) => node.textContent ?? '')
+        .join(' ')
+    )
+    const hasStableIdentity = Boolean(
+      origin.id ||
+      origin.getAttribute('name') ||
+      origin.getAttribute('data-testid') ||
+      origin.getAttribute('aria-label') ||
+      origin.getAttribute('title')
+    )
+    return directText || hasStableIdentity || getComputedStyle(origin).cursor === 'pointer' ? origin : undefined
+  }
+
+  const inspect = (element: Element, locked: boolean): void => {
+    if (!document.querySelector('[data-lazyscout-inspect-style]')) {
+      const style = document.createElement('style')
+      style.setAttribute('data-lazyscout-inspect-style', 'true')
+      style.textContent =
+        '[data-lazyscout-inspect="true"]{outline:3px solid #7c3aed !important;outline-offset:3px !important;cursor:crosshair !important;}'
+      document.documentElement.appendChild(style)
+    }
+    clearInspectHighlight()
+    element.setAttribute('data-lazyscout-inspect', 'true')
+    inspectState.__lazyscoutInspectTarget = element
+    inspectState.__lazyscoutInspectLocked = locked
+    send({ kind: 'inspect', inspection: inspectionOf(element, locked) })
+  }
+
+  document.addEventListener(
+    'pointerover',
+    (event) => {
+      if (!inspectState.__lazyscoutInspectMode) return
+      if (inspectState.__lazyscoutInspectLocked) return
+      const origin = event.target instanceof Element ? event.target : null
+      const element = origin ? inspectCandidate(origin) : undefined
+      if (element) inspect(element, false)
+    },
+    true
+  )
+
+  document.addEventListener(
+    'click',
+    (event) => {
+      if (!inspectState.__lazyscoutInspectMode) return
+      const origin = event.target instanceof Element ? event.target : null
+      event.preventDefault()
+      event.stopImmediatePropagation()
+      const element = origin ? inspectCandidate(origin) : undefined
+      if (element) {
+        inspect(element, true)
+        return
+      }
+      clearInspectHighlight()
+      inspectState.__lazyscoutInspectLocked = false
+      send({ kind: 'inspect' })
+    },
+    true
+  )
 
   document.addEventListener(
     'click',

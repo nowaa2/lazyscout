@@ -4,20 +4,41 @@ export function generatePlaywrightTest(testCase: TestCase): string {
   const lines = [
     `import { test, expect } from '@playwright/test'`,
     '',
-    `test('${quote(testCase.title)}', async ({ page }) => {`
+    ...locatorResolverSource(),
+    '',
+    `test(${quote(testCase.title)}, async ({ page }) => {`
   ]
   for (const step of testCase.steps) lines.push(`  ${playwrightStep(step)}`)
   lines.push('})', '')
   return lines.join('\n')
 }
 
+function locatorResolverSource(): string[] {
+  return [
+    `async function resolveTarget(candidates, description) {`,
+    `  const attempts = []`,
+    `  for (const [kind, candidate] of candidates) {`,
+    `    const count = await candidate.count()`,
+    `    if (count !== 1) {`,
+    `      attempts.push(kind + ': ' + count + ' matches')`,
+    `      continue`,
+    `    }`,
+    `    if (!(await candidate.isVisible().catch(() => false))) {`,
+    `      attempts.push(kind + ': not visible')`,
+    `      continue`,
+    `    }`,
+    `    console.log('[Locator] ' + description + ' -> ' + kind)`,
+    `    return candidate`,
+    `  }`,
+    `  throw new Error('Unable to resolve ' + description + '. ' + attempts.join('; '))`,
+    `}`
+  ]
+}
+
 function locator(target: TargetRef): string {
-  if (preferStableCss(target)) {
-    return `page.locator(${quoteCssSelector(normalizeCssSelector(target.cssSelector ?? ''))})`
-  }
-  const base =
+  const semantic =
     target.role && target.name
-      ? `page.getByRole(${quote(target.role)}, { name: ${quote(target.name)} })`
+      ? `page.getByRole(${quote(target.role)}, { name: ${quote(target.name)}, exact: true })`
       : target.label
         ? `page.getByLabel(${quote(target.label)}, { exact: true })`
         : target.testId
@@ -32,44 +53,45 @@ function locator(target: TargetRef): string {
     : target.contextSelector
       ? `page.locator(${quote(target.contextSelector)})`
       : undefined
-  const scoped = context
+  const scopedSemantic = context
     ? target.contextText
-      ? `${context}.filter({ hasText: ${quote(target.contextText)} }).${base.slice(5)}`
-      : `${context}.${base.slice(5)}`
-    : base
-  return target.nth === undefined ? scoped : `${scoped}.nth(${target.nth})`
-}
-
-function preferStableCss(target: TargetRef): boolean {
-  return Boolean(
-    target.cssSelector &&
-    (target.strategy === 'css' ||
-      (target.matchCount !== undefined && target.matchCount > 1 && !target.contextSelector && !target.contextText))
-  )
+      ? `${context}.filter({ hasText: ${quote(target.contextText)} }).${semantic.slice(5)}`
+      : `${context}.${semantic.slice(5)}`
+    : semantic
+  const primary = target.nth === undefined ? scopedSemantic : `${scopedSemantic}.nth(${target.nth})`
+  const css = target.cssSelector
+    ? `page.locator(${quoteCssSelector(normalizeCssSelector(target.cssSelector))})`
+    : undefined
+  const candidates: Array<[string, string]> = []
+  if (target.strategy === 'css' && css) candidates.push(['recorded CSS', css])
+  candidates.push(['semantic locator', primary])
+  if (css && !candidates.some(([, value]) => value === css)) candidates.push(['recorded CSS', css])
+  const description = target.name ?? target.label ?? target.placeholder ?? target.text ?? target.cssSelector ?? 'target'
+  return `resolveTarget([${candidates.map(([kind, value]) => `[${quote(kind)}, ${value}]`).join(', ')}], ${quote(description)})`
 }
 function playwrightStep(step: TestStep): string {
   switch (step.type) {
     case 'navigate':
       return `await page.goto(${quote(step.url)})`
     case 'click':
-      return `await ${locator(step.target)}.click()`
+      return `await (await ${locator(step.target)}).click()`
     case 'fill':
-      return `await ${locator(step.target)}.fill(${quote(runtimeValue(step))})`
+      return `await (await ${locator(step.target)}).fill(${quote(runtimeValue(step))})`
     case 'select':
-      return `await ${locator(step.target)}.selectOption(${quote(step.option)})`
+      return `await (await ${locator(step.target)}).selectOption(${quote(step.option)})`
     case 'check':
-      return `await ${locator(step.target)}.${step.checked ? 'check' : 'uncheck'}()`
+      return `await (await ${locator(step.target)}).${step.checked ? 'check' : 'uncheck'}()`
     case 'wait':
       if (step.mode === 'timeout')
         return `await page.waitForTimeout(${Math.min(5000, Math.max(0, Number(step.value) || 0))})`
       if (step.mode === 'url') return `await page.waitForURL(new RegExp(${quote(step.value)}))`
       if (step.mode === 'text') return `await expect(page).toContainText(${quote(step.value)})`
-      return `await expect(${locator(step.target!)}).toBeVisible()`
+      return `await expect(await ${locator(step.target!)}).toBeVisible()`
     case 'assertVisible':
-      return `await expect(${locator(step.target)}).toBeVisible()`
+      return `await expect(await ${locator(step.target)}).toBeVisible()`
     case 'assertText':
       return step.target
-        ? `await expect(${locator(step.target)}).toContainText(${quote(step.text)})`
+        ? `await expect(await ${locator(step.target)}).toContainText(${quote(step.text)})`
         : `await expect(page).toContainText(${quote(step.text)})`
     case 'assertUrl':
       return `await expect(page).toHaveURL(new RegExp(${quote(step.urlContains)}))`

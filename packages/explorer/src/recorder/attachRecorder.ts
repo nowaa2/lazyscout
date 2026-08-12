@@ -1,5 +1,5 @@
 import type { BrowserContext, Page } from 'playwright-core'
-import type { TargetRef, TestStep } from '@lazyscout/core'
+import type { RecorderInspection, TargetRef, TestStep } from '@lazyscout/core'
 import { recorderInitScript } from './recorderScript.js'
 
 export const SECRET_PLACEHOLDER = '{{TEST_PASSWORD}}'
@@ -9,6 +9,7 @@ export type RecorderEvent =
   | { kind: 'click'; target: TargetRef; url: string }
   | { kind: 'fill'; target: TargetRef; value: string; secret?: boolean; url: string }
   | { kind: 'select'; target: TargetRef; option: string; url: string }
+  | { kind: 'inspect'; inspection?: RecorderInspection }
 
 export type RecorderHandle = {
   steps: () => TestStep[]
@@ -19,6 +20,8 @@ export type RecorderHandle = {
    */
   finalize: () => TestStep[]
   currentUrl: () => string
+  recordNavigation: (url: string, force?: boolean) => void
+  setInspectMode: (enabled: boolean) => Promise<void>
 }
 
 export function closingAssertion(lastActionUrl: string, finalUrl: string): TestStep | undefined {
@@ -45,6 +48,7 @@ function compactTarget(target: TargetRef): TargetRef {
 }
 
 export function buildStep(event: RecorderEvent): TestStep | undefined {
+  if (event.kind === 'inspect') return undefined
   const target = compactTarget(event.target)
   if (event.kind === 'click') return { type: 'click', target }
   if (event.kind === 'select') return { type: 'select', target, option: event.option }
@@ -61,7 +65,7 @@ export function buildStep(event: RecorderEvent): TestStep | undefined {
 export async function attachRecorder(
   context: BrowserContext,
   startUrl: string,
-  options: { onEnded?: () => void } = {}
+  options: { onEnded?: () => void; onInspection?: (inspection: RecorderInspection | undefined) => void } = {}
 ): Promise<RecorderHandle> {
   const steps: TestStep[] = []
   let lastUrl = ''
@@ -75,13 +79,17 @@ export async function attachRecorder(
     options.onEnded?.()
   }
 
-  const pushNavigate = (url: string): void => {
-    if (!url || url === 'about:blank' || url === lastUrl) return
+  const pushNavigate = (url: string, force = false): void => {
+    if (!url || url === 'about:blank' || (!force && sameNavigationUrl(url, lastUrl))) return
     lastUrl = url
     if (steps.length < MAX_RECORDED_STEPS) steps.push({ type: 'navigate', url })
   }
 
   const record = (event: RecorderEvent): void => {
+    if (event.kind === 'inspect') {
+      options.onInspection?.(event.inspection)
+      return
+    }
     if (steps.length >= MAX_RECORDED_STEPS) return
     // Emitted before the action so a step always follows the page it happened on.
     pushNavigate(event.url)
@@ -91,13 +99,7 @@ export async function attachRecorder(
 
     // Editing one field repeatedly should stay a single fill.
     const previous = steps[steps.length - 1]
-    if (
-      step.type === 'fill' &&
-      previous &&
-      previous.type === 'fill' &&
-      sameTarget(previous.target, step.target) &&
-      previous.value !== SECRET_PLACEHOLDER
-    ) {
+    if (step.type === 'fill' && previous && previous.type === 'fill' && sameTarget(previous.target, step.target)) {
       steps[steps.length - 1] = step
       return
     }
@@ -112,6 +114,42 @@ export async function attachRecorder(
       // A malformed event must not take the recording session down.
     }
   })
+  const setInspectMode = async (enabled: boolean): Promise<void> => {
+    await context.addInitScript((value) => {
+      const state = window as unknown as {
+        __lazyscoutInspectMode?: boolean
+        __lazyscoutInspectLocked?: boolean
+        __lazyscoutInspectTarget?: Element
+      }
+      state.__lazyscoutInspectMode = value
+      if (!value) {
+        state.__lazyscoutInspectLocked = false
+        state.__lazyscoutInspectTarget = undefined
+        document
+          .querySelectorAll('[data-lazyscout-inspect]')
+          .forEach((element) => element.removeAttribute('data-lazyscout-inspect'))
+      }
+    }, enabled)
+    await Promise.all(
+      context.pages().map((page) =>
+        page.evaluate((value) => {
+          const state = window as unknown as {
+            __lazyscoutInspectMode?: boolean
+            __lazyscoutInspectLocked?: boolean
+            __lazyscoutInspectTarget?: Element
+          }
+          state.__lazyscoutInspectMode = value
+          if (!value) {
+            state.__lazyscoutInspectLocked = false
+            state.__lazyscoutInspectTarget = undefined
+            document
+              .querySelectorAll('[data-lazyscout-inspect]')
+              .forEach((element) => element.removeAttribute('data-lazyscout-inspect'))
+          }
+        }, enabled)
+      )
+    )
+  }
   await context.addInitScript(recorderInitScript)
 
   // Tracked separately from the step list: a trailing navigation becomes an
@@ -152,6 +190,16 @@ export async function attachRecorder(
       const closing = closingAssertion(lastUrl, finalUrl)
       return closing ? [...steps, closing] : steps.slice()
     },
-    currentUrl: () => lastUrl
+    currentUrl: () => lastUrl,
+    recordNavigation: pushNavigate,
+    setInspectMode
+  }
+}
+
+function sameNavigationUrl(left: string, right: string): boolean {
+  try {
+    return new URL(left).href === new URL(right).href
+  } catch {
+    return left === right
   }
 }

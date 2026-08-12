@@ -31,7 +31,8 @@ describe('generatePlaywrightTest for a recorded flow', () => {
 
   it('replays the recorded steps in order', () => {
     expect(code).toContain(`await page.goto("http://localhost:5500/login")`)
-    expect(code).toContain(`await page.getByRole("button", { name: "Sign in" }).click()`)
+    expect(code).toContain(`page.getByRole("button", { name: "Sign in", exact: true })`)
+    expect(code).toContain(`["recorded CSS", page.locator('#submit')]`)
     expect(code.indexOf('getByLabel("Email", { exact: true })')).toBeLessThan(code.indexOf('getByRole("button"'))
   })
 
@@ -67,7 +68,7 @@ describe('generatePlaywrightTest for a recorded flow', () => {
     }
 
     expect(generatePlaywrightTest(duplicateButton)).toContain(
-      'page.locator("section").filter({ hasText: "Billing details" }).getByRole("button", { name: "Save" }).nth(1).click()'
+      'page.locator("section").filter({ hasText: "Billing details" }).getByRole("button", { name: "Save", exact: true }).nth(1)'
     )
   })
 
@@ -90,7 +91,17 @@ describe('generatePlaywrightTest for a recorded flow', () => {
 
     expect(target.nth).toBeUndefined()
     expect(generatePlaywrightTest({ ...recordedLogin, steps: [{ type: 'click', target }] })).toContain(
-      'page.locator(".row").filter({ hasText: "John Doe" }).getByRole("button", { name: "Edit" }).click()'
+      'page.locator(".row").filter({ hasText: "John Doe" }).getByRole("button", { name: "Edit", exact: true })'
     )
+  })
+
+  it('uses an exact accessible name so a short label does not match longer links', () => {
+    const courses: TestCase = {
+      ...recordedLogin,
+      steps: [{ type: 'click', target: { role: 'link', name: 'Courses', cssSelector: 'nav > a' } }]
+    }
+
+    expect(generatePlaywrightTest(courses)).toContain('page.getByRole("link", { name: "Courses", exact: true })')
+    expect(generatePlaywrightTest(courses)).toContain(`["recorded CSS", page.locator('nav > a')]`)
   })
 })

@@ -23,7 +23,7 @@ export function ClickFilterPanel({ filter, onChange }: Props) {
       <b>Click safeguards {filter.enabled ? 'ON' : 'OFF'}</b>
       <span>
         Suggested destructive actions are blocked by default. Explorer skips them and an Automation run stops instead of
-        clicking. Sign-out actions are always blocked.
+        clicking. Logout and sign-out actions remain available for QA testing.
       </span>
 
       <label className="settings-toggle">

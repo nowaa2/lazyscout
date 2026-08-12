@@ -112,7 +112,7 @@ function getNaturalLanguageSuggestions(
     suggestions.push({
       label: 'คลิกปุ่ม (click)',
       insertText: playwright
-        ? "await page.getByRole('button', { name: '${1:Login}' }).click()"
+        ? "await page.getByRole('button', { name: '${1:Login}', exact: true }).click()"
         : "cy.findByRole('button', { name: '${1:Login}' }).click()",
       detail: 'เดาจากคำสั่งคลิก/กดปุ่ม'
     })

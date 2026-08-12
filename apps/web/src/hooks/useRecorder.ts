@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { RecorderState } from '../types'
-import { discardRecorder, getRecorderState, startRecorder, stopRecorder } from '../api/client'
+import {
+  discardRecorder,
+  getRecorderState,
+  interactWithRecorder,
+  setRecorderInspectMode,
+  startRecorder,
+  stopRecorder,
+  type RecorderInteraction
+} from '../api/client'
 
 const POLL_INTERVAL_MS = 1000
 /** Stop polling rather than hammering a server that is not answering. */
@@ -19,6 +27,7 @@ export function useRecorder(projectId?: string) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
   const [dismissed, setDismissed] = useState(false)
+  const [inspectMode, setInspectMode] = useState(false)
 
   // Reopening the panel must find a recording that is still running, otherwise
   // Start would fail with recorder-busy and the browser would be orphaned. A
@@ -30,6 +39,7 @@ export function useRecorder(projectId?: string) {
     setState(idle(projectId))
     setError(undefined)
     setDismissed(false)
+    setInspectMode(false)
     void getRecorderState(projectId)
       .then((next) => {
         if (next.status === 'stopped') {
@@ -85,6 +95,7 @@ export function useRecorder(projectId?: string) {
       setBusy(true)
       setError(undefined)
       setDismissed(false)
+      setInspectMode(false)
       try {
         setState(await startRecorder(projectId, url))
       } catch (cause) {
@@ -108,14 +119,39 @@ export function useRecorder(projectId?: string) {
     }
   }, [projectId])
 
+  const toggleInspectMode = useCallback(async () => {
+    if (!projectId || !recording) return
+    const next = !inspectMode
+    try {
+      const updated = await setRecorderInspectMode(projectId, next)
+      setState(updated)
+      setInspectMode(next)
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'The inspect mode could not be changed.')
+    }
+  }, [inspectMode, projectId, recording])
+
+  const interact = useCallback(
+    async (interaction: RecorderInteraction) => {
+      if (!projectId || !recording) return
+      try {
+        setState(await interactWithRecorder(projectId, interaction))
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : 'The browser interaction failed.')
+      }
+    },
+    [projectId, recording]
+  )
+
   const reset = useCallback(() => {
     setState(idle(projectId ?? ''))
     setError(undefined)
     setDismissed(false)
+    setInspectMode(false)
     // The server keeps the finished session until it is told the steps are
     // dealt with; without this the next Start would replay the old recording.
     if (projectId) void discardRecorder(projectId).catch(() => undefined)
   }, [projectId])
 
-  return { state, recording, busy, error, start, stop, reset }
+  return { state, recording, busy, error, start, stop, reset, inspectMode, toggleInspectMode, interact }
 }

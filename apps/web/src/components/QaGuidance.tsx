@@ -1,7 +1,7 @@
 export function QaGuidance({ sourceUrl, onUse }: { sourceUrl?: string; onUse: (code: string) => void }) {
   const url = sourceUrl || 'http://localhost:5500/login'
-  const login = `await page.goto("${url}")\nawait page.getByLabel("Email address").fill("{{TEST_EMAIL}}")\nawait page.getByLabel("Password").fill("{{TEST_PASSWORD}}")\nawait page.getByRole("button", { name: "Login" }).click()\nawait expect(page).toHaveURL(new RegExp("/dashboard"))`
-  const validation = `await page.goto("${url}")\nawait page.getByLabel("Password").fill("wrong-password")\nawait page.getByRole("button", { name: "Login" }).click()\nawait expect(page.getByRole("alert")).toContainText("Invalid password")`
+  const login = `await page.goto("${url}")\nawait page.getByLabel("Email address").fill("{{TEST_EMAIL}}")\nawait page.getByLabel("Password").fill("{{TEST_PASSWORD}}")\nawait page.getByRole("button", { name: "Login", exact: true }).click()\nawait expect(page).toHaveURL(new RegExp("/dashboard"))`
+  const validation = `await page.goto("${url}")\nawait page.getByLabel("Password").fill("wrong-password")\nawait page.getByRole("button", { name: "Login", exact: true }).click()\nawait expect(page.getByRole("alert")).toContainText("Invalid password")`
   return (
     <section className="qa-guidance">
       <div>

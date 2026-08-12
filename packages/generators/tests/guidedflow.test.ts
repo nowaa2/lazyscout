@@ -25,7 +25,7 @@ describe('Guided Flow generators', () => {
 
   it('generates structured Playwright locators without evaluating code', () => {
     const source = generatePlaywrightFromFlow(flow)
-    expect(source).toContain('page.getByRole("button", { name: "Add User" })')
+    expect(source).toContain('page.getByRole("button", { name: "Add User", exact: true })')
     expect(source).toContain('page.getByLabel("Name", { exact: true }).fill("{{TEST_NAME}}")')
     expect(
       generatePlaywrightFromFlow({

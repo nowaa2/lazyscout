@@ -42,7 +42,7 @@ function locator(target: TargetRef): string {
     return `page.locator(${quoteCssSelector(normalizeCssSelector(target.cssSelector ?? target.value ?? ''))})`
   }
   if (target.strategy === 'role' || (target.role && target.name))
-    return `page.getByRole(${JSON.stringify(target.role ?? 'generic')}, { name: ${JSON.stringify(target.name ?? target.value ?? '')}${target.exact ? ', exact: true' : ''} })`
+    return `page.getByRole(${JSON.stringify(target.role ?? 'generic')}, { name: ${JSON.stringify(target.name ?? target.value ?? '')}, exact: true })`
   if (target.strategy === 'label' || target.label)
     return `page.getByLabel(${JSON.stringify(target.label ?? target.value ?? '')}, { exact: true })`
   if (target.strategy === 'placeholder' || target.placeholder)

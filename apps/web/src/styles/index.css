@@ -1592,6 +1592,123 @@ body {
   .recorder-status {
     @apply flex items-center gap-2 text-[11px] leading-4 text-indigo-700;
   }
+  .recorder-inspect-actions {
+    @apply flex w-full flex-wrap items-center gap-2;
+  }
+  .recorder-inspect-hint {
+    @apply text-[11px] text-indigo-700;
+  }
+  .recorder-inspection {
+    @apply grid w-full gap-1.5 rounded-lg border border-violet-200 bg-white p-3 text-[11px] text-slate-700 shadow-sm;
+  }
+  .recorder-inspection-heading {
+    @apply flex items-center gap-2 text-violet-900;
+  }
+  .recorder-inspection label {
+    @apply grid gap-1 font-semibold text-slate-600;
+  }
+  .recorder-inspection code {
+    @apply block overflow-x-auto whitespace-pre-wrap break-all border border-slate-200 bg-slate-50 p-1.5 font-mono text-[11px] text-slate-800;
+  }
+  .recorder-workspace-backdrop {
+    @apply z-[80] overscroll-none;
+  }
+  .recorder-workspace-modal {
+    @apply flex h-[min(90vh,860px)] w-[min(1180px,calc(100vw-2rem))] max-w-none flex-col overflow-hidden;
+  }
+  .recorder-workspace-body {
+    @apply grid min-h-0 flex-1 grid-cols-[250px_minmax(0,1fr)] gap-0 border-y border-slate-200 bg-slate-100;
+  }
+  .recorder-workspace-sidebar {
+    @apply flex min-h-0 flex-col gap-3 overflow-y-auto border-r border-slate-200 bg-white p-4;
+  }
+  .recorder-workspace-status {
+    @apply rounded-lg bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700;
+  }
+  .recorder-workspace-help,
+  .recorder-workspace-preview p {
+    @apply text-[11px] leading-4 text-slate-500;
+  }
+  .recorder-workspace-count {
+    @apply mt-auto text-xs font-semibold text-slate-600;
+  }
+  .recorder-workspace-selection {
+    @apply grid gap-2 rounded-lg border border-violet-200 bg-violet-50 p-3 text-xs text-violet-950;
+  }
+  .recorder-inspection-lock-row {
+    @apply flex items-center justify-between gap-2;
+  }
+  .recorder-inspection-lock-row span {
+    @apply rounded-full bg-slate-200 px-2 py-0.5 text-[9px] font-semibold text-slate-600;
+  }
+  .recorder-inspection-lock-row span.is-locked {
+    @apply bg-violet-600 text-white;
+  }
+  .recorder-workspace-selection code {
+    @apply break-all rounded bg-white p-1.5 font-mono text-[10px];
+  }
+  .recorder-workspace-steps {
+    @apply grid max-h-48 gap-1 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50 p-2;
+  }
+  .recorder-workspace-steps li {
+    @apply flex items-start gap-2 rounded-md bg-white p-1.5 text-[11px] text-slate-700;
+  }
+  .recorder-workspace-steps li > span {
+    @apply inline-flex h-4 w-4 shrink-0 items-center justify-center rounded bg-indigo-100 text-[9px] font-bold text-indigo-700;
+  }
+  .recorder-workspace-steps p {
+    @apply min-w-0 break-words;
+  }
+  .recorder-workspace-save {
+    @apply grid gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3;
+  }
+  .recorder-workspace-save label {
+    @apply grid gap-1 text-[11px] font-semibold text-emerald-900;
+  }
+  .recorder-workspace-save input {
+    @apply min-w-0 rounded-md border border-emerald-200 bg-white px-2 py-1.5 text-xs text-slate-900 outline-none focus:ring-2 focus:ring-emerald-200;
+  }
+  .recorder-workspace-preview {
+    @apply flex min-h-0 flex-col gap-2 p-3;
+  }
+  .recorder-workspace-url {
+    @apply truncate rounded-lg border border-slate-200 bg-white px-3 py-2 font-mono text-[11px] text-slate-600;
+  }
+  .recorder-workspace-browser-bar {
+    @apply flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white p-1.5;
+  }
+  .recorder-workspace-browser-bar button {
+    @apply inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-sm text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40;
+  }
+  .recorder-workspace-browser-bar .recorder-workspace-url {
+    @apply min-w-0 flex-1 border-0 bg-slate-50 py-1.5;
+  }
+  .recorder-workspace-address-form {
+    @apply flex min-w-0 flex-1 items-center gap-1.5;
+  }
+  .recorder-address-go {
+    @apply inline-flex h-7 w-auto shrink-0 items-center justify-center rounded-md bg-indigo-600 px-3 text-[11px] font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-40;
+  }
+  .recorder-browser-viewport {
+    @apply relative flex min-h-0 flex-1 items-center justify-center overflow-hidden overscroll-contain rounded-lg border border-slate-300 bg-slate-900 outline-none focus:ring-2 focus:ring-indigo-400;
+  }
+  .recorder-browser-viewport img {
+    @apply max-h-full max-w-full object-contain select-none;
+  }
+  .recorder-browser-loading {
+    @apply text-sm text-slate-300;
+  }
+  @media (max-width: 720px) {
+    .recorder-workspace-body {
+      @apply grid-cols-1 overflow-y-auto;
+    }
+    .recorder-workspace-sidebar {
+      @apply border-r-0 border-b;
+    }
+    .recorder-workspace-preview {
+      @apply min-h-[420px];
+    }
+  }
   .recorder-error {
     @apply w-full rounded-md border border-red-200 bg-red-50 px-2 py-1.5 text-[11px] text-red-700;
   }

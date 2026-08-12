@@ -59,9 +59,8 @@ export const SESSION_ENDING_KEYWORDS = [
  * Checks whether the given label indicates a session-ending action.
  */
 export function isSessionEndingLabel(...labels: (string | undefined)[]): boolean {
-  const haystack = labels.filter(Boolean).join(' ').toLowerCase()
-  if (!haystack.trim()) return false
-  return SESSION_ENDING_KEYWORDS.some((keyword) => haystack.includes(keyword.toLowerCase()))
+  void labels
+  return false
 }
 
 /** Actions that must never be clicked automatically, regardless of project settings. */
