@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { ProjectSecrets, TestStep } from '../types'
 import {
+  cancelWorkspaceLoginBrowser,
   captureWorkspaceAuthSession,
   clearWorkspaceAuthSession,
   getWorkspaceAuthSessionStatus,
@@ -352,6 +353,28 @@ export function ProjectSettings({
                 >
                   {authCapturing ? (th ? 'กำลังบันทึก…' : 'Capturing…') : th ? 'บันทึก Session' : 'Capture session'}
                 </button>
+
+                {/* Always a way back out. Without this an abandoned sign-in
+                    held the Project until the stale timeout. */}
+                {loginBrowserOpen && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    disabled={authCapturing}
+                    onClick={async () => {
+                      setAuthError(undefined)
+                      try {
+                        await cancelWorkspaceLoginBrowser(projectId)
+                        setLoginJustOpened(false)
+                        await refreshAuthStatus()
+                      } catch (error) {
+                        setAuthError(messageOf(error))
+                      }
+                    }}
+                  >
+                    {th ? 'ยกเลิกการเข้าสู่ระบบ' : 'Cancel sign-in'}
+                  </button>
+                )}
               </div>
 
               <label className="auth-verify-row">

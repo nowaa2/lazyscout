@@ -54,6 +54,23 @@ type ActiveAuthSession = {
 }
 const authSessions = new Map<string, ActiveAuthSession>()
 
+/**
+ * Close a sign-in window that was never captured and release the Project.
+ *
+ * Holding the lock for the whole time a person spends signing in is fine; not
+ * being able to give it back is not. This is the one path that ends that hold
+ * without a capture, and it is safe to call when nothing is open.
+ */
+async function abandonLoginSession(projectId: string, log?: (message: string) => void): Promise<boolean> {
+  const active = authSessions.get(projectId)
+  if (!active) return false
+  authSessions.delete(projectId)
+  await active.launched.close().catch(() => undefined)
+  await active.release().catch(() => undefined)
+  log?.('[Auth] Sign-in window abandoned, profile released')
+  return true
+}
+
 /** The Project folder, which is where the auth snapshot and lock live. */
 async function projectPath(root: string, projectId: string): Promise<string> {
   return dirname(await browserProfileDirectory(root, projectId))
@@ -92,13 +109,22 @@ export function registerWorkspaceRoutes(app: FastifyInstance, root: string): voi
     const projectDirectory = await projectPath(root, projectId)
     const log = (message: string) => request.log.info(message)
 
+    // Pressing the button again is what an operator does when nothing appeared,
+    // so a sign-in window this server already owns is replaced rather than
+    // refused. Only a lock held by something else — a Scout or a run — blocks.
+    await abandonLoginSession(projectId, log)
+
     let release: (() => Promise<void>) | undefined
     try {
       release = await acquireAuthLock(projectDirectory, 'login-browser', { log })
     } catch (error) {
       if (error instanceof AuthProfileBusyError)
         return reply.status(409).send({
-          error: { code: error.code, message: error.message, hint: 'Close the other LazyScout browser and try again.' }
+          error: {
+            code: error.code,
+            message: error.message,
+            hint: 'Wait for it to finish, or press Cancel sign-in to release it.'
+          }
         })
       throw error
     }
@@ -118,9 +144,26 @@ export function registerWorkspaceRoutes(app: FastifyInstance, root: string): voi
     // change: an application that redirects, exchanges a code and only then
     // sets its real cookie would otherwise be captured half signed-in.
     authSessions.set(projectId, { launched, release, headless, projectDirectory })
+
+    // Closing the window is a way of abandoning the sign-in, so the lock must
+    // not survive it. Without this the Project stayed locked until the stale
+    // timeout, with nothing in the interface able to free it.
+    launched.context.once('close', () => {
+      void abandonLoginSession(projectId, log)
+    })
+
     log('[Auth] Login browser opened')
     return reply.send({ opened: true, headless })
   })
+
+  /** Abandons a sign-in window without capturing, freeing the Project. */
+  app.delete<{ Params: ProjectParams }>(
+    '/api/workspace/projects/:projectId/auth-session/login-browser',
+    async (request, reply) => {
+      const released = await abandonLoginSession(request.params.projectId, (message) => request.log.info(message))
+      return reply.send({ released })
+    }
+  )
 
   /** Called once the operator has signed in; captures and stores the snapshot. */
   app.post<{ Params: ProjectParams }>(

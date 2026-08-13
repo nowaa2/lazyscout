@@ -214,6 +214,13 @@ export async function captureWorkspaceAuthSession(projectId: string): Promise<Wo
   })
 }
 
+/** Abandons an open sign-in window without capturing, freeing the Project. */
+export async function cancelWorkspaceLoginBrowser(projectId: string): Promise<void> {
+  await requestJson(`/api/workspace/projects/${encodeURIComponent(projectId)}/auth-session/login-browser`, {
+    method: 'DELETE'
+  })
+}
+
 /** Opens a protected path with the snapshot restored to prove it still works. */
 export async function verifyWorkspaceAuthSession(projectId: string, url: string): Promise<WorkspaceAuthSessionStatus> {
   return requestJson(`/api/workspace/projects/${encodeURIComponent(projectId)}/auth-session/verify`, {

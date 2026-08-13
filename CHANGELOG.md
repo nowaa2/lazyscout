@@ -19,6 +19,8 @@ All notable changes to LazyScout are documented in this file.
 
 **The login window opened invisibly.** Making every flow share one browser mode was applied too broadly: the sign-in window followed `config.headless`, which defaults to headless, so **Open login browser** appeared to do nothing and there was no way to type credentials. That window is now always visible, because a person has to use it. Consistency is still enforced, but by reporting `browserModeMismatch` on the snapshot rather than by hiding the window.
 
+**An abandoned sign-in locked the Project with no way out.** The lock is taken when the sign-in window opens and released on capture, so a sign-in that was never completed — the window closed, or nothing visible appeared — held the Project for the full fifteen-minute stale timeout with nothing in the interface able to free it. Pressing **Open login browser** again now replaces a window this server already owns instead of refusing, closing the window releases the lock, and a **Cancel sign-in** button gives the hold back explicitly.
+
 **Capture reported success while still holding the lock.** The window was closed and the lock released in a `finally` that ran after the response had been sent, so pressing **Verify** immediately after **Capture** was rejected as busy by a lock that was about to disappear. Cleanup now completes before the reply.
 
 **Capture became unavailable after closing the dialog.** Whether a sign-in window was open was tracked only in component state, so reopening Project Settings disabled **Capture session** even though the window was still waiting. The server reports it instead.
