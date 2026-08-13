@@ -12,6 +12,39 @@ export function collectPageData(): RawPageData {
     return value && value.trim() ? value.trim() : undefined
   }
 
+  /**
+   * Text content the way the accessible name algorithm builds it: a space is
+   * inserted around every non-inline descendant. Plain `textContent` glues
+   * block siblings together, so `<a><div>Icon</div><div>Orders</div></a>`
+   * became "IconOrders" while Playwright computes "Icon Orders" — and a
+   * `getByRole` locator built from the former matched nothing.
+   */
+  function renderedText(el: Element): string {
+    let text = ''
+    const walk = (node: Node): void => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        text += node.textContent ?? ''
+        return
+      }
+      if (node.nodeType !== Node.ELEMENT_NODE) return
+      const element = node as Element
+      const style = window.getComputedStyle(element as HTMLElement)
+      if (style.display === 'none' || style.visibility === 'hidden') return
+      // Replaced content contributes its alternative text, not its children.
+      if (element instanceof HTMLImageElement) {
+        const alt = element.getAttribute('alt')
+        if (alt) text += ` ${alt} `
+        return
+      }
+      const inline = style.display === 'inline' || style.display === 'contents'
+      if (!inline) text += ' '
+      for (const child of Array.from(element.childNodes)) walk(child)
+      if (!inline) text += ' '
+    }
+    for (const child of Array.from(el.childNodes)) walk(child)
+    return text
+  }
+
   function accessibleName(el: Element): string {
     const ariaLabel = cleanText(el.getAttribute('aria-label'))
     if (ariaLabel) return ariaLabel
@@ -48,7 +81,7 @@ export function collectPageData(): RawPageData {
       return cleanText(el.getAttribute('name'))
     }
 
-    const ownText = cleanText(el.textContent)
+    const ownText = cleanText(renderedText(el))
     if (ownText) return ownText
 
     const image = el.querySelector('img[alt]')
@@ -443,11 +476,13 @@ export function collectPageData(): RawPageData {
           element.getAttribute('data-bs-target') ||
           element.getAttribute('data-modal') ||
           element.getAttribute('data-drawer')
+        // Clicking a <details> does nothing; only its <summary> toggles it.
+        const clickable = element.tagName === 'DETAILS' ? (element.querySelector('summary') ?? element) : element
         return {
           kind,
           name: accessibleName(element),
           role,
-          cssSelector: cssSelector(element),
+          cssSelector: cssSelector(clickable),
           expanded: expanded === null ? undefined : expanded === 'true',
           visible: true,
           controlsSelector: controls ? `#${CSS.escape(controls)}` : targetSelector || undefined,

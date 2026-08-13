@@ -269,7 +269,7 @@ export async function exploreWithScope(
             safe: false,
             reason: 'session-ending action'
           },
-          locator: { role: link.role, name: link.accessibleName },
+          locator: { role: link.role, name: link.accessibleName, cssSelector: link.cssSelector },
           kind: 'navigation-link',
           restoreStrategy: 'goto'
         })
@@ -288,7 +288,7 @@ export async function exploreWithScope(
           safe: !blocked,
           reason: blocked ? 'Action matched the Project click filter' : undefined
         },
-        locator: { role: link.role, name: link.accessibleName },
+        locator: { role: link.role, name: link.accessibleName, cssSelector: link.cssSelector },
         kind: 'navigation-link',
         restoreStrategy: 'goto'
       })
@@ -317,7 +317,7 @@ export async function exploreWithScope(
           safe: !blocked,
           reason: blocked ? 'Action matched the Project click filter' : undefined
         },
-        locator: { role: interaction.role, name: interaction.name },
+        locator: { role: interaction.role, name: interaction.name, cssSelector: interaction.cssSelector },
         kind: 'tab',
         restoreStrategy: 'select-tab'
       })
@@ -383,7 +383,7 @@ export async function exploreWithScope(
           safe: !blocked,
           reason: blocked ? 'Action matched the Project click filter' : undefined
         },
-        locator: { role: interaction.role, name: interaction.name },
+        locator: { role: interaction.role, name: interaction.name, cssSelector: interaction.cssSelector },
         kind: 'modal-opener',
         restoreStrategy: 'close-dialog'
       })
@@ -404,7 +404,7 @@ export async function exploreWithScope(
           safe: !blocked,
           reason: blocked ? 'Action matched the Project click filter' : undefined
         },
-        locator: { role: interaction.role, name: interaction.name },
+        locator: { role: interaction.role, name: interaction.name, cssSelector: interaction.cssSelector },
         kind: 'dropdown',
         restoreStrategy: 'goto'
       })
@@ -425,7 +425,7 @@ export async function exploreWithScope(
           safe: !blocked,
           reason: blocked ? 'Action matched the Project click filter' : undefined
         },
-        locator: { role: interaction.role, name: interaction.name },
+        locator: { role: interaction.role, name: interaction.name, cssSelector: interaction.cssSelector },
         kind: 'accordion',
         restoreStrategy: 'goto'
       })
@@ -586,21 +586,37 @@ export async function exploreWithScope(
     entryFlow: EntryFlowStep[],
     maxRetries: number
   ): Promise<{ success: boolean; newUrl?: string; authLost?: boolean }> {
+    // Ordered fallbacks rather than a single locator: a role+name locator can
+    // miss when the accessible name is computed differently, or match several
+    // elements, and the recorded selector still resolves in both cases.
+    const locatorsFor = (): Array<() => ReturnType<Page['locator']>> => {
+      const options: Array<() => ReturnType<Page['locator']>> = []
+      const { role, name, testId, cssSelector } = candidate.locator
+      if (testId) options.push(() => page.getByTestId(testId))
+      if (role && name) {
+        options.push(() =>
+          page.getByRole(role as 'button' | 'link' | 'tab' | 'menuitem', { name, exact: true }).first()
+        )
+        options.push(() => page.getByRole(role as 'button' | 'link' | 'tab' | 'menuitem', { name }).first())
+      }
+      if (cssSelector) options.push(() => page.locator(cssSelector).first())
+      return options
+    }
+
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
         // Resolve locator fresh each time
-        let locator
-        if (candidate.locator.cssSelector) {
-          locator = page.locator(candidate.locator.cssSelector).first()
-        } else if (candidate.locator.role && candidate.locator.name) {
-          locator = page.getByRole(candidate.locator.role as 'button' | 'link' | 'tab' | 'menuitem', {
-            name: candidate.locator.name
-          })
-        } else if (candidate.locator.testId) {
-          locator = page.getByTestId(candidate.locator.testId)
-        } else {
-          return { success: false }
+        const options = locatorsFor()
+        if (options.length === 0) return { success: false }
+        let locator: ReturnType<Page['locator']> | undefined
+        for (const build of options) {
+          const next = build()
+          if ((await next.count()) > 0) {
+            locator = next
+            break
+          }
         }
+        if (!locator) throw new Error('No locator candidate matched')
 
         await locator.click({ timeout: legacyOptions.actionTimeoutMs })
         await page.waitForTimeout(legacyOptions.stateDiscoveryTimeoutMs)

@@ -2,6 +2,16 @@
 
 All notable changes to LazyScout are documented in this file.
 
+## [0.4.3] - 2026-08-13
+
+### Fixed
+
+- **Links wrapping nested `div`s were never reached.** The collector built an element's accessible name from `textContent`, which glues block siblings together with no separator: `<a><div>Icon</div><div>Orders</div></a>` produced `"IconOrders"` where the browser computes `"Icon Orders"`. Every `getByRole(role, { name })` locator built from that name matched nothing, so the pattern common to sidebar and card menus — `li > a` wrapping nested `div`s — failed on every action. The collector and the recorder now build the name the way the accessible name algorithm does, inserting a space around each non-inline descendant, skipping hidden subtrees, and using an image's `alt` in place of its children. A test asserts the result against the name Chromium itself resolves, across nine markup shapes.
+- **The crawler had no locator fallback.** `executeWithRetry` built one `getByRole` locator from the accessible name and gave up when it missed. Link and interaction candidates now also carry their recorded CSS selector, and the executor tries test id, then role with `exact`, then role without `exact`, then the recorded selector, using the first that resolves. The missing `exact` also meant a name that is a substring of another matched several elements and failed on strict mode.
+- **`<details>` accordions could not be expanded.** The action targeted the `<details>` element, which does nothing on click; it now targets the `<summary>` that actually toggles it.
+
+Measured against `fixtures/demo-site`: 2 pages → 7 pages, 23 → 67 Test Cases, 16 → 56 actions executed, and failed actions down from 4 to 1.
+
 ## [0.4.2] - 2026-08-13
 
 LazyScout moves from a link crawler to a deterministic UI pattern explorer. No LLM, no machine learning, and no inference from an element's wording: a Test Case is written only from an HTML or ARIA contract the page declares, or from a state transition the explorer actually observed. Anything else becomes a manual review case carrying its evidence.

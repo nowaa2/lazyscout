@@ -74,6 +74,36 @@ export function recorderInitScript(): void {
     return clean(wrapping?.textContent) || undefined
   }
 
+  /**
+   * Text the way the accessible name algorithm builds it: a space around every
+   * non-inline descendant. Plain `textContent` glues block siblings together,
+   * producing a name that no `getByRole` locator can match.
+   */
+  const renderedText = (el: Element): string => {
+    let text = ''
+    const walk = (node: Node): void => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        text += node.textContent ?? ''
+        return
+      }
+      if (node.nodeType !== Node.ELEMENT_NODE) return
+      const child = node as Element
+      const style = window.getComputedStyle(child as HTMLElement)
+      if (style.display === 'none' || style.visibility === 'hidden') return
+      if (child instanceof HTMLImageElement) {
+        const alt = child.getAttribute('alt')
+        if (alt) text += ` ${alt} `
+        return
+      }
+      const inline = style.display === 'inline' || style.display === 'contents'
+      if (!inline) text += ' '
+      for (const grandChild of Array.from(child.childNodes)) walk(grandChild)
+      if (!inline) text += ' '
+    }
+    for (const child of Array.from(el.childNodes)) walk(child)
+    return text
+  }
+
   const accessibleName = (element: Element): string | undefined => {
     const aria = clean(element.getAttribute('aria-label'))
     if (aria) return aria
@@ -103,7 +133,7 @@ export function recorderInitScript(): void {
       return undefined
     }
 
-    return clean(element.textContent) || undefined
+    return clean(renderedText(element)) || undefined
   }
 
   const TEST_ID_ATTRIBUTES = ['data-testid', 'data-test-id', 'data-test', 'data-qa', 'data-cy']
