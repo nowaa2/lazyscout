@@ -15,6 +15,16 @@ What follows from it:
 - Verification still has to happen before you report work as done. Run `npm test` locally and report the real numbers.
 - Behaviour a test would have protected must instead be described in `CHANGELOG.md`, so the reasoning survives even though the test does not travel with the repository.
 
+**Switching branches deletes your local test files.** `git rm --cached` leaves a file on disk, but once that removal is committed, checking out a branch where the file was still tracked and then moving to the commit that drops it makes Git delete the working copy. That is how the suite disappeared once already. Before any `git checkout` or `git merge` across the untracking commit, know that the files are recoverable from history:
+
+```bash
+for f in $(git ls-tree -r --name-only <commit-before-untracking> | grep -E '\.test\.ts$'); do
+  mkdir -p "$(dirname "$f")" && git show "<commit-before-untracking>:$f" > "$f"
+done
+```
+
+Run `npm test` after any branch switch to confirm the suite is still there. A run reporting no tests means the files are gone, not that the code is fine.
+
 ## Scratch and verification artifacts must never be committed
 
 Verifying a change here often means writing a throwaway script — a probe that calls `exploreWithScope` directly, a Fastify snippet that checks an event's timing, a JSON dump of a Scout result. **None of it belongs in the repository or in a commit.**
