@@ -78,7 +78,7 @@ Responds with `text/csv; charset=utf-8` and a UTF-8 BOM. Every value is quoted. 
 ## GET /api/health
 
 ```json
-{ "status": "ok", "version": "0.4.3", "workspaceRoot": "C:\\Users\\Example\\LazyScout" }
+{ "status": "ok", "version": "0.4.4", "workspaceRoot": "C:\\Users\\Example\\LazyScout" }
 ```
 
 ## GET /api/versions
@@ -88,11 +88,11 @@ Returns the running version and up to 20 recently published versions from the np
 ```json
 {
   "packageName": "lazyscout",
-  "currentVersion": "0.4.3",
-  "latestVersion": "0.4.3",
+  "currentVersion": "0.4.4",
+  "latestVersion": "0.4.4",
   "updateAvailable": false,
   "registryAvailable": true,
-  "versions": [{ "version": "0.4.3", "tags": ["latest"] }]
+  "versions": [{ "version": "0.4.4", "tags": ["latest"] }]
 }
 ```
 
@@ -101,7 +101,7 @@ Returns the running version and up to 20 recently published versions from the np
 Installs the selected LazyScout version globally. It accepts only a version number that exists in the npm Registry; the package name and command arguments are fixed by the application and never taken from user input.
 
 ```json
-{ "version": "0.4.3" }
+{ "version": "0.4.4" }
 ```
 
 After installing, close the current terminal and run `lazyscout` again — the running process still holds the previous version's code.

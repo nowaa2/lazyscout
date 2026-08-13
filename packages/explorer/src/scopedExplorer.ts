@@ -193,23 +193,58 @@ export async function exploreWithScope(
   }
 
   // Sidebar / navigation region detection
-  async function discoverNavigationRegions(page: Page): Promise<SafeActionCandidate[]> {
+  async function discoverNavigationRegions(page: Page, currentState: PageState): Promise<SafeActionCandidate[]> {
     const candidates: SafeActionCandidate[] = []
     try {
       const navItems = await page.evaluate(() => {
+        // Same accessible-name rules the collector uses: a space around every
+        // non-inline descendant. Reading textContent here glued a sidebar
+        // item's icon to its label ("•Overview") and no role locator matched.
+        const renderedText = (element: Element): string => {
+          let text = ''
+          const walk = (node: Node): void => {
+            if (node.nodeType === Node.TEXT_NODE) {
+              text += node.textContent ?? ''
+              return
+            }
+            if (node.nodeType !== Node.ELEMENT_NODE) return
+            const child = node as Element
+            const style = window.getComputedStyle(child as HTMLElement)
+            if (style.visibility === 'hidden') return
+            if (child instanceof HTMLImageElement) {
+              const alt = child.getAttribute('alt')
+              if (alt) text += ` ${alt} `
+              return
+            }
+            const inline = style.display === 'inline' || style.display === 'contents'
+            if (!inline) text += ' '
+            for (const grandChild of Array.from(child.childNodes)) walk(grandChild)
+            if (!inline) text += ' '
+          }
+          for (const child of Array.from(element.childNodes)) walk(child)
+          return text.replace(/\s+/g, ' ').trim()
+        }
+
         const results: { name: string; role: string; href: string | null; cssSelector: string }[] = []
         const navRegions = document.querySelectorAll(
           'nav a[href], aside a[href], [role="navigation"] a[href], [role="menu"] [role="menuitem"], [role="menubar"] [role="menuitem"]'
         )
         navRegions.forEach((el) => {
           const anchor = el as HTMLAnchorElement
-          const name = (el.getAttribute('aria-label') || el.textContent?.replace(/\s+/g, ' ').trim() || '') as string
-          if (!name || name.length > 80) return
+          // A collapsed submenu's links cannot be clicked. Offering them here
+          // made every one fail and, because a failed action is remembered,
+          // they were then skipped in the state where they were finally
+          // visible. They are discovered again once their section expands.
+          if (el.getClientRects().length === 0) return
+          const name = el.getAttribute('aria-label')?.trim() || renderedText(el)
+          // A long name is still the element's real name; truncating it would
+          // break the locator, so keep the entry and let the CSS fallback work.
+          if (!name) return
           const cssSel = el.id
             ? `#${CSS.escape(el.id)}`
-            : `${el.tagName.toLowerCase()}[href="${anchor.getAttribute('href') || ''}"]`
+            : `${el.tagName.toLowerCase()}[href="${(anchor.getAttribute('href') || '').replace(/["\\]/g, '\\$&')}"]`
           results.push({
-            name: name.slice(0, 80),
+            name,
             role: el.getAttribute('role') || 'link',
             href: anchor.href || null,
             cssSelector: cssSel
@@ -221,7 +256,9 @@ export async function exploreWithScope(
       for (const item of navItems) {
         if (!item.href) continue
         const action: StateEdge['action'] = {
-          id: `nav|${item.cssSelector}`,
+          // Scoped to the state, so failing here cannot blacklist the same link
+          // in a state where it is reachable.
+          id: `${currentState.id}|nav|${item.cssSelector}`,
           type: 'navigate',
           description: `Navigate to “${item.name}” via sidebar`,
           target: item.name,
@@ -240,7 +277,7 @@ export async function exploreWithScope(
         candidates.push({
           priority: 2,
           action,
-          locator: { role: item.role, name: item.name },
+          locator: { role: item.role, name: item.name, cssSelector: item.cssSelector },
           kind: 'sidebar-nav',
           restoreStrategy: 'goto'
         })
@@ -296,7 +333,7 @@ export async function exploreWithScope(
 
     // 2. Sidebar/navigation regions (priority 2)
     try {
-      const navCandidates = await discoverNavigationRegions(page)
+      const navCandidates = await discoverNavigationRegions(page, currentState)
       candidates.push(...navCandidates)
     } catch {
       // best-effort
@@ -515,11 +552,37 @@ export async function exploreWithScope(
   }
 
   // State restore
+  /**
+   * Re-apply the non-navigation actions that led to a state — expanding a
+   * menu, opening a tab — so the page is back in that state before it is
+   * collected. Best-effort: a control that no longer exists is skipped rather
+   * than failing the whole queue item.
+   */
+  async function replayEntryFlow(page: Page, entryFlow: EntryFlowStep[]): Promise<void> {
+    // Most flows are pure navigation and survive a reload on their own, so the
+    // replay cost is only paid by states that were opened in-page.
+    const inPageSteps = entryFlow.filter((step) => step.action.selector && step.action.type !== 'navigate')
+    if (inPageSteps.length === 0) return
+    for (const step of inPageSteps) {
+      const selector = step.action.selector
+      if (!selector) continue
+      try {
+        const target = page.locator(selector).first()
+        if ((await target.count()) === 0) continue
+        if (!(await target.isVisible())) continue
+        await target.click({ timeout: legacyOptions.actionTimeoutMs })
+        await page.waitForTimeout(legacyOptions.stateDiscoveryTimeoutMs)
+      } catch {
+        // The state may simply not be reachable from here anymore.
+      }
+    }
+  }
+
   async function restoreState(
     page: Page,
     targetUrl: string,
     strategy: StateRestoreStrategy,
-    _entryFlow: EntryFlowStep[]
+    entryFlow: EntryFlowStep[]
   ): Promise<void> {
     switch (strategy) {
       case 'goto':
@@ -527,12 +590,17 @@ export async function exploreWithScope(
           .goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: legacyOptions.pageTimeoutMs })
           .catch(() => undefined)
         await page.waitForTimeout(legacyOptions.waitAfterNavigationMs)
+        // A reload resets the page to its collapsed form. Without replaying the
+        // actions that opened this state, every remaining action in the state
+        // would target a control that is no longer on screen.
+        await replayEntryFlow(page, entryFlow)
         break
       case 'reload':
         await page
           .reload({ waitUntil: 'domcontentloaded', timeout: legacyOptions.pageTimeoutMs })
           .catch(() => undefined)
         await page.waitForTimeout(legacyOptions.waitAfterNavigationMs)
+        await replayEntryFlow(page, entryFlow)
         break
       case 'close-dialog':
         try {
@@ -548,7 +616,7 @@ export async function exploreWithScope(
         break
       case 'entry-replay':
         // Replay the entry flow steps
-        for (const step of _entryFlow) {
+        for (const step of entryFlow) {
           try {
             if (step.action.selector) {
               await page
@@ -919,12 +987,24 @@ export async function exploreWithScope(
         }
 
         // Get current state
-        const raw = await page.evaluate(collectPageData)
-        const currentModel = mapToPageModel(
-          raw,
-          { url: item.url, finalUrl: page.url(), depth: item.depth, statusCode: 200 },
-          legacyOptions.blockedKeywords
-        )
+        const collect = async () =>
+          mapToPageModel(
+            await page.evaluate(collectPageData),
+            { url: item.url, finalUrl: page.url(), depth: item.depth, statusCode: 200 },
+            legacyOptions.blockedKeywords
+          )
+        let currentModel = await collect()
+
+        // A state reached by expanding a menu or opening a tab does not survive
+        // the navigation above, so the actions that produced it are replayed.
+        // Only when the page is not already in that state — replaying a toggle
+        // against an already-open menu would close it again.
+        const wantedState = item.stateId ? actionGraph.states.find((state) => state.id === item.stateId) : undefined
+        if (wantedState && currentModel.state && currentModel.state.fingerprint !== wantedState.fingerprint) {
+          await replayEntryFlow(page, item.entryFlow)
+          currentModel = await collect()
+        }
+
         const currentState = currentModel.state
         if (!currentState) continue
 

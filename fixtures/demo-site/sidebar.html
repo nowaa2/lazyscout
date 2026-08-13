@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sidebar Lab · LazyShop Demo</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        margin: 0;
+        display: flex;
+      }
+      .sidebar {
+        width: 260px;
+        background: #111827;
+        color: #e5e7eb;
+        min-height: 100vh;
+        padding: 12px;
+      }
+      .sidebar ul {
+        list-style: none;
+        margin: 0;
+        padding: 0 0 0 10px;
+      }
+      .sidebar a,
+      .sidebar button {
+        display: block;
+        width: 100%;
+        text-align: left;
+        color: inherit;
+        background: none;
+        border: 0;
+        padding: 6px 4px;
+        text-decoration: none;
+        font: inherit;
+        cursor: pointer;
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .icon {
+        width: 18px;
+      }
+      .meta {
+        font-size: 11px;
+        opacity: 0.7;
+      }
+      main {
+        padding: 16px;
+        flex: 1;
+      }
+      [hidden] {
+        display: none !important;
+      }
+      [role='tab'][aria-selected='true'] {
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    <!--
+      A sidebar built the way real applications build them: every link wraps
+      several layers of div, sections nest, labels repeat across sections, and
+      some entries are icon-only. This is the shape that used to defeat the
+      crawler, so it exists to keep it defeated-proof.
+    -->
+    <aside class="sidebar">
+      <nav aria-label="Primary">
+        <ul>
+          <li>
+            <a href="/app/dashboard">
+              <div class="row">
+                <div class="icon">▤</div>
+                <div class="text"><div class="label">Dashboard</div></div>
+              </div>
+            </a>
+          </li>
+
+          <li>
+            <button type="button" aria-expanded="false" aria-controls="sec-sales">
+              <div class="row">
+                <div class="icon">₿</div>
+                <div><div>Sales</div></div>
+              </div>
+            </button>
+            <ul id="sec-sales" hidden>
+              <li>
+                <a href="/app/sales/overview">
+                  <div class="row">
+                    <div class="icon">•</div>
+                    <div>
+                      <div><div>Overview</div></div>
+                    </div>
+                  </div>
+                </a>
+              </li>
+              <li>
+                <a href="/app/sales/orders">
+                  <div class="row">
+                    <div class="icon">▦</div>
+                    <div>
+                      <div>
+                        <div>Orders</div>
+                        <div class="meta">Open and shipped</div>
+                      </div>
+                    </div>
+                  </div>
+                </a>
+              </li>
+              <li>
+                <button type="button" aria-expanded="false" aria-controls="sec-returns">
+                  <div class="row">
+                    <div class="icon">↩</div>
+                    <div><div>Returns</div></div>
+                  </div>
+                </button>
+                <ul id="sec-returns" hidden>
+                  <li>
+                    <a href="/app/sales/returns/open">
+                      <div class="row">
+                        <div>
+                          <div>
+                            <div><div>Open returns</div></div>
+                          </div>
+                        </div>
+                      </div>
+                    </a>
+                  </li>
+                  <li>
+                    <a href="/app/sales/returns/closed">
+                      <div class="row">
+                        <div>
+                          <div>
+                            <div><div>Closed returns</div></div>
+                          </div>
+                        </div>
+                      </div>
+                    </a>
+                  </li>
+                </ul>
+              </li>
+            </ul>
+          </li>
+
+          <li>
+            <button type="button" aria-expanded="false" aria-controls="sec-inventory">
+              <div class="row">
+                <div class="icon">▩</div>
+                <div><div>Inventory</div></div>
+              </div>
+            </button>
+            <ul id="sec-inventory" hidden>
+              <!-- Same label as the Sales child, in a different section. -->
+              <li>
+                <a href="/app/inventory/overview">
+                  <div class="row">
+                    <div class="icon">•</div>
+                    <div>
+                      <div><div>Overview</div></div>
+                    </div>
+                  </div>
+                </a>
+              </li>
+              <li>
+                <a href="/app/inventory/stock">
+                  <div class="row">
+                    <div class="icon">▣</div>
+                    <div>
+                      <div><div>Stock levels</div></div>
+                    </div>
+                  </div>
+                </a>
+              </li>
+            </ul>
+          </li>
+
+          <li>
+            <a href="/app/reports">
+              <div class="row">
+                <div class="icon">▧</div>
+                <div>
+                  <div>
+                    <div>Reports</div>
+                    <div class="meta">Revenue, refunds and settlement summaries for the finance team</div>
+                  </div>
+                </div>
+              </div>
+            </a>
+          </li>
+
+          <!-- Icon-only entry: the name comes from aria-label, not text. -->
+          <li>
+            <a href="/app/help" aria-label="Help centre"
+              ><div class="row"><div class="icon">?</div></div></a
+            >
+          </li>
+        </ul>
+      </nav>
+    </aside>
+
+    <main>
+      <h1>Sidebar Lab</h1>
+      <div role="tablist" aria-label="Workspace">
+        <button role="tab" id="tab-activity" aria-controls="panel-activity" aria-selected="true">
+          <div><div>Activity</div></div>
+        </button>
+        <button role="tab" id="tab-members" aria-controls="panel-members" aria-selected="false">
+          <div><div>Members</div></div>
+        </button>
+      </div>
+      <div role="tabpanel" id="panel-activity">
+        <p>Recent activity</p>
+        <ul>
+          <li>
+            <a href="/app/activity/latest"
+              ><div>
+                <div><div>Latest run</div></div>
+              </div></a
+            >
+          </li>
+        </ul>
+      </div>
+      <div role="tabpanel" id="panel-members" hidden>
+        <p>Team members</p>
+      </div>
+    </main>
+
+    <script>
+      for (const toggle of document.querySelectorAll('button[aria-controls][aria-expanded]')) {
+        toggle.addEventListener('click', () => {
+          const open = toggle.getAttribute('aria-expanded') === 'true'
+          toggle.setAttribute('aria-expanded', String(!open))
+          document.getElementById(toggle.getAttribute('aria-controls')).toggleAttribute('hidden', open)
+        })
+      }
+      for (const tab of document.querySelectorAll('[role="tab"]')) {
+        tab.addEventListener('click', () => {
+          for (const other of document.querySelectorAll('[role="tab"]')) {
+            const selected = other === tab
+            other.setAttribute('aria-selected', String(selected))
+            document.getElementById(other.getAttribute('aria-controls')).toggleAttribute('hidden', !selected)
+          }
+        })
+      }
+    </script>
+  </body>
+</html>

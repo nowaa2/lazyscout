@@ -2,6 +2,22 @@
 
 All notable changes to LazyScout are documented in this file.
 
+## [0.4.4] - 2026-08-13
+
+### Fixed
+
+Collapsed sidebar sections were effectively invisible to the crawler. Three separate causes, found by crawling a new fixture (`fixtures/demo-site/sidebar.html`) that mirrors how real applications build a sidebar: links wrapping several layers of `div`, sections that start collapsed and nest, labels repeated across sections, and an icon-only entry.
+
+- **Sidebar discovery used its own text extraction.** `discoverNavigationRegions` read `textContent`, which glues block siblings together, so an entry rendered as an icon beside a label became `"•Overview"` and no role locator matched. It now applies the same accessible-name rules as the collector, and carries the recorded CSS selector as a fallback.
+- **Links inside a collapsed section were offered as actions, failed, and were then blacklisted.** A hidden link cannot be clicked, and because a failed action is remembered globally it was skipped again in the state where the section had been expanded and the link was finally reachable. Hidden entries are no longer offered, and a navigation action's id is now scoped to its state so failing in one state cannot blacklist it in another.
+- **In-page state was never restored.** `restoreState` accepted the entry flow but ignored it, so navigating away and returning collapsed every section. Every action after the first in an expanded state then targeted a control that was no longer on screen. The actions that opened a state are now replayed after a `goto` or `reload` restore, and when a queued state is picked up whose fingerprint no longer matches the live page. Replay is skipped entirely for flows that are pure navigation, so ordinary sites pay nothing for it.
+
+Measured on the new fixture, with routes only reachable by expanding a section: **5 of 10 routes → 9 of 10**, and failed actions from 6 to 0 at equal budget.
+
+### Known limitation
+
+Routes behind a section nested inside another collapsed section are still missed. Restoring a two-level in-page state is not yet reliable, so those entries are discovered but their navigation is not executed.
+
 ## [0.4.3] - 2026-08-13
 
 ### Fixed
