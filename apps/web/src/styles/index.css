@@ -3010,6 +3010,58 @@ body {
   color: #92400e;
 }
 
+/*
+ * One padded column for the whole session panel. The blocks used to carry
+ * their own margins, so the status banner sat wider than everything around it
+ * and looked misaligned.
+ */
+.auth-panel {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  align-content: start;
+}
+
+@media (min-width: 640px) {
+  .auth-panel {
+    padding: 1.25rem 1.5rem;
+  }
+}
+
+.auth-steps {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0;
+  padding-left: 1.25rem;
+  /* Restated because the base stylesheet strips list markers, and the order of
+     these three steps is the point of showing them. */
+  list-style: decimal outside;
+  font-size: 0.8rem;
+  color: #475569;
+}
+
+.auth-steps li {
+  padding-left: 0.15rem;
+}
+
+/* A warning that needs to be read but not to dominate the panel. */
+.auth-warn {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border-left: 3px solid #f59e0b;
+  border-radius: 0 6px 6px 0;
+  background: #fffbeb;
+  font-size: 0.78rem;
+  color: #92400e;
+}
+
+/* Housekeeping actions, set apart from the ones that drive the flow. */
+.auth-session-secondary {
+  margin-top: 0.25rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e2e8f0;
+}
+
 /* Session state banner */
 .auth-state {
   display: flex;
@@ -3129,21 +3181,35 @@ body {
   color: #b91c1c;
 }
 
+/* What the snapshot contains, as counts. Never a value. */
 .auth-session-facts {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.5rem;
   margin: 0;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+@media (max-width: 520px) {
+  .auth-session-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .auth-session-facts dt {
-  font-size: 0.68rem;
+  overflow: hidden;
+  font-size: 0.65rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: #64748b;
 }
 
 .auth-session-facts dd {
-  margin: 0;
-  font-size: 0.85rem;
+  margin: 0.1rem 0 0;
+  font-size: 0.82rem;
   font-weight: 600;
   color: #0f172a;
 }

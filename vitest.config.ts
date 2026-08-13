@@ -9,7 +9,7 @@ import { defineConfig } from 'vitest/config'
  * intermittently time out. Capping the worker count keeps the suite honest:
  * a failure then means the code is wrong, not that the box was busy.
  */
-const maxWorkers = Math.max(2, Math.min(4, cpus().length))
+const maxWorkers = Math.max(1, Math.min(2, cpus().length))
 
 export default defineConfig({
   test: {

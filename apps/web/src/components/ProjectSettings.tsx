@@ -264,16 +264,7 @@ export function ProjectSettings({
             </div>
           )}
           {activeTab === 'session' && projectId && targetUrl && (
-            <div className="settings-section">
-              <div className="settings-notice settings-notice-stacked">
-                <b>{th ? 'ขั้นตอน' : 'How it works'}</b>
-                <span>
-                  {th
-                    ? '1. เปิด Login browser แล้วเข้าสู่ระบบเอง  2. กด Capture session  3. กด Verify กับหน้าที่ต้อง login'
-                    : '1. Open the login browser and sign in.  2. Capture the session.  3. Verify it against a page that requires a login.'}
-                </span>
-              </div>
-
+            <div className="auth-panel">
               <div className={`auth-state auth-state-${authState}`} aria-live="polite">
                 <span className="auth-state-dot" />
                 <div>
@@ -283,26 +274,58 @@ export function ProjectSettings({
                 <span className="auth-state-badge">{authState}</span>
               </div>
 
+              {/* The walkthrough is only useful before there is a session; once
+                  one exists it just pushes the status and actions down. */}
+              {!hasSnapshot && (
+                <ol className="auth-steps">
+                  <li>{th ? 'เปิด Login browser แล้วเข้าสู่ระบบ' : 'Open the login browser and sign in'}</li>
+                  <li>{th ? 'กด Capture session' : 'Capture the session'}</li>
+                  <li>{th ? 'Verify กับหน้าที่ต้องล็อกอิน' : 'Verify against a page that requires a login'}</li>
+                </ol>
+              )}
+
+              {/* Facts sit with the status they describe rather than below the
+                  controls, where they were pushed off the bottom edge. */}
+              {hasSnapshot && (
+                <dl className="auth-session-facts">
+                  <div>
+                    <dt>{th ? 'Cookie' : 'Cookies'}</dt>
+                    <dd>
+                      {authStatus?.cookieCount ?? 0}
+                      {authStatus?.sessionCookieCount
+                        ? ` (${authStatus.sessionCookieCount} ${th ? 'session' : 'session'})`
+                        : ''}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>{th ? 'Origin' : 'Origins'}</dt>
+                    <dd>{authStatus?.originCount ?? 0}</dd>
+                  </div>
+                  <div>
+                    <dt>sessionStorage</dt>
+                    <dd>{authStatus?.sessionStorageOriginCount ?? 0}</dd>
+                  </div>
+                  <div>
+                    <dt>IndexedDB</dt>
+                    <dd>{authStatus?.indexedDb ? (th ? 'รวม' : 'included') : th ? 'ไม่รองรับ' : 'unsupported'}</dd>
+                  </div>
+                </dl>
+              )}
+
               {authStatus?.browserModeMismatch && (
-                <div className="settings-notice settings-notice-warn">
-                  <b>{th ? 'โหมดเบราว์เซอร์ไม่ตรงกัน' : 'Browser mode differs'}</b>
-                  <span>
-                    {th
-                      ? 'Session ถูกบันทึกคนละโหมดกับที่ใช้รัน บางเว็บจะปฏิเสธ session ที่มาจากเบราว์เซอร์คนละแบบ'
-                      : 'This session was captured in a different browser mode from the one runs use. Some applications reject a session issued to another browser.'}
-                  </span>
-                </div>
+                <p className="auth-warn">
+                  {th
+                    ? 'Session ถูกบันทึกคนละโหมดเบราว์เซอร์กับที่ใช้รัน บางเว็บจะปฏิเสธ'
+                    : 'Captured in a different browser mode from the one runs use. Some applications reject that.'}
+                </p>
               )}
 
               {authStatus?.lockedBy && (
-                <div className="settings-notice settings-notice-warn">
-                  <b>{th ? 'กำลังถูกใช้งาน' : 'In use'}</b>
-                  <span>
-                    {th
-                      ? `Session นี้ถูกใช้โดย ${authStatus.lockedBy} อยู่ — รันพร้อมกันสองตัวจะทำให้ session หลุด`
-                      : `Held by ${authStatus.lockedBy}. Running two at once on one session signs both out.`}
-                  </span>
-                </div>
+                <p className="auth-warn">
+                  {th
+                    ? `กำลังถูกใช้โดย ${authStatus.lockedBy} — รันพร้อมกันสองตัวจะทำให้ session หลุด`
+                    : `Held by ${authStatus.lockedBy}. Running two at once on one session signs both out.`}
+                </p>
               )}
 
               <div className="auth-session-actions">
@@ -423,33 +446,7 @@ export function ProjectSettings({
 
               {authError && <p className="auth-session-error">{authError}</p>}
 
-              {hasSnapshot && (
-                <dl className="auth-session-facts">
-                  <div>
-                    <dt>{th ? 'Cookie' : 'Cookies'}</dt>
-                    <dd>
-                      {authStatus?.cookieCount ?? 0}
-                      {authStatus?.sessionCookieCount
-                        ? ` (${authStatus.sessionCookieCount} ${th ? 'แบบ session' : 'session'})`
-                        : ''}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>{th ? 'Origin' : 'Origins'}</dt>
-                    <dd>{authStatus?.originCount ?? 0}</dd>
-                  </div>
-                  <div>
-                    <dt>sessionStorage</dt>
-                    <dd>{authStatus?.sessionStorageOriginCount ?? 0}</dd>
-                  </div>
-                  <div>
-                    <dt>IndexedDB</dt>
-                    <dd>{authStatus?.indexedDb ? (th ? 'รวมด้วย' : 'included') : th ? 'ไม่รองรับ' : 'unsupported'}</dd>
-                  </div>
-                </dl>
-              )}
-
-              <div className="auth-session-actions">
+              <div className="auth-session-actions auth-session-secondary">
                 <button
                   type="button"
                   className="btn btn-secondary"
