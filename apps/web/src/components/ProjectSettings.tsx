@@ -66,14 +66,19 @@ export function ProjectSettings({
   const [authCapturing, setAuthCapturing] = useState(false)
   const [authVerifying, setAuthVerifying] = useState(false)
   const [authClearConfirm, setAuthClearConfirm] = useState(false)
-  const [loginBrowserOpen, setLoginBrowserOpen] = useState(false)
+  const [loginJustOpened, setLoginJustOpened] = useState(false)
   const [authError, setAuthError] = useState<string>()
-  const [verifyPath, setVerifyPath] = useState('/')
+  // Deliberately empty: verifying against '/' would pass on almost any site and
+  // report a working session that does not exist.
+  const [verifyPath, setVerifyPath] = useState('')
   const [saved, setSaved] = useState(false)
   const update = (key: keyof ProjectSecrets, value: string) =>
     setDraft((current) => ({ ...current, [key]: value || undefined }))
 
   const authState = authStatus?.status ?? 'not-configured'
+  // The server knows whether a sign-in window is still waiting; local state only
+  // covers the moment between opening one and the next status refresh.
+  const loginBrowserOpen = authStatus?.loginBrowserOpen ?? loginJustOpened
   const authBusy = authOpening || authCapturing || authVerifying
   const hasSnapshot = authState !== 'not-configured'
   const dirty = JSON.stringify(draft) !== JSON.stringify(secrets)
@@ -309,7 +314,7 @@ export function ProjectSettings({
                     setAuthError(undefined)
                     try {
                       await openWorkspaceAuthSession(projectId, targetUrl)
-                      setLoginBrowserOpen(true)
+                      setLoginJustOpened(true)
                       await refreshAuthStatus()
                     } catch (error) {
                       setAuthError(messageOf(error))
@@ -337,7 +342,7 @@ export function ProjectSettings({
                     setAuthError(undefined)
                     try {
                       setAuthStatus(await captureWorkspaceAuthSession(projectId))
-                      setLoginBrowserOpen(false)
+                      setLoginJustOpened(false)
                     } catch (error) {
                       setAuthError(messageOf(error))
                     } finally {
@@ -350,7 +355,9 @@ export function ProjectSettings({
               </div>
 
               <label className="auth-verify-row">
-                <span>{th ? 'หน้าที่ต้องล็อกอิน' : 'Protected path'}</span>
+                <span>
+                  {th ? 'หน้าที่ต้องล็อกอิน (เช่น /dashboard)' : 'A path that requires a login (e.g. /dashboard)'}
+                </span>
                 <div>
                   <input
                     value={verifyPath}
@@ -361,8 +368,18 @@ export function ProjectSettings({
                   <button
                     type="button"
                     className="btn btn-secondary"
-                    disabled={authBusy || !hasSnapshot}
-                    title={hasSnapshot ? undefined : th ? 'บันทึก Session ก่อน' : 'Capture a session first'}
+                    disabled={authBusy || !hasSnapshot || !verifyPath.trim()}
+                    title={
+                      !hasSnapshot
+                        ? th
+                          ? 'บันทึก Session ก่อน'
+                          : 'Capture a session first'
+                        : !verifyPath.trim()
+                          ? th
+                            ? 'ใส่ path ของหน้าที่ต้องล็อกอิน'
+                            : 'Enter a path that requires a login'
+                          : undefined
+                    }
                     onClick={async () => {
                       setAuthVerifying(true)
                       setAuthError(undefined)
@@ -435,7 +452,7 @@ export function ProjectSettings({
                       onClick={async () => {
                         await clearWorkspaceAuthSession(projectId)
                         setAuthClearConfirm(false)
-                        setLoginBrowserOpen(false)
+                        setLoginJustOpened(false)
                         await refreshAuthStatus()
                       }}
                     >

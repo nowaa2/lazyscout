@@ -17,6 +17,14 @@ All notable changes to LazyScout are documented in this file.
 
 **Signing in and executing used different browsers.** The login window was headed while the Recorder, Scout and the runner were headless, so an application that ties a session to the browser it was issued to would reject the reused one. All four now share one mode from `config.headless`; set `LAZYSCOUT_HEADED=1` to run everything visibly. A snapshot captured in a different mode is reported through `browserModeMismatch` rather than failing silently. No fingerprint is spoofed.
 
+**The login window opened invisibly.** Making every flow share one browser mode was applied too broadly: the sign-in window followed `config.headless`, which defaults to headless, so **Open login browser** appeared to do nothing and there was no way to type credentials. That window is now always visible, because a person has to use it. Consistency is still enforced, but by reporting `browserModeMismatch` on the snapshot rather than by hiding the window.
+
+**Capture reported success while still holding the lock.** The window was closed and the lock released in a `finally` that ran after the response had been sent, so pressing **Verify** immediately after **Capture** was rejected as busy by a lock that was about to disappear. Cleanup now completes before the reply.
+
+**Capture became unavailable after closing the dialog.** Whether a sign-in window was open was tracked only in component state, so reopening Project Settings disabled **Capture session** even though the window was still waiting. The server reports it instead.
+
+**Verify defaulted to `/`.** Almost no site protects its root, so the default path would have reported a working session that did not exist. The field now starts empty and Verify stays disabled until a path is entered.
+
 **The test suite failed at random.** Several suites drive a real Chromium and a few of those also start the Playwright CLI, which starts another; fanned out across every core the machine ran more browsers than it could schedule and the timing-sensitive ones intermittently timed out. Worker count is now capped and the timeouts raised, so a failure means the code is wrong rather than the machine being busy. Three consecutive full runs passed after the change.
 
 ### Added

@@ -103,10 +103,12 @@ export function registerWorkspaceRoutes(app: FastifyInstance, root: string): voi
       throw error
     }
 
-    // A human has to type credentials, so this window is visible even when the
-    // rest of the run is headless. The mismatch is recorded on the snapshot so
-    // the status can warn about it rather than leaving it invisible.
-    const headless = config.headless
+    // Always visible. A person has to read the page and type credentials into
+    // it, so a headless sign-in window is simply unusable — making this follow
+    // the execution mode made "Open login browser" appear to do nothing.
+    // Consistency still matters, but it is enforced by reporting the mismatch
+    // on the snapshot rather than by hiding the window from the operator.
+    const headless = false
     const launched = await launchBrowser({ userDataDir: await browserProfileDirectory(root, projectId), headless })
     const page = launched.context.pages()[0] ?? (await launched.context.newPage())
     await page.goto(check.url.toString(), { waitUntil: 'domcontentloaded' })
@@ -131,22 +133,32 @@ export function registerWorkspaceRoutes(app: FastifyInstance, root: string): voi
           error: { code: 'no-login-browser', message: 'Open the login browser before capturing a session.' }
         })
       const log = (message: string) => request.log.info(message)
+      // The window is closed and the lock released *before* replying. Cleaning
+      // up in a `finally` after `reply.send` let the caller act on the response
+      // while the lock was still held, so pressing Verify straight after
+      // Capture was rejected as busy by a lock about to disappear.
+      let meta: Awaited<ReturnType<typeof saveAuthSnapshot>> | undefined
+      let failure: unknown
       try {
         log('[Auth] Recorded login completed')
         const page = active.launched.context.pages().find((candidate: Page) => !candidate.isClosed())
         await waitForAuthSettle(active.launched.context, page, { log })
         const { snapshot, indexedDb } = await captureAuthSnapshot(active.launched.context, { log })
-        const meta = await saveAuthSnapshot(active.projectDirectory, snapshot, {
+        meta = await saveAuthSnapshot(active.projectDirectory, snapshot, {
           indexedDb,
           capturedHeadless: active.headless,
           log
         })
-        return reply.send(meta)
-      } finally {
-        authSessions.delete(projectId)
-        await active.launched.close().catch(() => undefined)
-        await active.release().catch(() => undefined)
+      } catch (error) {
+        failure = error
       }
+
+      authSessions.delete(projectId)
+      await active.launched.close().catch(() => undefined)
+      await active.release().catch(() => undefined)
+
+      if (failure) throw failure
+      return reply.send(meta)
     }
   )
 
@@ -161,6 +173,9 @@ export function registerWorkspaceRoutes(app: FastifyInstance, root: string): voi
       // and never means the login still works.
       profile: await browserProfileStatus(root, projectId),
       lockedBy: lock?.holder,
+      // Whether a sign-in window is still open and waiting to be captured.
+      // Held on the server so closing and reopening the dialog does not lose it.
+      loginBrowserOpen: authSessions.has(projectId),
       executionHeadless: config.headless,
       // A snapshot taken in a different browser mode can be rejected by an app
       // that binds a session to the browser it was issued to.

@@ -192,6 +192,8 @@ export type WorkspaceAuthSessionStatus = {
   executionHeadless?: boolean
   browserModeMismatch?: boolean
   lockedBy?: 'scout' | 'recorder' | 'runner' | 'login-browser'
+  /** A sign-in window is open and waiting to be captured. */
+  loginBrowserOpen?: boolean
   /** Describes the profile directory only; never means the login still works. */
   profile?: {
     profileExists: boolean
