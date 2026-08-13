@@ -2,24 +2,6 @@
 
 All notable changes to LazyScout are documented in this file.
 
-## [0.4.6] - 2026-08-13
-
-### Added
-
-- **Browser Session tab now drives the whole session flow.** 0.4.5 added the capture, verify and clear endpoints but left them unreachable from the interface. The tab now walks through it: open the login browser, **Capture session**, then **Verify** against a protected path. Capture stays disabled until a login browser has been opened and Verify until a session exists, so the order cannot be got wrong.
-- The panel reports the real state — `not-configured`, `recorded`, `verifying`, `ready`, `expired`, `invalid` — with a coloured banner, when it was captured or last verified, and counts of cookies, session cookies, origins, sessionStorage origins and whether IndexedDB was included. Counts only; no value is ever shown.
-- Warnings surface where they matter: a snapshot captured in a different browser mode from the one runs use, and a session currently held by another Scout, recording or run.
-
-### Changed
-
-- **The settings tab strip is about half its former height.** Each tab was a two-line block with a subtitle, which made the strip taller than some of the sections it labelled. Tabs are now a single centred line and the description moved into the tooltip, where it is still available to a screen reader through `aria-label`.
-- **The dialog keeps one height on every tab.** It used to resize as sections changed — 755px on Credentials down to 474px on Browser Session — so the footer jumped under the cursor. Credentials is the tallest section and now sets the height for all of them; shorter sections leave space and taller ones scroll inside the same frame. The height belongs on the card rather than on the body, because the body is a flex child whose own sizing ignores `height`.
-- **Save credentials and Clear secrets appear on every tab.** They used to exist only on Credentials, so typing a password and switching tabs silently discarded it. Save is disabled until something actually changes, shows a `Saved` confirmation, and no longer closes the dialog, so a credential can be saved and the session configured in one visit.
-
-### Fixed
-
-- The test suite no longer fails at random. Several suites drive a real Chromium and a few of those also start the Playwright CLI, which starts another; fanned out across every core the machine ran more browsers than it could schedule and the timing-sensitive ones intermittently timed out. Worker count is now capped and the timeouts raised, so a failure means the code is wrong rather than the machine being busy. Three consecutive full runs passed after the change.
-
 ## [0.4.5] - 2026-08-13
 
 ### Fixed
@@ -35,14 +17,20 @@ All notable changes to LazyScout are documented in this file.
 
 **Signing in and executing used different browsers.** The login window was headed while the Recorder, Scout and the runner were headless, so an application that ties a session to the browser it was issued to would reject the reused one. All four now share one mode from `config.headless`; set `LAZYSCOUT_HEADED=1` to run everything visibly. A snapshot captured in a different mode is reported through `browserModeMismatch` rather than failing silently. No fingerprint is spoofed.
 
+**The test suite failed at random.** Several suites drive a real Chromium and a few of those also start the Playwright CLI, which starts another; fanned out across every core the machine ran more browsers than it could schedule and the timing-sensitive ones intermittently timed out. Worker count is now capped and the timeouts raised, so a failure means the code is wrong rather than the machine being busy. Three consecutive full runs passed after the change.
+
 ### Added
 
+- **A Browser Session tab that drives the whole flow.** Open the login browser, **Capture session**, then **Verify** against a protected path. Capture stays disabled until a login browser has been opened and Verify until a session exists, so the order cannot be got wrong. The panel shows the real state with a coloured banner, when it was captured or last verified, and counts of cookies, session cookies, origins, sessionStorage origins and whether IndexedDB was included — counts only, never a value. It warns when a snapshot was captured in a different browser mode from the one runs use, and when the session is held by another Scout, recording or run.
 - An auth-profile lock. An application that rotates refresh tokens revokes the old one on every use, so two runs sharing one snapshot sign each other out and a server that spots the reuse may revoke the whole token family. A Scout, recording or Test run now holds the Project's session exclusively and a second one is refused with an explanation. The lock is a file carrying a pid and a timestamp, so it holds across processes and a crashed holder cannot block the Project.
 - `POST /api/workspace/projects/:id/auth-session/capture` and `.../auth-session/verify`. Clearing the session now removes both the snapshot and the browser profile.
 - `[Auth]` progress logs through capture, restore, verification and ready, carrying no secret values.
 
 ### Changed
 
+- **The settings tab strip is about half its former height.** Each tab was a two-line block with a subtitle, which made the strip taller than some of the sections it labelled. Tabs are now a single centred line at 34px each, and the description moved into the tooltip where it stays available to a screen reader through `aria-label`.
+- **The settings dialog keeps one height on every tab.** It used to resize as sections changed — 755px on Credentials down to 474px on Browser Session — so the footer jumped under the cursor. Credentials is the tallest section and now sets the height for all of them at 752px; shorter sections leave space and taller ones scroll inside the same frame. The height belongs on the card rather than on the body, because the body is a flex child whose own sizing ignores `height`.
+- **Save credentials and Clear secrets appear on every tab.** They used to exist only on Credentials, so typing a password and switching tabs silently discarded it. Save is disabled until something actually changes, shows a `Saved` confirmation, and no longer closes the dialog, so a credential can be saved and the session configured in one visit.
 - **Test files are no longer tracked in Git.** `**/*.test.ts` and `**/*.spec.ts` are gitignored without exception, by the owner's decision, and the 21 previously committed test files have been untracked. They remain on the developer's disk and still run under `npm test`; a fresh clone simply has none, which is why `npm test` now passes with `--passWithNoTests` so `release:check` stays green on a clean checkout. The rule and its consequences are recorded in [CLAUDE.md](CLAUDE.md) and [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ### Known limitations
