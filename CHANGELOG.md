@@ -2,6 +2,24 @@
 
 All notable changes to LazyScout are documented in this file.
 
+## [0.4.6] - 2026-08-13
+
+### Added
+
+- **Browser Session tab now drives the whole session flow.** 0.4.5 added the capture, verify and clear endpoints but left them unreachable from the interface. The tab now walks through it: open the login browser, **Capture session**, then **Verify** against a protected path. Capture stays disabled until a login browser has been opened and Verify until a session exists, so the order cannot be got wrong.
+- The panel reports the real state — `not-configured`, `recorded`, `verifying`, `ready`, `expired`, `invalid` — with a coloured banner, when it was captured or last verified, and counts of cookies, session cookies, origins, sessionStorage origins and whether IndexedDB was included. Counts only; no value is ever shown.
+- Warnings surface where they matter: a snapshot captured in a different browser mode from the one runs use, and a session currently held by another Scout, recording or run.
+
+### Changed
+
+- **The settings tab strip is about half its former height.** Each tab was a two-line block with a subtitle, which made the strip taller than some of the sections it labelled. Tabs are now a single centred line and the description moved into the tooltip, where it is still available to a screen reader through `aria-label`.
+- **The dialog keeps one height on every tab.** It used to resize as sections changed — 755px on Credentials down to 474px on Browser Session — so the footer jumped under the cursor. Credentials is the tallest section and now sets the height for all of them; shorter sections leave space and taller ones scroll inside the same frame. The height belongs on the card rather than on the body, because the body is a flex child whose own sizing ignores `height`.
+- **Save credentials and Clear secrets appear on every tab.** They used to exist only on Credentials, so typing a password and switching tabs silently discarded it. Save is disabled until something actually changes, shows a `Saved` confirmation, and no longer closes the dialog, so a credential can be saved and the session configured in one visit.
+
+### Fixed
+
+- The test suite no longer fails at random. Several suites drive a real Chromium and a few of those also start the Playwright CLI, which starts another; fanned out across every core the machine ran more browsers than it could schedule and the timing-sensitive ones intermittently timed out. Worker count is now capped and the timeouts raised, so a failure means the code is wrong rather than the machine being busy. Three consecutive full runs passed after the change.
+
 ## [0.4.5] - 2026-08-13
 
 ### Fixed

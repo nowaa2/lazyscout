@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import type { ProjectSecrets, TestStep } from '../types'
 import {
+  captureWorkspaceAuthSession,
   clearWorkspaceAuthSession,
   getWorkspaceAuthSessionStatus,
   openWorkspaceAuthSession,
+  verifyWorkspaceAuthSession,
   type WorkspaceAuthSessionStatus
 } from '../api/client'
 import { RecorderPanel } from './RecorderPanel'
@@ -12,6 +14,20 @@ import type { ClickFilter } from '../hooks/useClickFilter'
 import { useLanguage } from '../i18n'
 
 export type ProjectSettingsTab = 'credentials' | 'session' | 'safety' | 'recorder'
+
+/** [English, Thai] headline for each session state. */
+const authStateLabel: Record<string, [string, string]> = {
+  'not-configured': ['No session saved', 'ยังไม่มี Session'],
+  recorded: ['Session saved — not verified yet', 'บันทึกแล้ว — ยังไม่ได้ตรวจสอบ'],
+  verifying: ['Checking…', 'กำลังตรวจสอบ…'],
+  ready: ['Ready — a protected page opened', 'พร้อมใช้ — เปิดหน้าที่ต้องล็อกอินได้'],
+  expired: ['Expired — sign in again', 'หมดอายุ — ต้องเข้าสู่ระบบใหม่'],
+  invalid: ['Unusable — record the login again', 'ใช้ไม่ได้ — บันทึกการ Login ใหม่']
+}
+
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
 
 type Props = {
   projectName?: string
@@ -47,9 +63,32 @@ export function ProjectSettings({
   const [authStatus, setAuthStatus] = useState<WorkspaceAuthSessionStatus>()
   const [authStatusLoading, setAuthStatusLoading] = useState(false)
   const [authOpening, setAuthOpening] = useState(false)
+  const [authCapturing, setAuthCapturing] = useState(false)
+  const [authVerifying, setAuthVerifying] = useState(false)
   const [authClearConfirm, setAuthClearConfirm] = useState(false)
+  const [loginBrowserOpen, setLoginBrowserOpen] = useState(false)
+  const [authError, setAuthError] = useState<string>()
+  const [verifyPath, setVerifyPath] = useState('/')
+  const [saved, setSaved] = useState(false)
   const update = (key: keyof ProjectSecrets, value: string) =>
     setDraft((current) => ({ ...current, [key]: value || undefined }))
+
+  const authState = authStatus?.status ?? 'not-configured'
+  const authBusy = authOpening || authCapturing || authVerifying
+  const hasSnapshot = authState !== 'not-configured'
+  const dirty = JSON.stringify(draft) !== JSON.stringify(secrets)
+
+  const authDetail =
+    authStatus?.detail ??
+    (authStatus?.verifiedAt
+      ? `${th ? 'ตรวจล่าสุด' : 'Last verified'} ${new Date(authStatus.verifiedAt).toLocaleString()}${
+          authStatus.verifiedPath ? ` · ${authStatus.verifiedPath}` : ''
+        }`
+      : authStatus?.capturedAt
+        ? `${th ? 'บันทึกเมื่อ' : 'Captured'} ${new Date(authStatus.capturedAt).toLocaleString()}`
+        : th
+          ? 'ยังไม่ได้บันทึก Session สำหรับโปรเจกต์นี้'
+          : 'No session has been recorded for this Project yet.')
 
   async function refreshAuthStatus() {
     if (!projectId) return
@@ -134,14 +173,18 @@ export function ProjectSettings({
               ]
             ] as Array<[ProjectSettingsTab, string, string]>
           ).map(([key, label, hint]) => (
+            // The description lives in the tooltip rather than a second line:
+            // as a subtitle it made the tab strip taller than the content it
+            // was labelling.
             <button
               key={key}
               type="button"
+              title={hint}
+              aria-label={`${label} — ${hint}`}
               className={activeTab === key ? 'is-active' : ''}
               onClick={() => setActiveTab(key)}
             >
               <b>{label}</b>
-              <small>{hint}</small>
             </button>
           ))}
         </nav>
@@ -215,59 +258,174 @@ export function ProjectSettings({
             </div>
           )}
           {activeTab === 'session' && projectId && targetUrl && (
-            <div className="settings-notice settings-notice-stacked">
-              <b>Google / SSO session</b>
-              <span>
-                Open a separate LazyScout browser, sign in manually, then close that browser. Future Automation runs use
-                this Project profile.
-              </span>
-              <div className="auth-session-status" aria-live="polite">
-                <span
-                  className={`auth-session-dot ${authStatus?.cookieStoreDetected ? 'is-ready' : authStatus?.profileExists ? 'is-profile' : ''}`}
-                />
-                <div>
-                  <b>
-                    {authStatus?.cookieStoreDetected
-                      ? 'Browser profile saved'
-                      : authStatus?.profileExists
-                        ? 'Browser profile created — login not verified'
-                        : 'No saved browser profile yet'}
-                  </b>
-                  <small>
-                    {authStatus?.lastModifiedAt
-                      ? `Last changed ${new Date(authStatus.lastModifiedAt).toLocaleString()}`
-                      : 'Open the login browser to create this Project profile.'}
-                  </small>
-                </div>
+            <div className="settings-section">
+              <div className="settings-notice settings-notice-stacked">
+                <b>{th ? 'ขั้นตอน' : 'How it works'}</b>
+                <span>
+                  {th
+                    ? '1. เปิด Login browser แล้วเข้าสู่ระบบเอง  2. กด Capture session  3. กด Verify กับหน้าที่ต้อง login'
+                    : '1. Open the login browser and sign in.  2. Capture the session.  3. Verify it against a page that requires a login.'}
+                </span>
               </div>
+
+              <div className={`auth-state auth-state-${authState}`} aria-live="polite">
+                <span className="auth-state-dot" />
+                <div>
+                  <b>{authStateLabel[authState][th ? 1 : 0]}</b>
+                  <small>{authDetail}</small>
+                </div>
+                <span className="auth-state-badge">{authState}</span>
+              </div>
+
+              {authStatus?.browserModeMismatch && (
+                <div className="settings-notice settings-notice-warn">
+                  <b>{th ? 'โหมดเบราว์เซอร์ไม่ตรงกัน' : 'Browser mode differs'}</b>
+                  <span>
+                    {th
+                      ? 'Session ถูกบันทึกคนละโหมดกับที่ใช้รัน บางเว็บจะปฏิเสธ session ที่มาจากเบราว์เซอร์คนละแบบ'
+                      : 'This session was captured in a different browser mode from the one runs use. Some applications reject a session issued to another browser.'}
+                  </span>
+                </div>
+              )}
+
+              {authStatus?.lockedBy && (
+                <div className="settings-notice settings-notice-warn">
+                  <b>{th ? 'กำลังถูกใช้งาน' : 'In use'}</b>
+                  <span>
+                    {th
+                      ? `Session นี้ถูกใช้โดย ${authStatus.lockedBy} อยู่ — รันพร้อมกันสองตัวจะทำให้ session หลุด`
+                      : `Held by ${authStatus.lockedBy}. Running two at once on one session signs both out.`}
+                  </span>
+                </div>
+              )}
+
               <div className="auth-session-actions">
                 <button
                   type="button"
                   className="btn btn-secondary"
-                  disabled={authOpening}
+                  disabled={authOpening || authBusy}
                   onClick={async () => {
                     setAuthOpening(true)
+                    setAuthError(undefined)
                     try {
                       await openWorkspaceAuthSession(projectId, targetUrl)
+                      setLoginBrowserOpen(true)
                       await refreshAuthStatus()
+                    } catch (error) {
+                      setAuthError(messageOf(error))
                     } finally {
                       setAuthOpening(false)
                     }
                   }}
                 >
-                  {authOpening ? 'Opening browser…' : 'Open login browser'}
+                  {authOpening ? (th ? 'กำลังเปิด…' : 'Opening…') : th ? 'เปิด Login browser' : 'Open login browser'}
                 </button>
+
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={!loginBrowserOpen || authBusy}
+                  title={
+                    loginBrowserOpen
+                      ? undefined
+                      : th
+                        ? 'เปิด Login browser และเข้าสู่ระบบก่อน'
+                        : 'Open the login browser and sign in first'
+                  }
+                  onClick={async () => {
+                    setAuthCapturing(true)
+                    setAuthError(undefined)
+                    try {
+                      setAuthStatus(await captureWorkspaceAuthSession(projectId))
+                      setLoginBrowserOpen(false)
+                    } catch (error) {
+                      setAuthError(messageOf(error))
+                    } finally {
+                      setAuthCapturing(false)
+                    }
+                  }}
+                >
+                  {authCapturing ? (th ? 'กำลังบันทึก…' : 'Capturing…') : th ? 'บันทึก Session' : 'Capture session'}
+                </button>
+              </div>
+
+              <label className="auth-verify-row">
+                <span>{th ? 'หน้าที่ต้องล็อกอิน' : 'Protected path'}</span>
+                <div>
+                  <input
+                    value={verifyPath}
+                    onChange={(event) => setVerifyPath(event.target.value)}
+                    placeholder="/dashboard"
+                    autoComplete="off"
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    disabled={authBusy || !hasSnapshot}
+                    title={hasSnapshot ? undefined : th ? 'บันทึก Session ก่อน' : 'Capture a session first'}
+                    onClick={async () => {
+                      setAuthVerifying(true)
+                      setAuthError(undefined)
+                      try {
+                        const url = new URL(verifyPath || '/', targetUrl).toString()
+                        setAuthStatus(await verifyWorkspaceAuthSession(projectId, url))
+                      } catch (error) {
+                        setAuthError(messageOf(error))
+                      } finally {
+                        setAuthVerifying(false)
+                      }
+                    }}
+                  >
+                    {authVerifying ? (th ? 'กำลังตรวจ…' : 'Verifying…') : th ? 'ตรวจสอบ' : 'Verify'}
+                  </button>
+                </div>
+              </label>
+
+              {authError && <p className="auth-session-error">{authError}</p>}
+
+              {hasSnapshot && (
+                <dl className="auth-session-facts">
+                  <div>
+                    <dt>{th ? 'Cookie' : 'Cookies'}</dt>
+                    <dd>
+                      {authStatus?.cookieCount ?? 0}
+                      {authStatus?.sessionCookieCount
+                        ? ` (${authStatus.sessionCookieCount} ${th ? 'แบบ session' : 'session'})`
+                        : ''}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>{th ? 'Origin' : 'Origins'}</dt>
+                    <dd>{authStatus?.originCount ?? 0}</dd>
+                  </div>
+                  <div>
+                    <dt>sessionStorage</dt>
+                    <dd>{authStatus?.sessionStorageOriginCount ?? 0}</dd>
+                  </div>
+                  <div>
+                    <dt>IndexedDB</dt>
+                    <dd>{authStatus?.indexedDb ? (th ? 'รวมด้วย' : 'included') : th ? 'ไม่รองรับ' : 'unsupported'}</dd>
+                  </div>
+                </dl>
+              )}
+
+              <div className="auth-session-actions">
                 <button
                   type="button"
                   className="btn btn-secondary"
                   disabled={authStatusLoading}
                   onClick={() => void refreshAuthStatus()}
                 >
-                  {authStatusLoading ? 'Checking…' : 'Refresh session status'}
+                  {authStatusLoading ? (th ? 'กำลังเช็ก…' : 'Checking…') : th ? 'รีเฟรชสถานะ' : 'Refresh status'}
                 </button>
                 {!authClearConfirm ? (
-                  <button type="button" className="btn btn-danger" onClick={() => setAuthClearConfirm(true)}>
-                    Clear saved session
+                  <button
+                    type="button"
+                    className="btn btn-danger"
+                    disabled={authBusy}
+                    onClick={() => setAuthClearConfirm(true)}
+                  >
+                    {th ? 'ล้าง Session' : 'Clear login session'}
                   </button>
                 ) : (
                   <>
@@ -277,20 +435,23 @@ export function ProjectSettings({
                       onClick={async () => {
                         await clearWorkspaceAuthSession(projectId)
                         setAuthClearConfirm(false)
+                        setLoginBrowserOpen(false)
                         await refreshAuthStatus()
                       }}
                     >
-                      Confirm clear
+                      {th ? 'ยืนยันล้าง' : 'Confirm clear'}
                     </button>
                     <button type="button" className="btn btn-secondary" onClick={() => setAuthClearConfirm(false)}>
-                      Cancel
+                      {th ? 'ยกเลิก' : 'Cancel'}
                     </button>
                   </>
                 )}
               </div>
+
               <small className="auth-session-hint">
-                Profile saved confirms that browser data exists. To verify Google / SSO is still valid, Scout the
-                authenticated Start Path, such as <code>/dashboard</code>.
+                {th
+                  ? 'สถานะจะเป็น ready ก็ต่อเมื่อเปิดหน้าที่ต้องล็อกอินได้จริงเท่านั้น การมีโฟลเดอร์อยู่ไม่ได้แปลว่า login ยังใช้ได้ · เคสที่บันทึกการ Login ไว้ต้องล้าง Session ก่อนถึงจะ replay ได้'
+                  : 'The status reaches ready only when a protected page actually opens — a saved folder never meant a working login. A recorded login Test Case needs the session cleared before it can replay.'}
               </small>
             </div>
           )}
@@ -319,34 +480,40 @@ export function ProjectSettings({
             </div>
           )}
         </div>
+        {/* One footer for every tab. Credentials can be saved from anywhere, so
+            switching tabs never silently discards what was typed. */}
         <div className="modal-footer">
-          {activeTab === 'credentials' && (
-            <button
-              type="button"
-              className="btn btn-secondary mr-auto"
-              onClick={() => {
-                onClear()
-                setDraft({})
-              }}
-            >
-              {th ? 'ล้างข้อมูลทดสอบ' : 'Clear secrets'}
-            </button>
+          <button
+            type="button"
+            className="btn btn-secondary mr-auto"
+            onClick={() => {
+              onClear()
+              setDraft({})
+              setSaved(false)
+            }}
+          >
+            {th ? 'ล้างข้อมูลทดสอบ' : 'Clear secrets'}
+          </button>
+          {saved && !dirty && (
+            <span className="settings-saved" role="status">
+              {th ? 'บันทึกแล้ว' : 'Saved'}
+            </span>
           )}
           <button type="button" className="btn btn-secondary" onClick={onClose}>
             {th ? 'ปิด' : 'Close'}
           </button>
-          {activeTab === 'credentials' && (
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => {
-                onSave(draft)
-                onClose()
-              }}
-            >
-              {th ? 'บันทึกข้อมูลทดสอบ' : 'Save credentials'}
-            </button>
-          )}
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={!dirty}
+            title={dirty ? undefined : th ? 'ยังไม่มีการแก้ไข' : 'Nothing has changed'}
+            onClick={() => {
+              onSave(draft)
+              setSaved(true)
+            }}
+          >
+            {th ? 'บันทึกข้อมูลทดสอบ' : 'Save credentials'}
+          </button>
         </div>
       </section>
     </div>

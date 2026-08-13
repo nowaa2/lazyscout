@@ -2950,8 +2950,8 @@ body {
 .settings-tabs {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.5rem;
-  padding: 0.75rem 1rem;
+  gap: 0.25rem;
+  padding: 0.4rem 1rem;
   border-bottom: 1px solid #e2e8f0;
   background: #f8fafc;
 }
@@ -2959,9 +2959,10 @@ body {
 .settings-tabs button {
   min-width: 0;
   border: 1px solid transparent;
-  border-radius: 10px;
-  padding: 0.7rem 0.8rem;
-  text-align: left;
+  border-radius: 8px;
+  padding: 0.4rem 0.5rem;
+  text-align: center;
+  font-size: 0.8rem;
   color: #475569;
 }
 
@@ -2977,18 +2978,180 @@ body {
 }
 
 .settings-tabs b,
-.settings-tabs small,
 .settings-empty-state b,
 .settings-empty-state span {
   display: block;
 }
 
-.settings-tabs small {
+.settings-tabs b {
   overflow: hidden;
-  margin-top: 0.2rem;
-  font-size: 0.68rem;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/*
+ * The dialog keeps one height for every tab so switching sections never makes
+ * it grow or collapse. Credentials is the tallest section, so it sets the
+ * figure; the body already scrolls, so a taller section scrolls inside the same
+ * frame and a shorter one simply leaves space.
+ *
+ * The height belongs on the card, not on `.modal-body`: the body is a flex
+ * child with `flex: 1 1 0%`, which decides its own size and ignores `height`.
+ */
+.project-settings-modal {
+  height: min(47rem, 88vh);
+}
+
+/* A notice that warns rather than reassures. */
+.settings-notice-warn {
+  border-color: #fde68a;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+/* Session state banner */
+.auth-state {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.auth-state b {
+  display: block;
+  font-size: 0.85rem;
+  color: #0f172a;
+}
+
+.auth-state small {
+  display: block;
+  margin-top: 0.1rem;
+  font-size: 0.72rem;
+  color: #64748b;
+}
+
+.auth-state > div {
+  min-width: 0;
+  flex: 1;
+}
+
+.auth-state-dot {
+  width: 9px;
+  height: 9px;
+  flex: none;
+  border-radius: 999px;
+  background: #cbd5e1;
+}
+
+.auth-state-badge {
+  flex: none;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: #e2e8f0;
+  font-size: 0.65rem;
+  letter-spacing: 0.02em;
+  color: #475569;
+}
+
+.auth-state-ready {
+  border-color: #a7f3d0;
+  background: #ecfdf5;
+}
+.auth-state-ready .auth-state-dot {
+  background: #10b981;
+}
+.auth-state-ready .auth-state-badge {
+  background: #d1fae5;
+  color: #047857;
+}
+
+.auth-state-recorded .auth-state-dot,
+.auth-state-verifying .auth-state-dot {
+  background: #f59e0b;
+}
+
+.auth-state-expired,
+.auth-state-invalid {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+.auth-state-expired .auth-state-dot,
+.auth-state-invalid .auth-state-dot {
+  background: #ef4444;
+}
+.auth-state-expired .auth-state-badge,
+.auth-state-invalid .auth-state-badge {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.auth-verify-row > span {
+  display: block;
+  margin-bottom: 0.3rem;
+  font-size: 0.75rem;
+  color: #475569;
+}
+
+.auth-verify-row > div {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* Matches the credential inputs so the row does not read as plain text. */
+.auth-verify-row input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  font-size: 0.85rem;
+  color: #0f172a;
+  outline: none;
+}
+
+.auth-verify-row input:focus {
+  border-color: #818cf8;
+  background: #fff;
+}
+
+.auth-session-error {
+  margin: 0;
+  padding: 0.55rem 0.8rem;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fef2f2;
+  font-size: 0.78rem;
+  color: #b91c1c;
+}
+
+.auth-session-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.auth-session-facts dt {
+  font-size: 0.68rem;
+  color: #64748b;
+}
+
+.auth-session-facts dd {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.settings-saved {
+  align-self: center;
+  font-size: 0.78rem;
+  color: #047857;
 }
 
 .settings-section {

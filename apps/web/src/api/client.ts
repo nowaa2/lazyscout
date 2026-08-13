@@ -173,15 +173,52 @@ export async function openWorkspaceAuthSession(projectId: string, url: string): 
   })
 }
 
+/** `ready` is only reachable after a verification against a protected page. */
+export type AuthSessionState = 'not-configured' | 'recorded' | 'verifying' | 'ready' | 'expired' | 'invalid'
+
 export type WorkspaceAuthSessionStatus = {
-  profileExists: boolean
-  browserDataDetected: boolean
-  cookieStoreDetected: boolean
-  lastModifiedAt?: string
+  status: AuthSessionState
+  capturedAt?: string
+  verifiedAt?: string
+  verifiedPath?: string
+  detail?: string
+  /** Counts only. The values themselves never leave the server. */
+  cookieCount?: number
+  sessionCookieCount?: number
+  originCount?: number
+  sessionStorageOriginCount?: number
+  indexedDb?: boolean
+  capturedHeadless?: boolean
+  executionHeadless?: boolean
+  browserModeMismatch?: boolean
+  lockedBy?: 'scout' | 'recorder' | 'runner' | 'login-browser'
+  /** Describes the profile directory only; never means the login still works. */
+  profile?: {
+    profileExists: boolean
+    browserDataDetected: boolean
+    cookieStoreDetected: boolean
+    lastModifiedAt?: string
+  }
 }
 
 export async function getWorkspaceAuthSessionStatus(projectId: string): Promise<WorkspaceAuthSessionStatus> {
   return requestJson(`/api/workspace/projects/${encodeURIComponent(projectId)}/auth-session/status`)
+}
+
+/** Saves the signed-in state from the open login browser. */
+export async function captureWorkspaceAuthSession(projectId: string): Promise<WorkspaceAuthSessionStatus> {
+  return requestJson(`/api/workspace/projects/${encodeURIComponent(projectId)}/auth-session/capture`, {
+    method: 'POST'
+  })
+}
+
+/** Opens a protected path with the snapshot restored to prove it still works. */
+export async function verifyWorkspaceAuthSession(projectId: string, url: string): Promise<WorkspaceAuthSessionStatus> {
+  return requestJson(`/api/workspace/projects/${encodeURIComponent(projectId)}/auth-session/verify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url })
+  })
 }
 
 export async function getGuidedFlows(projectId: string): Promise<GuidedFlow[]> {

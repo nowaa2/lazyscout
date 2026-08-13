@@ -257,7 +257,6 @@ export function RecorderPanel({ projectId, targetUrl, onSaveRecording, onPickTar
           >
             <header className="modal-header">
               <div>
-                <p className="eyebrow">Cypress-style recorder</p>
                 <h2 id="recorder-workspace-title">Record and inspect</h2>
                 <p>
                   Control the recorder from the left and preview the target page on the right. Your clicks and typing
