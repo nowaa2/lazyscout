@@ -21,6 +21,8 @@ All notable changes to LazyScout are documented in this file.
 
 **An abandoned sign-in locked the Project with no way out.** The lock is taken when the sign-in window opens and released on capture, so a sign-in that was never completed — the window closed, or nothing visible appeared — held the Project for the full fifteen-minute stale timeout with nothing in the interface able to free it. Pressing **Open login browser** again now replaces a window this server already owns instead of refusing, closing the window releases the lock, and a **Cancel sign-in** button gives the hold back explicitly.
 
+**Clearing the session failed with a raw EBUSY.** Confirming a clear while the sign-in window was still open tried to delete a profile directory that Chromium had files open in, so the request died with `500 EBUSY: resource busy or locked` and the Project was left half cleared. The window is closed first, the snapshot — the part that actually authenticates — is removed unconditionally, and the profile directory is best-effort with retries; when files really cannot be removed the response says so instead of failing.
+
 **Capture reported success while still holding the lock.** The window was closed and the lock released in a `finally` that ran after the response had been sent, so pressing **Verify** immediately after **Capture** was rejected as busy by a lock that was about to disappear. Cleanup now completes before the reply.
 
 **Capture became unavailable after closing the dialog.** Whether a sign-in window was open was tracked only in component state, so reopening Project Settings disabled **Capture session** even though the window was still waiting. The server reports it instead.

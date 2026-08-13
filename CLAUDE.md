@@ -75,6 +75,29 @@ LAZYSCOUT_WORKSPACE=/tmp/lazyscout-verify PORT=4100 npm run dev:server
 
 Stopping a background task may not kill the Node child holding the port. Confirm with `netstat -ano | grep :<port>` and kill the PID directly if needed.
 
+## A server change is not live until the server is rebuilt and restarted
+
+`npm run build:cli` bundles from `apps/server/dist`, not from source, so on its
+own it produces a bundle without your change. Always use the full chain:
+
+```bash
+npm run build      # packages → server → web → cli, in that order
+```
+
+Then remember that a running server holds its old code in memory. The version
+string cannot tell you whether a server is current — a dev server reports a
+stale `npm_package_version` while running fresh source, and a packaged server
+reports the right number while running a stale bundle. Probe for something the
+change actually introduced:
+
+```bash
+curl -s http://localhost:<port>/api/<route> | grep <new-field-name>
+```
+
+Before telling the user a fix works, confirm it against **the server they are
+using**, not one you started yourself. Two LazyScout servers are commonly
+running at once (`4000` from `dev:server`, `4321` from the packaged CLI).
+
 ## Before reporting a change complete
 
 ```bash

@@ -295,9 +295,18 @@ export async function browserProfileStatus(root: string, projectId: string): Pro
   }
 }
 
+/**
+ * Remove a Project's browser profile.
+ *
+ * A browser that has just been asked to close still holds files in the profile
+ * for a moment, and on Windows that surfaces as EBUSY. Node's own retry options
+ * cover exactly this case, so the caller does not have to guess at a delay.
+ * Throws if the directory genuinely cannot be removed, which the caller reports
+ * rather than treating as a failed clear — the snapshot is what authenticates.
+ */
 export async function clearBrowserProfile(root: string, projectId: string): Promise<void> {
   const directory = join(projectDirectory(root, projectId), 'browser-profile')
-  await rm(directory, { recursive: true, force: true })
+  await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 150 })
 }
 
 async function readProject(root: string, projectId: string): Promise<WorkspaceProject | undefined> {

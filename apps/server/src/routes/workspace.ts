@@ -278,9 +278,31 @@ export function registerWorkspaceRoutes(app: FastifyInstance, root: string): voi
 
   app.delete<{ Params: ProjectParams }>('/api/workspace/projects/:projectId/auth-session', async (request, reply) => {
     const { projectId } = request.params
-    await clearBrowserProfile(root, projectId)
+    const log = (message: string) => request.log.info(message)
+
+    // Close the sign-in window first. Chromium keeps files in the profile
+    // directory open, so deleting it underneath a running browser failed with
+    // a raw EBUSY and left the Project half cleared.
+    await abandonLoginSession(projectId, log)
+
+    // The snapshot is the part that actually authenticates, so it goes first
+    // and unconditionally; the profile directory is best-effort.
     await clearAuthSnapshot(await projectPath(root, projectId))
-    return reply.send({ cleared: true })
+    const profileRemoved = await clearBrowserProfile(root, projectId)
+      .then(() => true)
+      .catch(() => false)
+
+    log('[Auth] Session cleared')
+    return reply.send({
+      cleared: true,
+      profileRemoved,
+      ...(profileRemoved
+        ? {}
+        : {
+            detail:
+              'The saved session was removed. Some browser profile files were still in use and were left behind; they are replaced on the next sign-in.'
+          })
+    })
   })
 
   app.get<{ Params: ProjectParams }>('/api/workspace/projects/:projectId/screenshots', async (request) =>
