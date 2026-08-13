@@ -2,7 +2,7 @@
 
 All notable changes to LazyScout are documented in this file.
 
-## [0.4.5] - 2026-08-13
+## [0.4.6] - 2026-08-13
 
 ### Fixed
 
