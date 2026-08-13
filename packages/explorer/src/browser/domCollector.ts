@@ -83,6 +83,61 @@ export function collectPageData(): RawPageData {
     return parts.join(' > ')
   }
 
+  const TEST_ID_ATTRIBUTES = ['data-testid', 'data-test-id', 'data-test', 'data-qa', 'data-cy']
+
+  /** The automation attribute this element carries, with its real name kept. */
+  function testIdOf(el: Element): { attribute: string; value: string } | undefined {
+    for (const attribute of TEST_ID_ATTRIBUTES) {
+      const value = attr(el, attribute)
+      if (value) return { attribute, value }
+    }
+    return undefined
+  }
+
+  /** Reads a tri-state ARIA flag: true, false, or absent. */
+  function ariaFlag(el: Element, name: string): boolean | undefined {
+    const value = el.getAttribute(name)
+    return value === null ? undefined : value === 'true'
+  }
+
+  /** Attribute relationships that tie a control to the region it drives. */
+  function relationOf(el: Element): RawElement['relation'] {
+    const relation = {
+      controls: attr(el, 'aria-controls'),
+      labelledBy: attr(el, 'aria-labelledby'),
+      describedBy: attr(el, 'aria-describedby'),
+      owns: attr(el, 'aria-owns'),
+      target: attr(el, 'data-target') || attr(el, 'data-bs-target') || attr(el, 'data-modal') || attr(el, 'data-drawer')
+    }
+    return Object.values(relation).some(Boolean) ? relation : undefined
+  }
+
+  const CONTAINERS: Array<[NonNullable<RawElement['context']>['container'], string]> = [
+    ['dialog', '[role="dialog"], [role="alertdialog"], dialog, [aria-modal="true"]'],
+    ['tab-panel', '[role="tabpanel"]'],
+    ['menu', '[role="menu"], [role="listbox"]'],
+    ['table-row', 'tr, [role="row"]'],
+    ['form', 'form'],
+    ['card', '[class*="card" i], article']
+  ]
+
+  /** Nearest meaningful ancestor, used to scope locators and explain a case. */
+  function contextOf(el: Element): RawElement['context'] {
+    for (const [container, selector] of CONTAINERS) {
+      const found = el.closest(selector)
+      if (!found) continue
+      return {
+        container,
+        containerSelector: cssSelector(found),
+        containerName:
+          accessibleName(found) ||
+          cleanText(found.querySelector('h1, h2, h3, legend, caption')?.textContent) ||
+          undefined
+      }
+    }
+    return { container: 'page' }
+  }
+
   function inputRole(input: HTMLInputElement): string {
     switch (input.type) {
       case 'checkbox':
@@ -151,8 +206,26 @@ export function collectPageData(): RawPageData {
       inputType,
       placeholder: attr(el, 'placeholder'),
       name: attr(el, 'name'),
-      testId: attr(el, 'data-testid'),
+      testId: testIdOf(el)?.value,
+      // Kept so the generator matches the attribute the page really uses
+      // instead of rewriting it to Playwright's default `data-testid`.
+      testIdAttribute: testIdOf(el)?.attribute,
       id: el.id || undefined,
+      ariaLabel: attr(el, 'aria-label'),
+      describedBy: attr(el, 'aria-describedby'),
+      visible: true,
+      readOnly: el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement ? el.readOnly : undefined,
+      checked:
+        el instanceof HTMLInputElement && (el.type === 'checkbox' || el.type === 'radio')
+          ? el.checked
+          : ariaFlag(el, 'aria-checked'),
+      expanded: ariaFlag(el, 'aria-expanded'),
+      selected: ariaFlag(el, 'aria-selected'),
+      multiple: el instanceof HTMLSelectElement || el instanceof HTMLInputElement ? el.multiple : undefined,
+      accept: el instanceof HTMLInputElement && el.type === 'file' ? attr(el, 'accept') : undefined,
+      hasPopup: attr(el, 'aria-haspopup') || attr(el, 'data-toggle') || attr(el, 'data-bs-toggle'),
+      relation: relationOf(el),
+      context: contextOf(el),
       href: el instanceof HTMLAnchorElement ? el.href : undefined,
       options,
       required,
@@ -235,6 +308,40 @@ export function collectPageData(): RawPageData {
   const INPUT_SELECTOR =
     'input:not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="hidden"]):not([type="image"])'
 
+  /**
+   * Controls that carry no native semantics but are demonstrably interactive:
+   * they declare a widget role, an ARIA relationship, a toggle attribute, or
+   * are reachable by keyboard. Collected so they become review cases with
+   * evidence instead of being invisible to the run.
+   */
+  const WIDGET_SELECTOR = [
+    '[role="tab"]',
+    '[role="switch"]',
+    '[role="slider"]',
+    '[role="menuitem"]',
+    '[role="menuitemcheckbox"]',
+    '[role="menuitemradio"]',
+    '[role="option"]',
+    '[role="combobox"]',
+    '[role="checkbox"]',
+    '[role="radio"]',
+    '[role="link"]',
+    '[role="treeitem"]',
+    'summary',
+    '[aria-expanded]',
+    '[aria-haspopup]',
+    '[aria-controls]',
+    '[data-toggle]',
+    '[data-bs-toggle]',
+    '[data-target]',
+    '[data-bs-target]',
+    '[data-modal]',
+    '[data-drawer]',
+    '[data-tab]',
+    '[onclick]',
+    '[tabindex]:not([tabindex="-1"])'
+  ].join(', ')
+
   const forms: RawForm[] = Array.from(document.querySelectorAll('form'))
     .slice(0, 20)
     .map((form) => {
@@ -276,6 +383,12 @@ export function collectPageData(): RawPageData {
     inputs: collect(INPUT_SELECTOR, 'input', 'textbox'),
     textareas: collect('textarea', 'textarea', 'textbox'),
     selects: collect('select', 'select', 'combobox'),
+    // Everything interactive that the native groups above do not already cover.
+    widgets: Array.from(document.querySelectorAll(WIDGET_SELECTOR))
+      .filter(isCollectable)
+      .filter((el) => !el.matches(`a[href], ${BUTTON_SELECTOR}, ${INPUT_SELECTOR}, textarea, select`))
+      .slice(0, MAX_PER_GROUP)
+      .map((el) => toRawElement(el, 'button', attr(el, 'role') || 'generic')),
     forms,
     visibleDialogs: Array.from(
       document.querySelectorAll(
@@ -322,13 +435,38 @@ export function collectPageData(): RawPageData {
                       : element.matches('[aria-expanded]')
                         ? 'accordion'
                         : 'dialog'
+        // The container this control owns, so the explorer can scope its
+        // collection to what actually opened rather than the whole document.
+        const controls = element.getAttribute('aria-controls')
+        const targetSelector =
+          element.getAttribute('data-target') ||
+          element.getAttribute('data-bs-target') ||
+          element.getAttribute('data-modal') ||
+          element.getAttribute('data-drawer')
         return {
           kind,
           name: accessibleName(element),
           role,
           cssSelector: cssSelector(element),
           expanded: expanded === null ? undefined : expanded === 'true',
-          visible: true
+          visible: true,
+          controlsSelector: controls ? `#${CSS.escape(controls)}` : targetSelector || undefined,
+          evidence:
+            role === 'tab'
+              ? 'role="tab"'
+              : popup
+                ? `aria-haspopup="${popup}"`
+                : toggle
+                  ? `data-toggle="${toggle}"`
+                  : dataModal
+                    ? 'data-modal'
+                    : dataDrawer
+                      ? 'data-drawer'
+                      : accordion
+                        ? 'details[data-accordion]'
+                        : expanded !== null
+                          ? 'aria-expanded'
+                          : '<select>'
         }
       })
       .filter((item) => item.name)

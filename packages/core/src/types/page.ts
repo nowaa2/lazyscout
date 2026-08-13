@@ -7,6 +7,57 @@ export type UIInteraction = {
   cssSelector: string
   expanded?: boolean
   visible: boolean
+  /** Container this control owns, from aria-controls / data-target. */
+  controlsSelector?: string
+  /** Why the classifier chose this kind, e.g. `aria-haspopup="dialog"`. */
+  evidence?: string
+}
+
+/**
+ * A UI pattern recognised deterministically from DOM and accessibility
+ * attributes. `unknown` is a real outcome, not a failure: it routes the element
+ * to a manual review case instead of inviting a guess about its behaviour.
+ */
+export type UIPattern =
+  | 'text-input'
+  | 'number-input'
+  | 'date-input'
+  | 'checkbox'
+  | 'radio'
+  | 'switch'
+  | 'slider'
+  | 'select'
+  | 'combobox'
+  | 'file-upload'
+  | 'link'
+  | 'navigation'
+  | 'pagination'
+  | 'button'
+  | 'submit'
+  | 'tab'
+  | 'accordion'
+  | 'menu'
+  | 'dialog-opener'
+  | 'table'
+  | 'unknown'
+
+/** Whether an action may be executed automatically. */
+export type ElementRisk = 'safe' | 'needs-review' | 'destructive' | 'session-ending'
+
+/** Where an element sits, used to scope locators and explain a Test Case. */
+export type ElementContext = {
+  container?: 'form' | 'dialog' | 'table-row' | 'card' | 'tab-panel' | 'menu' | 'page'
+  containerSelector?: string
+  containerName?: string
+}
+
+/** Attribute-level relationships between a control and the region it drives. */
+export type ElementRelation = {
+  controls?: string
+  labelledBy?: string
+  describedBy?: string
+  target?: string
+  owns?: string
 }
 
 export type UIElement = {
@@ -22,8 +73,34 @@ export type UIElement = {
   placeholder?: string
   name?: string
   testId?: string
+  /** Attribute the testId came from, e.g. `data-test`. */
+  testIdAttribute?: string
   id?: string
   href?: string
+
+  /** Stable identity for dedup and coverage, derived from locator + context. */
+  elementId?: string
+  /**
+   * UI pattern this element was classified as. Distinct from `pattern`, which
+   * is the HTML validation attribute.
+   */
+  uiPattern?: UIPattern
+  /** Why the classifier chose that UI pattern, e.g. `role="tab"`. */
+  patternEvidence?: string
+  risk?: ElementRisk
+  context?: ElementContext
+  relation?: ElementRelation
+  visible?: boolean
+  readOnly?: boolean
+  checked?: boolean
+  expanded?: boolean
+  selected?: boolean
+  ariaLabel?: string
+  describedBy?: string
+  multiple?: boolean
+  accept?: string
+  /** Value of `aria-haspopup`, or the `data-toggle` verb the page declares. */
+  hasPopup?: string
 
   options?: string[]
   required: boolean
@@ -172,6 +249,73 @@ export type PageState = {
   stateContent: string[]
   validationMessages: string[]
   discoveredAt: string
+  /** State this one was opened from, so a modal can be traced to its opener. */
+  parentStateId?: string
+  /** Selector of the container this state represents, for a modal or drawer. */
+  containerSelector?: string
+  /** Nesting level: 0 is the page, 1 a modal, 2 a modal opened from a modal. */
+  depth?: number
+}
+
+/**
+ * What was actually observed before and after one executed action. Expected
+ * results are written from these records, never from the element's name.
+ */
+export type TransitionRecord = {
+  sourceStateId: string
+  destinationStateId?: string
+  actionId: string
+  actionType: ExplorerAction['type']
+  targetLocator?: string
+  urlBefore: string
+  urlAfter: string
+  fingerprintBefore: string
+  fingerprintAfter: string
+  result: 'changed' | 'unchanged' | 'failed' | 'blocked' | 'timeout'
+  visibleDialogsAfter?: string[]
+  headingsAfter?: string[]
+  addedText?: string[]
+  removedText?: string[]
+  validationMessagesAfter?: string[]
+  ariaStateAfter?: { expanded?: boolean; selected?: boolean; checked?: boolean }
+  durationMs?: number
+}
+
+/** Why an element produced no executed action. */
+export type CoverageReason =
+  | 'tested'
+  | 'skipped-limit'
+  | 'skipped-duplicate'
+  | 'blocked-destructive'
+  | 'blocked-session-ending'
+  | 'blocked-filter'
+  | 'unknown-pattern'
+  | 'not-visible'
+  | 'disabled'
+  | 'failed'
+
+export type CoverageEntry = {
+  elementId: string
+  pattern: UIPattern
+  reason: CoverageReason
+  stateId?: string
+  locator?: string
+  name?: string
+  detail?: string
+}
+
+export type CoverageReport = {
+  elementsDiscovered: number
+  knownPatterns: number
+  tested: number
+  skipped: number
+  blocked: number
+  unknown: number
+  modalStates: number
+  casesGenerated: number
+  casesDeduplicated: number
+  byPattern: Array<{ pattern: UIPattern; discovered: number; tested: number }>
+  entries: CoverageEntry[]
 }
 
 export type ExploreIssueCode =
@@ -331,4 +475,8 @@ export type ExploreResult = {
   issues: ExploreIssue[]
   stats: ExploreStats
   actionGraph: ActionGraph
+  /** Observed before/after records for each executed action. */
+  transitions?: TransitionRecord[]
+  /** What happened to every discovered element. */
+  coverage?: CoverageReport
 }

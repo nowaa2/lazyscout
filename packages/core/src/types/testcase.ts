@@ -8,6 +8,18 @@ export type TargetRef = {
   placeholder?: string
   label?: string
   testId?: string
+  /**
+   * Attribute the testId was read from, when it is not Playwright's default
+   * `data-testid`. Preserved so a recorded `data-test` is never silently
+   * rewritten into a `data-testid` selector that matches nothing.
+   */
+  testIdAttribute?: string
+  /** The element's `id` attribute, kept as its own ranked candidate. */
+  elementId?: string
+  /** The element's `name` attribute, kept as its own ranked candidate. */
+  attributeName?: string
+  /** Tag name, used to scope the `name` candidate as `input[name="..."]`. */
+  tagName?: string
   cssSelector?: string
   nth?: number
   matchCount?: number
@@ -101,7 +113,8 @@ export type TestStep =
   | AssertValidationStep
   | ManualStep
 
-export type TestCaseType = 'positive' | 'negative' | 'validation'
+export type TestCaseType =
+  'positive' | 'negative' | 'validation' | 'navigation' | 'interaction' | 'accessibility' | 'manual'
 
 export type TestCasePriority = 'low' | 'medium' | 'high'
 
@@ -127,4 +140,17 @@ export type TestCase = {
   sourceUrl: string
 
   notes?: string
+
+  /** State this case was generated from, and the state that opened it. */
+  stateId?: string
+  parentStateId?: string
+  /** The deterministic UI pattern this case was mapped from. */
+  pattern?: string
+  /**
+   * What was observed in the DOM to justify the expected result — the attribute
+   * matched, or the state transition recorded. Never an inferred business rule.
+   */
+  evidence?: string[]
+  /** Why a case needs a tester: unknown pattern, no observable change, blocked. */
+  reviewReason?: string
 }

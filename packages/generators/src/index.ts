@@ -12,7 +12,9 @@ export {
   UTF8_BOM
 } from './csv/exportTestCasesToCsv.js'
 
-export { generatePlaywrightTest } from './playwright/generatePlaywrightTest.js'
+export { generatePlaywrightTest, plainUrl } from './playwright/generatePlaywrightTest.js'
+export { buildLocatorCandidates, describeTarget } from './locators/candidates.js'
+export type { LocatorCandidate } from './locators/candidates.js'
 export { generateCypressTest } from './cypress/generateCypressTest.js'
 export { flowToTestCase, flowStepToTestStep } from './guidedflow/flowToTestCase.js'
 export { generatePlaywrightFromFlow } from './guidedflow/generatePlaywrightFromFlow.js'

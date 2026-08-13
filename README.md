@@ -298,6 +298,7 @@ Verify that no `.env`, credentials, databases, browser profiles, screenshots, tr
 ## Documentation
 
 - [Architecture](docs/ARCHITECTURE.md)
+- [UI pattern catalog](docs/PATTERNS.md)
 - [API](docs/API.md)
 - [Authentication](docs/AUTHENTICATION.md)
 - [Safety](docs/SAFETY.md)

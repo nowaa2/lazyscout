@@ -163,7 +163,9 @@ export function registerAnalyzeRoute(app: FastifyInstance, workspaceRoot: string
         stats: result.stats,
         actionGraph: result.actionGraph,
         runEvents,
-        apiChecks: body.includeApiChecks ? buildApiChecks(result.pages) : []
+        apiChecks: body.includeApiChecks ? buildApiChecks(result.pages) : [],
+        ...(result.coverage ? { coverage: { ...result.coverage, casesGenerated: testCases.length } } : {}),
+        ...(result.transitions ? { transitions: result.transitions } : {})
       }
       completed = true
       return reply.send(response)

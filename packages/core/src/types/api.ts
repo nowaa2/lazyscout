@@ -1,4 +1,13 @@
-import type { ActionGraph, ExploreIssue, ExploreStats, ExplorationMode, PageInfo, RunEvent } from './page.js'
+import type {
+  ActionGraph,
+  CoverageReport,
+  ExploreIssue,
+  ExploreStats,
+  ExplorationMode,
+  PageInfo,
+  RunEvent,
+  TransitionRecord
+} from './page.js'
 import type { TestCase, TestCaseLanguage } from './testcase.js'
 import type { TestDataRow } from './testdata.js'
 
@@ -30,6 +39,10 @@ export type AnalyzeResponse = {
   actionGraph: ActionGraph
   runEvents: RunEvent[]
   apiChecks: ApiCheck[]
+  /** What happened to every discovered element. Optional for older Projects. */
+  coverage?: CoverageReport
+  /** Observed before/after records for each executed action. */
+  transitions?: TransitionRecord[]
 }
 
 export type ApiCheck = {

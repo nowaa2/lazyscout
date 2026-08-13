@@ -2,6 +2,41 @@
 
 All notable changes to LazyScout are documented in this file.
 
+## [0.4.2] - 2026-08-13
+
+LazyScout moves from a link crawler to a deterministic UI pattern explorer. No LLM, no machine learning, and no inference from an element's wording: a Test Case is written only from an HTML or ARIA contract the page declares, or from a state transition the explorer actually observed. Anything else becomes a manual review case carrying its evidence.
+
+### Added
+
+- **Deterministic pattern catalog** (`packages/core/src/patterns/catalog.ts`). Classifies 21 UI patterns — text, number and date inputs, checkbox, radio, switch, slider, select, combobox, file upload, link, navigation, pagination, button, submit, tab, accordion, menu, dialog opener, table — from role, tag, input type and ARIA attributes only. Each match records the attribute that decided it. An element that matches nothing is reported as `unknown`, which is a result rather than a failure.
+- **Risk classification** ahead of every rule: `safe`, `needs-review`, `destructive`, `session-ending`. Destructive and session-ending controls are recorded as manual cases and never executed.
+- **Pattern-specific Test Case rules** (`packages/generators/src/testcases/patternRules.ts`) replacing the single generic `interactionRule`. A tab asserts the panel named by its `aria-controls`; an accordion expands and collapses; a checkbox checks and unchecks against the native state; a select uses options collected from the page. When the assertion source is missing — a tab with no `aria-controls`, a select with no options — the rule degrades to `needs-review` instead of inventing an expectation.
+- **Coverage report** on `AnalyzeResponse.coverage`: elements discovered, known patterns, tested, skipped, blocked, unknown, modal states, cases generated and deduplicated, plus a per-pattern breakdown and a reason for every element (`tested`, `skipped-limit`, `skipped-duplicate`, `blocked-destructive`, `blocked-session-ending`, `blocked-filter`, `unknown-pattern`, `not-visible`, `disabled`, `failed`).
+- **Transition records** on `AnalyzeResponse.transitions`: URL, DOM fingerprint, visible dialogs, headings, added and removed text and validation messages before and after each executed action, with a result of `changed`, `unchanged`, `failed`, `blocked` or `timeout`. An `unchanged` action is precisely the case the generator refuses to write an expected result for.
+- **Expanded element inventory.** The collector now gathers ARIA widgets and toggle-attribute controls that the native element groups missed, and records `aria-haspopup`, `aria-controls`, `aria-expanded`, `aria-selected`, `aria-checked`, `readonly`, `multiple`, `accept`, the owning container (form, dialog, table row, card, tab panel, menu) and the element's declared relationships.
+- **Scoped modal exploration.** The explorer binds an opener to the container it declares, scopes collection to the topmost open dialog so the page behind it is not counted as modal content, records the modal as its own state with `parentStateId` and `depth`, and follows a dialog opened from inside a dialog up to `MAX_MODAL_DEPTH` (3).
+- `fixtures/demo-site/patterns.html`, declaring one instance of every catalogued pattern plus an element that declares nothing and a destructive control, and [docs/PATTERNS.md](docs/PATTERNS.md) documenting which patterns are automatable and which always require review.
+- 96 tests covering the catalog, every pattern rule, coverage accounting, and a browser-driven inventory run against the fixture.
+
+### Changed
+
+- `TestCaseType` accepts `navigation`, `interaction`, `accessibility` and `manual` alongside the existing values.
+- `TestCase` carries optional `stateId`, `parentStateId`, `pattern`, `evidence[]` and `reviewReason`, so a case can be traced to the markup that justified it.
+- Test Cases are deduplicated by pattern and step sequence before the per-page limit is applied.
+- Pattern classification happens once, in `mapToPageModel`, so the explorer and the generator read the same result rather than each deriving one.
+
+### Fixed
+
+- The pattern matcher no longer treats the collector's internal bucket as a declaration by the page. A `<div onclick>` collected alongside buttons is classified `unknown`, not `button`.
+
+### Compatibility
+
+- Every new field is optional and `normalizeResult` tolerates their absence, so Projects saved before this release load unchanged. `AnalyzeResponse` and `TestCase` keep their existing shape.
+
+### Release
+
+- CLI, bundled web application, Node server and internal workspaces are aligned at version 0.4.2.
+
 ## [0.4.1] - 2026-08-13
 
 ### Added

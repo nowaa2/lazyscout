@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pattern Lab · LazyShop Demo</title>
+    <link rel="stylesheet" href="/app.css" />
+    <style>
+      [hidden] {
+        display: none !important;
+      }
+      .panel {
+        border: 1px solid #d0d5dd;
+        padding: 12px;
+        margin: 8px 0;
+      }
+      dialog::backdrop {
+        background: rgba(0, 0, 0, 0.4);
+      }
+    </style>
+  </head>
+  <body>
+    <!--
+      Synthetic page exercising every UI pattern LazyScout claims to detect,
+      plus the cases it must refuse to guess at. No real service is contacted.
+    -->
+    <header>
+      <a href="/">LS LazyShop</a>
+      <nav aria-label="Main">
+        <a href="/products">Products</a>
+        <a href="/patterns">Patterns</a>
+      </nav>
+    </header>
+
+    <main>
+      <h1>Pattern Lab</h1>
+
+      <!-- E. tabs, bound to their panels through aria-controls -->
+      <div role="tablist" aria-label="Account sections">
+        <button role="tab" id="tab-profile" aria-controls="panel-profile" aria-selected="true">Profile</button>
+        <button role="tab" id="tab-billing" aria-controls="panel-billing" aria-selected="false">Billing</button>
+      </div>
+      <div role="tabpanel" id="panel-profile">Profile panel content</div>
+      <div role="tabpanel" id="panel-billing" hidden>Billing panel content</div>
+
+      <!-- F. accordion, both native and ARIA -->
+      <details data-accordion>
+        <summary>Shipping details</summary>
+        <p>Ships in 2 business days.</p>
+      </details>
+      <button id="faq-toggle" aria-expanded="false" aria-controls="faq-region">Frequently asked questions</button>
+      <div id="faq-region" class="panel" hidden>Answers appear here.</div>
+
+      <!-- G. dropdown menu -->
+      <button id="menu-button" aria-haspopup="menu" aria-controls="account-menu" aria-expanded="false">Account</button>
+      <ul role="menu" id="account-menu" hidden>
+        <li><button role="menuitem" id="menu-settings">Settings</button></li>
+        <li><button role="menuitem" id="menu-help">Help</button></li>
+      </ul>
+
+      <!-- B. checkbox / radio / switch -->
+      <form id="preferences">
+        <fieldset>
+          <legend>Preferences</legend>
+          <label for="newsletter">Newsletter</label>
+          <input type="checkbox" id="newsletter" name="newsletter" />
+
+          <label for="plan-basic">Basic</label>
+          <input type="radio" id="plan-basic" name="plan" value="basic" />
+          <label for="plan-pro">Pro</label>
+          <input type="radio" id="plan-pro" name="plan" value="pro" />
+
+          <button type="button" role="switch" id="dark-mode" aria-checked="false">Dark mode</button>
+
+          <!-- C. native select with real options -->
+          <label for="country">Country</label>
+          <select id="country" name="country">
+            <option value="">Choose…</option>
+            <option value="th">Thailand</option>
+            <option value="jp">Japan</option>
+          </select>
+
+          <!-- A. text and number inputs with validation attributes -->
+          <label for="nickname">Nickname</label>
+          <input type="text" id="nickname" name="nickname" minlength="3" maxlength="20" required />
+          <label for="quantity">Quantity</label>
+          <input type="number" id="quantity" name="quantity" min="1" max="10" />
+
+          <!-- review-only patterns -->
+          <label for="volume">Volume</label>
+          <input type="range" id="volume" name="volume" min="0" max="100" />
+          <label for="avatar">Avatar</label>
+          <input type="file" id="avatar" name="avatar" accept="image/*" />
+
+          <button type="submit" id="save-preferences">Save preferences</button>
+        </fieldset>
+      </form>
+
+      <!-- H. modal opener, bound through aria-controls -->
+      <button id="open-address" aria-haspopup="dialog" aria-controls="address-dialog">Add address</button>
+      <dialog id="address-dialog" aria-labelledby="address-title">
+        <h2 id="address-title">Add address</h2>
+        <form id="address-form" method="dialog">
+          <label for="street">Street</label>
+          <input type="text" id="street" name="street" required />
+          <label for="city">City</label>
+          <input type="text" id="city" name="city" required />
+          <!-- nested opener, to exercise modal depth -->
+          <button type="button" id="open-confirm" aria-haspopup="dialog" aria-controls="confirm-dialog">
+            Verify address
+          </button>
+          <button type="submit" id="address-save">Save address</button>
+          <button type="button" id="address-cancel">Cancel</button>
+        </form>
+      </dialog>
+      <dialog id="confirm-dialog" aria-labelledby="confirm-title">
+        <h2 id="confirm-title">Confirm</h2>
+        <button type="button" id="confirm-ok">Looks right</button>
+        <button type="button" id="confirm-back">Back</button>
+      </dialog>
+
+      <!-- An element that is interactive but declares nothing: must stay unknown -->
+      <div id="sync-widget" tabindex="0" onclick="void 0">Sync now</div>
+
+      <!-- Destructive and session-ending controls: recorded, never executed -->
+      <button id="delete-account" type="button">Delete account</button>
+      <a id="logout" href="/logout">Log out</a>
+    </main>
+
+    <script>
+      const show = (id, visible) => document.getElementById(id).toggleAttribute('hidden', !visible)
+
+      for (const tab of document.querySelectorAll('[role="tab"]')) {
+        tab.addEventListener('click', () => {
+          for (const other of document.querySelectorAll('[role="tab"]')) {
+            const selected = other === tab
+            other.setAttribute('aria-selected', String(selected))
+            show(other.getAttribute('aria-controls'), selected)
+          }
+        })
+      }
+
+      const faq = document.getElementById('faq-toggle')
+      faq.addEventListener('click', () => {
+        const open = faq.getAttribute('aria-expanded') === 'true'
+        faq.setAttribute('aria-expanded', String(!open))
+        show('faq-region', !open)
+      })
+
+      const menuButton = document.getElementById('menu-button')
+      menuButton.addEventListener('click', () => {
+        const open = menuButton.getAttribute('aria-expanded') === 'true'
+        menuButton.setAttribute('aria-expanded', String(!open))
+        show('account-menu', !open)
+      })
+
+      const darkMode = document.getElementById('dark-mode')
+      darkMode.addEventListener('click', () => {
+        darkMode.setAttribute('aria-checked', String(darkMode.getAttribute('aria-checked') !== 'true'))
+      })
+
+      const addressDialog = document.getElementById('address-dialog')
+      const confirmDialog = document.getElementById('confirm-dialog')
+      document.getElementById('open-address').addEventListener('click', () => addressDialog.showModal())
+      document.getElementById('address-cancel').addEventListener('click', () => addressDialog.close())
+      document.getElementById('open-confirm').addEventListener('click', () => confirmDialog.showModal())
+      document.getElementById('confirm-back').addEventListener('click', () => confirmDialog.close())
+      document.getElementById('confirm-ok').addEventListener('click', () => confirmDialog.close())
+    </script>
+  </body>
+</html>

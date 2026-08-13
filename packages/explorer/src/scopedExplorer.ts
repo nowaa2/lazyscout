@@ -3,6 +3,8 @@ import type {
   ActionGraph,
   DiscoveryLog,
   EntryFlowStep,
+  ExplorerAction,
+  TransitionRecord,
   ExplorationConfig,
   ExplorationEndReason,
   ExplorationLimits,
@@ -18,6 +20,7 @@ import type {
   StateRestoreStrategy
 } from '@lazyscout/core'
 import {
+  CoverageTracker,
   LOCAL_QA_POLICY,
   checkTargetUrl,
   isCrawlableUrl,
@@ -52,6 +55,9 @@ const DEFAULT_CONFIG: ExplorationConfig = {
   limits: DEFAULT_LIMITS,
   continueAfterLogin: true
 }
+
+/** How many dialogs deep to follow before treating it as a state loop. */
+const MAX_MODAL_DEPTH = 3
 
 // ---------------------------------------------------------------------------
 // Scoped Explorer
@@ -130,7 +136,46 @@ export async function exploreWithScope(
   let totalActionsFailed = 0
   let totalActionsRetried = 0
   let urlsSkippedByScope = 0
+  let modalStatesDiscovered = 0
   let endReason: ExplorationEndReason = 'queue-exhausted'
+
+  const transitions: TransitionRecord[] = []
+  const coverage = new CoverageTracker()
+
+  /**
+   * Record what an action actually did. Expected results are written from these
+   * observations, so an action with no observable change is reported as
+   * `unchanged` rather than being given an invented outcome.
+   */
+  function recordTransition(
+    from: PageState,
+    action: ExplorerAction,
+    before: { url: string; fingerprint: string },
+    after: { url: string; state?: PageState },
+    result: TransitionRecord['result'],
+    durationMs?: number
+  ): void {
+    const beforeText = new Set(from.stateContent)
+    const afterText = after.state?.stateContent ?? []
+    transitions.push({
+      sourceStateId: from.id,
+      destinationStateId: after.state?.id,
+      actionId: action.id,
+      actionType: action.type,
+      targetLocator: action.selector,
+      urlBefore: before.url,
+      urlAfter: after.url,
+      fingerprintBefore: before.fingerprint,
+      fingerprintAfter: after.state?.fingerprint ?? before.fingerprint,
+      result,
+      visibleDialogsAfter: after.state?.visibleDialogs,
+      headingsAfter: after.state?.headings,
+      addedText: afterText.filter((text) => !beforeText.has(text)).slice(0, 10),
+      removedText: from.stateContent.filter((text) => !afterText.includes(text)).slice(0, 10),
+      validationMessagesAfter: after.state?.validationMessages,
+      durationMs
+    })
+  }
 
   function isWithinScope(url: string): boolean {
     if (!config.scopePath) return true
@@ -583,32 +628,63 @@ export async function exploreWithScope(
     page: Page,
     parentState: PageState,
     _sourceUrl: string,
-    entryFlow: EntryFlowStep[]
+    entryFlow: EntryFlowStep[],
+    depth = 1
   ): Promise<{ state?: PageState; candidates: SafeActionCandidate[] }> {
+    // Nested dialogs are explored, but only to a bounded depth so a modal that
+    // reopens itself cannot spin the run.
+    if (depth > MAX_MODAL_DEPTH) {
+      debug(`Modal depth limit reached (${MAX_MODAL_DEPTH})`, { stateId: parentState.id })
+      return { candidates: [] }
+    }
     try {
-      const hasDialog = await page.evaluate(() => {
-        return !!(
-          document.querySelector('[role="dialog"]') ||
-          document.querySelector('dialog[open]') ||
-          document.querySelector('[aria-modal="true"]')
-        )
+      // The topmost open dialog is the one that just opened. Scoping collection
+      // to it keeps the page behind the modal out of the modal's inventory.
+      const containerSelector = await page.evaluate(() => {
+        const open = Array.from(
+          document.querySelectorAll('dialog[open], [role="dialog"], [role="alertdialog"], [aria-modal="true"]')
+        ).filter((element) => {
+          const style = window.getComputedStyle(element as HTMLElement)
+          return style.display !== 'none' && style.visibility !== 'hidden'
+        })
+        const container = open.at(-1)
+        if (!container) return undefined
+        if (container.id) return `#${CSS.escape(container.id)}`
+        container.setAttribute('data-lazyscout-modal', 'true')
+        return '[data-lazyscout-modal="true"]'
       })
-      if (!hasDialog) return { candidates: [] }
+      if (!containerSelector) return { candidates: [] }
 
       const raw = await page.evaluate(collectPageData)
       const pageModel = mapToPageModel(
         raw,
-        { url: page.url(), finalUrl: page.url(), depth: (parentState as any).depth ?? 0, statusCode: 200 },
+        { url: page.url(), finalUrl: page.url(), depth, statusCode: 200 },
         legacyOptions.blockedKeywords
       )
-      const modalState = pageModel.state
-      if (!modalState) return { candidates: [] }
+      const collected = pageModel.state
+      if (!collected) return { candidates: [] }
+
+      // Keep only what actually lives inside the container that opened.
+      const modalState: PageState = {
+        ...collected,
+        parentStateId: parentState.id,
+        containerSelector,
+        depth,
+        controls: collected.controls.filter(
+          (control) =>
+            control.context?.container === 'dialog' || control.context?.containerSelector === containerSelector
+        )
+      }
 
       if (visitedStates.has(modalState.id)) return { candidates: [] }
       visitedStates.add(modalState.id)
       addState(actionGraph, modalState)
+      modalStatesDiscovered += 1
 
-      debug(`State discovered: ${modalState.name} (modal)`, { stateId: modalState.id, url: page.url() })
+      debug(`State discovered: ${modalState.name} (modal depth ${depth}, ${modalState.controls.length} controls)`, {
+        stateId: modalState.id,
+        url: page.url()
+      })
 
       const modalCandidates = await discoverSafeCandidates(page, modalState)
       const safeCandidates = modalCandidates.filter((c) => c.action.safe).slice(0, legacyOptions.maxActionsPerState)
@@ -642,15 +718,20 @@ export async function exploreWithScope(
         const newRaw = await page.evaluate(collectPageData)
         const newModel = mapToPageModel(
           newRaw,
-          { url: page.url(), finalUrl: page.url(), depth: (parentState as any).depth ?? 0, statusCode: 200 },
+          { url: page.url(), finalUrl: page.url(), depth, statusCode: 200 },
           legacyOptions.blockedKeywords
         )
         const newState = newModel.state
         if (newState && !visitedStates.has(newState.id)) {
           visitedStates.add(newState.id)
-          addState(actionGraph, newState)
+          addState(actionGraph, { ...newState, parentStateId: modalState.id, depth })
           addEdge(actionGraph, modalState.id, newState.id, mc.action, 'visited')
           debug(`New state in modal: ${newState.name}`, { stateId: newState.id })
+
+          // A dialog opened from inside this one is explored as its own state.
+          if (newState.visibleDialogs.length > modalState.visibleDialogs.length) {
+            await exploreModal(page, modalState, page.url(), entryFlow, depth + 1)
+          }
         }
       }
 
@@ -873,6 +954,7 @@ export async function exploreWithScope(
 
           actionGraph.visitedActionKeys.push(candidate.action.id)
           const beforeUrl = page.url()
+          const actionStartedAt = Date.now()
 
           // Check scope for navigation actions
           if (
@@ -904,6 +986,14 @@ export async function exploreWithScope(
             totalActionsFailed++
             addEdge(actionGraph, currentState.id, undefined, candidate.action, 'failed')
             actionGraph.failedActionKeys.push(candidate.action.id)
+            recordTransition(
+              currentState,
+              candidate.action,
+              { url: beforeUrl, fingerprint: currentState.fingerprint },
+              { url: page.url() },
+              'failed',
+              Date.now() - actionStartedAt
+            )
             debug(`Failed: ${candidate.action.target}`, { actionId: candidate.action.id })
             // Restore state and continue
             await restoreState(page, beforeUrl, candidate.restoreStrategy, item.entryFlow)
@@ -940,9 +1030,23 @@ export async function exploreWithScope(
           )
           const newState = newModel.state
 
+          // Whether anything actually changed decides what the generator may
+          // assert. An unchanged action becomes a review case, not a claim.
+          const changed = Boolean(
+            newState && (newState.fingerprint !== currentState.fingerprint || afterUrl !== beforeUrl)
+          )
+          recordTransition(
+            currentState,
+            candidate.action,
+            { url: beforeUrl, fingerprint: currentState.fingerprint },
+            { url: afterUrl, state: newState },
+            changed ? 'changed' : 'unchanged',
+            Date.now() - actionStartedAt
+          )
+
           if (newState && !visitedStates.has(newState.id)) {
             visitedStates.add(newState.id)
-            addState(actionGraph, newState)
+            addState(actionGraph, { ...newState, parentStateId: currentState.id, depth: item.depth + 1 })
             addEdge(actionGraph, currentState.id, newState.id, candidate.action, 'visited')
             debug(`New state: ${newState.name}`, { stateId: newState.id, url: redactUrl(afterUrl) })
 
@@ -1011,13 +1115,35 @@ export async function exploreWithScope(
     discoveryLogs: logs
   }
 
+  // Every control the run saw, with the reason it was or was not exercised.
+  for (const state of actionGraph.states) {
+    for (const control of state.controls) {
+      const elementId = coverage.discover(control, state.id)
+      if (control.disabled) coverage.record(elementId, 'disabled')
+      else if (control.risk === 'session-ending') coverage.record(elementId, 'blocked-session-ending')
+      else if (control.risk === 'destructive') coverage.record(elementId, 'blocked-destructive')
+      else if (control.uiPattern === 'unknown') coverage.record(elementId, 'unknown-pattern')
+    }
+  }
+  for (const edge of actionGraph.edges) {
+    const state = actionGraph.states.find((candidate) => candidate.id === edge.fromStateId)
+    const control = state?.controls.find((candidate) => candidate.cssSelector === edge.action.selector)
+    if (!control?.elementId) continue
+    if (edge.status === 'visited') coverage.record(control.elementId, 'tested')
+    else if (edge.status === 'failed') coverage.record(control.elementId, 'failed')
+    else if (edge.status === 'blocked') coverage.record(control.elementId, 'blocked-filter', edge.action.reason)
+  }
+  for (let index = 0; index < modalStatesDiscovered; index++) coverage.countModalState()
+
   return {
     startUrl: entryUrl,
     origin,
     pages,
     issues,
     stats,
-    actionGraph
+    actionGraph,
+    transitions,
+    coverage: coverage.report()
   }
 }
 

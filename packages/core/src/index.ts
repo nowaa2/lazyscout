@@ -21,6 +21,17 @@ export {
   isUnsafeAutoClick
 } from './safety/blocklist.js'
 
+export {
+  matchPattern,
+  classifyRisk,
+  elementIdentity,
+  isAutomatable,
+  AUTOMATABLE_PATTERNS,
+  REVIEW_ONLY_PATTERNS
+} from './patterns/catalog.js'
+export type { PatternMatch } from './patterns/catalog.js'
+export { buildCoverageReport, CoverageTracker } from './patterns/coverage.js'
+
 export { describeStep, describeSteps, describeTarget } from './testcase/describeStep.js'
 export {
   makeTestCaseId,

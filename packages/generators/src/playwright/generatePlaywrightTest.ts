@@ -1,4 +1,5 @@
 import type { TargetRef, TestCase, TestStep } from '@lazyscout/core'
+import { buildLocatorCandidates, describeTarget } from '../locators/candidates.js'
 
 export function generatePlaywrightTest(testCase: TestCase): string {
   const lines = [
@@ -13,66 +14,71 @@ export function generatePlaywrightTest(testCase: TestCase): string {
   return lines.join('\n')
 }
 
+const RESOLVE_TIMEOUT_MS = 5000
+const RESOLVE_POLL_MS = 100
+
+/**
+ * Emitted into every generated spec. Polls the whole candidate list inside one
+ * shared budget rather than waiting on each candidate in turn, so a client-side
+ * app that has not rendered yet gets time to appear while a fallback locator is
+ * still reached quickly.
+ */
 function locatorResolverSource(): string[] {
   return [
-    `async function resolveTarget(candidates, description) {`,
-    `  const attempts = []`,
-    `  for (const [kind, candidate] of candidates) {`,
-    `    const count = await candidate.count()`,
-    `    if (count !== 1) {`,
-    `      attempts.push(kind + ': ' + count + ' matches')`,
-    `      continue`,
+    `async function resolveTarget(page, candidates, description, timeout = ${RESOLVE_TIMEOUT_MS}) {`,
+    `  const startedAt = Date.now()`,
+    `  let attempts = []`,
+    `  do {`,
+    `    attempts = []`,
+    `    for (const [kind, candidate] of candidates) {`,
+    `      try {`,
+    `        const count = await candidate.count()`,
+    `        if (count !== 1) {`,
+    `          attempts.push('- ' + kind + ': ' + count + ' matches')`,
+    `          continue`,
+    `        }`,
+    `        if (!(await candidate.isVisible())) {`,
+    `          attempts.push('- ' + kind + ': matched but not visible')`,
+    `          continue`,
+    `        }`,
+    `        console.log('[Locator] ' + description + ' -> ' + kind + ' (' + (Date.now() - startedAt) + 'ms)')`,
+    `        return candidate`,
+    `      } catch (error) {`,
+    `        attempts.push('- ' + kind + ': ' + (error instanceof Error ? error.message : String(error)))`,
+    `      }`,
     `    }`,
-    `    if (!(await candidate.isVisible().catch(() => false))) {`,
-    `      attempts.push(kind + ': not visible')`,
-    `      continue`,
-    `    }`,
-    `    console.log('[Locator] ' + description + ' -> ' + kind)`,
-    `    return candidate`,
-    `  }`,
-    `  throw new Error('Could not continue at "' + description + '" because the element was not found as one visible, unique target. The page may have changed or an earlier step may have opened a different page. Technical details: ' + attempts.join('; '))`,
+    `    await page.waitForTimeout(${RESOLVE_POLL_MS})`,
+    `  } while (Date.now() - startedAt < timeout)`,
+    ``,
+    `  const diagnostics = await page`,
+    `    .evaluate(() => ({ readyState: document.readyState, title: document.title }))`,
+    `    .catch(() => ({ readyState: 'unknown', title: 'unknown' }))`,
+    `  throw new Error(`,
+    `    'Could not resolve "' + description + '" after ' + (Date.now() - startedAt) + 'ms.\\n' +`,
+    `      'URL: ' + page.url() + '\\n' +`,
+    `      'Page title: ' + diagnostics.title + '\\n' +`,
+    `      'document.readyState: ' + diagnostics.readyState + '\\n' +`,
+    `      'Candidates:\\n' + attempts.join('\\n')`,
+    `  )`,
     `}`
   ]
 }
 
 function locator(target: TargetRef): string {
-  const semantic =
-    target.role && target.name
-      ? `page.getByRole(${quote(target.role)}, { name: ${quote(target.name)}, exact: true })`
-      : target.label
-        ? `page.getByLabel(${quote(target.label)}, { exact: true })`
-        : target.testId
-          ? `page.getByTestId(${quote(target.testId)})`
-          : target.placeholder
-            ? `page.getByPlaceholder(${quote(target.placeholder)})`
-            : target.text
-              ? `page.getByText(${quote(target.text)})`
-              : `page.locator(${quoteCssSelector(normalizeCssSelector(target.cssSelector ?? ''))})`
-  const context = target.contextTestId
-    ? `page.getByTestId(${quote(target.contextTestId)})`
-    : target.contextSelector
-      ? `page.locator(${quote(target.contextSelector)})`
-      : undefined
-  const scopedSemantic = context
-    ? target.contextText
-      ? `${context}.filter({ hasText: ${quote(target.contextText)} }).${semantic.slice(5)}`
-      : `${context}.${semantic.slice(5)}`
-    : semantic
-  const primary = target.nth === undefined ? scopedSemantic : `${scopedSemantic}.nth(${target.nth})`
-  const css = target.cssSelector
-    ? `page.locator(${quoteCssSelector(normalizeCssSelector(target.cssSelector))})`
-    : undefined
-  const candidates: Array<[string, string]> = []
-  if (target.strategy === 'css' && css) candidates.push(['recorded CSS', css])
-  candidates.push(['semantic locator', primary])
-  if (css && !candidates.some(([, value]) => value === css)) candidates.push(['recorded CSS', css])
-  const description = target.name ?? target.label ?? target.placeholder ?? target.text ?? target.cssSelector ?? 'target'
-  return `resolveTarget([${candidates.map(([kind, value]) => `[${quote(kind)}, ${value}]`).join(', ')}], ${quote(description)})`
+  const candidates = buildLocatorCandidates(target)
+  // An explicitly CSS-strategy target was pinned by the operator, so its
+  // recorded selector leads and the ranked candidates follow as fallbacks.
+  const ordered =
+    target.strategy === 'css'
+      ? [...candidates].sort(([left], [right]) => (left === 'recorded CSS' ? -1 : right === 'recorded CSS' ? 1 : 0))
+      : candidates
+  const list = ordered.map(([kind, value]) => `[${quote(kind)}, ${value}]`).join(', ')
+  return `resolveTarget(page, [${list}], ${quote(describeTarget(target))})`
 }
 function playwrightStep(step: TestStep): string {
   switch (step.type) {
     case 'navigate':
-      return `await page.goto(${quote(step.url)})`
+      return `await page.goto(${quote(plainUrl(step.url))})`
     case 'click':
       return `await (await ${locator(step.target)}).click()`
     case 'fill':
@@ -106,10 +112,12 @@ function playwrightStep(step: TestStep): string {
 }
 const quote = (value: string): string => JSON.stringify(value)
 
-function normalizeCssSelector(value: string): string {
-  return value.replace(/\\(["'])/g, '$1')
-}
-
-function quoteCssSelector(value: string): string {
-  return `'${value.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`
+/**
+ * Test Cases that arrive from an import, an OCR screenshot or a hand-edited
+ * paste sometimes carry a Markdown autolink, `[https://x](https://x)`, whose
+ * link text would be navigated to verbatim. Recover the target URL.
+ */
+export function plainUrl(value: string): string {
+  const markdownLink = /^\s*\[([^\]]+)\]\(\s*([^)\s]+)\s*\)\s*$/.exec(value)
+  return markdownLink ? markdownLink[2] : value.trim()
 }

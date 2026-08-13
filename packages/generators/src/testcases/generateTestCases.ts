@@ -4,14 +4,15 @@ import { assignModules } from '../moduleNames.js'
 import {
   destructiveActionRule,
   formSubmitRule,
-  interactionRule,
   loginFailureRule,
   navigationRule,
   pageStructureRule,
   requiredFieldRule,
   validationMatrixRule,
+  type GeneratedTestCase,
   type RuleContext
 } from './rules.js'
+import { elementPatternCases, interactionPatternCases } from './patternRules.js'
 
 export type GenerateOptions = {
   maxTestCasesPerPage: number
@@ -40,16 +41,19 @@ export function generateTestCases(pages: PageInfo[], options: Partial<GenerateOp
     const module = moduleByUrl.get(page.url) ?? 'PAGE'
     const context: RuleContext = { page, module, visitedTitles }
 
-    const fromPage = [
-      ...pageStructureRule(context),
-      ...page.forms.flatMap((form) => requiredFieldRule(context, form)),
-      ...page.forms.flatMap((form) => validationMatrixRule(context, form)),
-      ...page.forms.flatMap((form) => loginFailureRule(context, form)),
-      ...page.forms.flatMap((form) => formSubmitRule(context, form)),
-      ...interactionRule(context),
-      ...navigationRule(context),
-      ...destructiveActionRule(context)
-    ].slice(0, config.maxTestCasesPerPage)
+    const fromPage = dedupe(
+      [
+        ...pageStructureRule(context),
+        ...page.forms.flatMap((form) => requiredFieldRule(context, form)),
+        ...page.forms.flatMap((form) => validationMatrixRule(context, form)),
+        ...page.forms.flatMap((form) => loginFailureRule(context, form)),
+        ...page.forms.flatMap((form) => formSubmitRule(context, form)),
+        ...patternCases(context),
+        ...navigationRule(context),
+        ...destructiveActionRule(context)
+      ],
+      counters
+    ).slice(0, config.maxTestCasesPerPage)
 
     for (const generated of fromPage) {
       const sequence = (counters.get(module) ?? 0) + 1
@@ -59,6 +63,44 @@ export function generateTestCases(pages: PageInfo[], options: Partial<GenerateOp
   }
 
   return config.language === 'en' ? testCases : localizeThai(testCases)
+}
+
+/**
+ * Pattern cases for every collected control, plus the state's interaction
+ * hints. An interaction that points at a control already covered is dropped so
+ * the same widget is not tested twice under two names.
+ */
+function patternCases(context: RuleContext): GeneratedTestCase[] {
+  const ctx = { page: context.page, module: context.module }
+  const controls = context.page.state?.controls ?? []
+  const cases = controls.flatMap((control) => elementPatternCases(ctx, control))
+  const covered = new Set(controls.map((control) => control.cssSelector))
+  const fromInteractions = (context.page.state?.interactions ?? [])
+    .filter((interaction) => !covered.has(interaction.cssSelector))
+    .flatMap((interaction) => interactionPatternCases(ctx, interaction))
+  return [...cases, ...fromInteractions]
+}
+
+/**
+ * Drop cases that would test the same thing twice. Identity is the pattern plus
+ * the normalized step sequence, so two rules reaching the same control through
+ * different paths collapse into one case.
+ */
+function dedupe(cases: GeneratedTestCase[], counters: Map<string, number>): GeneratedTestCase[] {
+  const seen = new Set<string>()
+  const unique: GeneratedTestCase[] = []
+  let dropped = 0
+  for (const testCase of cases) {
+    const key = `${testCase.pattern ?? testCase.type}|${testCase.title}|${JSON.stringify(testCase.steps)}`
+    if (seen.has(key)) {
+      dropped += 1
+      continue
+    }
+    seen.add(key)
+    unique.push(testCase)
+  }
+  counters.set('__deduplicated', (counters.get('__deduplicated') ?? 0) + dropped)
+  return unique
 }
 
 export function localizeThai(testCases: TestCase[]): TestCase[] {

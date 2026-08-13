@@ -1,4 +1,4 @@
-import type { FormInfo, PageInfo, TargetRef, TestCase, TestStep, UIElement, UIInteraction } from '@lazyscout/core'
+import type { FormInfo, PageInfo, TestCase, TestStep, UIElement } from '@lazyscout/core'
 import { normalizeUrl } from '@lazyscout/core'
 import { labelOf, sampleValueFor, toTargetRef } from './targets.js'
 
@@ -103,42 +103,8 @@ export function pageStructureRule(ctx: RuleContext): GeneratedTestCase[] {
   ]
 }
 
-export function interactionRule(ctx: RuleContext): GeneratedTestCase[] {
-  const interactions = ctx.page.state?.interactions ?? []
-  return interactions.slice(0, 12).map((interaction) => {
-    const target = interactionTarget(interaction)
-    return build(ctx, {
-      title: (interaction.name || interaction.kind) + ' interaction works',
-      preconditions: precondition(ctx.page),
-      steps: [
-        navigateStep(ctx.page),
-        { type: 'click', target, description: interactionAction(interaction) },
-        { type: 'assertVisible', target }
-      ],
-      expectedResult: interaction.kind + ' "' + (interaction.name || 'control') + '" opens and is usable.',
-      type: 'positive',
-      priority: 'medium',
-      automationStatus: 'needs-review',
-      notes: 'Generated from the observed ' + interaction.kind + ' interaction.'
-    })
-  })
-}
-
-function interactionTarget(interaction: UIInteraction): TargetRef {
-  return { role: interaction.role, name: interaction.name || undefined, cssSelector: interaction.cssSelector }
-}
-
-function interactionAction(interaction: UIInteraction): string {
-  const labels: Record<UIInteraction['kind'], string> = {
-    dialog: 'Open modal or dialog',
-    tab: 'Select tab',
-    accordion: 'Expand accordion',
-    dropdown: 'Open dropdown',
-    drawer: 'Open drawer',
-    popover: 'Open popover'
-  }
-  return labels[interaction.kind]
-}
+// Interaction handling moved to patternRules.ts, where each UI pattern gets an
+// assertion drawn from its own contract instead of one generic click case.
 
 export function requiredFieldRule(ctx: RuleContext, form: FormInfo): GeneratedTestCase[] {
   const submit = form.submitButtons.find((button) => !button.disabled)

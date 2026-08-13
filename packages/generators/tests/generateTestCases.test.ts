@@ -83,13 +83,17 @@ describe('generateTestCases', () => {
     expect(login?.automationStatus).toBe('ready')
     expect(login?.steps).toEqual(
       expect.arrayContaining([
-        { type: 'fill', target: { role: 'textbox', name: 'Email', cssSelector: '#email' }, value: '{{TEST_EMAIL}}' },
         {
           type: 'fill',
-          target: { role: 'textbox', name: 'Password', cssSelector: '#password' },
+          target: { role: 'textbox', name: 'Email', tagName: 'input', cssSelector: '#email' },
+          value: '{{TEST_EMAIL}}'
+        },
+        {
+          type: 'fill',
+          target: { role: 'textbox', name: 'Password', tagName: 'input', cssSelector: '#password' },
           value: '{{TEST_PASSWORD}}'
         },
-        { type: 'click', target: { role: 'button', name: 'Login', cssSelector: '#login' } }
+        { type: 'click', target: { role: 'button', name: 'Login', tagName: 'button', cssSelector: '#login' } }
       ])
     )
   })
@@ -114,7 +118,7 @@ describe('generateTestCases', () => {
     expect(validation?.automationStatus).toBe('ready')
     expect(validation?.steps.at(-1)).toEqual({
       type: 'assertInvalid',
-      target: { role: 'textbox', name: 'Email', cssSelector: '#email' },
+      target: { role: 'textbox', name: 'Email', tagName: 'input', cssSelector: '#email' },
       description: 'Verify that "Email" is invalid and the form is not submitted'
     })
   })
@@ -201,7 +205,7 @@ describe('generateTestCases', () => {
     const navigation = testCases.find((testCase) => testCase.title === 'Navigate to Register')
     expect(navigation?.steps[1]).toEqual({
       type: 'click',
-      target: { role: 'link', name: 'Register', cssSelector: '#x' }
+      target: { role: 'link', name: 'Register', tagName: 'a', cssSelector: '#x' }
     })
   })
 

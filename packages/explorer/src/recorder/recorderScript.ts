@@ -106,18 +106,38 @@ export function recorderInitScript(): void {
     return clean(element.textContent) || undefined
   }
 
+  const TEST_ID_ATTRIBUTES = ['data-testid', 'data-test-id', 'data-test', 'data-qa', 'data-cy']
+
+  /** The automation attribute this element carries, with its real name kept. */
+  const testIdOf = (element: Element): { attribute: string; value: string } | undefined => {
+    for (const attribute of TEST_ID_ATTRIBUTES) {
+      const value = element.getAttribute(attribute)
+      if (value && value.trim()) return { attribute, value: value.trim() }
+    }
+    return undefined
+  }
+
+  /**
+   * An attribute selector's value is a quoted CSS string, so only `\` and `"`
+   * need escaping — `CSS.escape` would turn `input:username` into
+   * `input\:username`, which matches nothing.
+   */
+  const attributeSelector = (name: string, value: string, tagName = ''): string =>
+    `${tagName}[${name}="${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"]`
+
   /** Last-resort selector. Prefers attributes a developer chose over positions. */
   const cssPath = (element: Element): string => {
-    const testId =
-      element.getAttribute('data-testid') ?? element.getAttribute('data-test-id') ?? element.getAttribute('data-test')
-    if (testId) return `[data-testid="${testId}"]`
+    // Keep the attribute the page actually uses. Rewriting `data-test` to
+    // `data-testid` produces a selector that matches nothing.
+    const testId = testIdOf(element)
+    if (testId) return attributeSelector(testId.attribute, testId.value)
 
     const id = element.getAttribute('id')
     // Ids containing long digit runs are usually generated per render.
     if (id && !/\d{4,}/.test(id)) return `#${CSS.escape(id)}`
 
     const name = element.getAttribute('name')
-    if (name) return `${element.tagName.toLowerCase()}[name="${CSS.escape(name)}"]`
+    if (name) return attributeSelector('name', name, element.tagName.toLowerCase())
 
     const parts: string[] = []
     let node: Element | null = element
@@ -148,6 +168,8 @@ export function recorderInitScript(): void {
               accessibleName(candidate)?.localeCompare(name, undefined, { sensitivity: 'accent' }) === 0
           )
         : []
+    const testId = testIdOf(element)
+    const elementId = element.getAttribute('id') || undefined
     const target = {
       role,
       name,
@@ -155,6 +177,13 @@ export function recorderInitScript(): void {
       text: role ? undefined : clean(element.textContent) || undefined,
       label: labelOf(element),
       placeholder: clean(element.getAttribute('placeholder')) || undefined,
+      // Recorded verbatim so the generator can rank them without re-deriving
+      // anything from the DOM it can no longer see.
+      testId: testId?.value,
+      testIdAttribute: testId?.attribute,
+      elementId: elementId && !/\d{4,}/.test(elementId) ? elementId : undefined,
+      attributeName: element.getAttribute('name') || undefined,
+      tagName: element.tagName.toLowerCase(),
       cssSelector: cssPath(element)
     }
     return matches.length > 1 ? { ...target, matchCount: matches.length } : target

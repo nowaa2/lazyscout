@@ -47,8 +47,14 @@ function locator(target: TargetRef): string {
     return `page.getByLabel(${JSON.stringify(target.label ?? target.value ?? '')}, { exact: true })`
   if (target.strategy === 'placeholder' || target.placeholder)
     return `page.getByPlaceholder(${JSON.stringify(target.placeholder ?? target.value ?? '')})`
-  if (target.strategy === 'testid' || target.testId)
-    return `page.getByTestId(${JSON.stringify(target.testId ?? target.value ?? '')})`
+  if (target.strategy === 'testid' || target.testId) {
+    const testId = target.testId ?? target.value ?? ''
+    // getByTestId resolves against Playwright's configured testIdAttribute, so
+    // a page using data-test must be matched literally instead.
+    return target.testIdAttribute && target.testIdAttribute !== 'data-testid'
+      ? `page.locator(${quoteCssSelector(attributeSelector(target.testIdAttribute, testId))})`
+      : `page.getByTestId(${JSON.stringify(testId)})`
+  }
   if (target.strategy === 'text' || target.text)
     return `page.getByText(${JSON.stringify(target.text ?? target.value ?? '')})`
   return `page.locator(${quoteCssSelector(normalizeCssSelector(target.cssSelector ?? target.value ?? ''))})`
@@ -60,6 +66,11 @@ function preferStableCss(target: TargetRef): boolean {
     (target.strategy === 'css' ||
       (target.matchCount !== undefined && target.matchCount > 1 && !target.contextSelector && !target.contextText))
   )
+}
+
+/** Only `\` and `"` are special inside an attribute selector's quoted value. */
+function attributeSelector(name: string, value: string): string {
+  return `[${name}="${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"]`
 }
 
 function normalizeCssSelector(value: string): string {

@@ -1,5 +1,8 @@
 import {
+  classifyRisk,
+  elementIdentity,
   fingerprintState,
+  matchPattern,
   stateId,
   type FormInfo,
   type PageInfo,
@@ -10,9 +13,19 @@ import type { RawElement, RawForm, RawPageData } from './types/raw.js'
 import { isBlockedLabel } from './safety.js'
 
 function toUIElement(raw: RawElement, keywords: readonly string[]): UIElement {
-  return {
+  const base: UIElement = {
     ...raw,
     destructive: isBlockedLabel(keywords, raw.accessibleName, raw.text, raw.name, raw.id)
+  }
+  // Classification happens once, here, so the explorer and the generator read
+  // the same pattern rather than each re-deriving one.
+  const { pattern, evidence } = matchPattern(base)
+  return {
+    ...base,
+    uiPattern: pattern,
+    patternEvidence: evidence,
+    risk: classifyRisk(base, keywords),
+    elementId: elementIdentity(base, pattern)
   }
 }
 
@@ -39,7 +52,8 @@ export function mapToPageModel(
   const inputs = raw.inputs.map(toElement)
   const textareas = raw.textareas.map(toElement)
   const selects = raw.selects.map(toElement)
-  const controls = [...links, ...buttons, ...inputs, ...textareas, ...selects]
+  const widgets = (raw.widgets ?? []).map(toElement)
+  const controls = [...links, ...buttons, ...inputs, ...textareas, ...selects, ...widgets]
   const state = createPageState(raw, meta.finalUrl, controls)
   return {
     url: meta.url,

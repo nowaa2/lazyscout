@@ -39,6 +39,8 @@ Review / import / CSV / reports / generated automation
 ### `packages/core`
 
 - framework-independent Page, Test Case, Test Data and API types
+- deterministic UI pattern catalog and risk classification (`patterns/catalog.ts`)
+- coverage tracker (`patterns/coverage.ts`)
 - local/public URL policies
 - URL normalization and validation
 - state fingerprints
@@ -56,6 +58,7 @@ Review / import / CSV / reports / generated automation
 
 ### `packages/generators`
 
+- pattern-specific Test Case rules (`testcases/patternRules.ts`), one per UI pattern
 - rule-based Draft Test Cases and Test Data
 - UTF-8 CSV export
 - Playwright code generation

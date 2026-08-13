@@ -55,6 +55,20 @@ describe('real Playwright Test CLI runner', () => {
         response.end('<h1>Login</h1>')
         return
       }
+      // Renders its form only after a delay, like a client-rendered app. The
+      // attribute is data-test, not Playwright's default data-testid.
+      if (request.url === '/deferred') {
+        response.end(`
+          <div id="app"></div>
+          <script>
+            setTimeout(() => {
+              document.getElementById('app').innerHTML =
+                '<input id="username" data-test="input:username" name="username" placeholder="ชื่อผู้ใช้">'
+            }, 1500)
+          </script>
+        `)
+        return
+      }
       response.end('<a href="/login">เข้าสู่ระบบ</a>')
     })
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
@@ -84,6 +98,50 @@ describe('real Playwright Test CLI runner', () => {
       expect(result.status, logs.map((entry) => entry.message).join('\n')).toBe('passed')
       expect(logs.some((entry) => entry.message.includes('Running 1 test'))).toBe(true)
       expect(logs.some((entry) => entry.message.includes('passed'))).toBe(true)
+    },
+    CLI_TEST_TIMEOUT
+  )
+
+  it(
+    'waits for a late-rendered element instead of failing on the first sweep',
+    async () => {
+      const deferredCase: TestCase = {
+        ...testCase,
+        id: 'TC-DEFERRED-001',
+        title: 'Late-rendered field is reachable',
+        sourceUrl: `${url}/deferred`,
+        steps: [
+          { type: 'navigate', url: `${url}/deferred` },
+          {
+            type: 'fill',
+            target: {
+              role: 'textbox',
+              placeholder: 'ชื่อผู้ใช้',
+              testId: 'input:username',
+              testIdAttribute: 'data-test',
+              elementId: 'username',
+              attributeName: 'username',
+              tagName: 'input'
+            },
+            value: 'qa-tester'
+          }
+        ]
+      }
+      const logs: Array<{ level: string; message: string }> = []
+      const result = await runPlaywrightCli({
+        source: generatePlaywrightTest(deferredCase),
+        testCase: deferredCase,
+        testCaseId: deferredCase.id,
+        secretValues: [],
+        addLog: (level, message) => logs.push({ level, message })
+      })
+
+      const output = logs.map((entry) => entry.message).join('\n')
+      expect(result.status, output).toBe('passed')
+      // It must resolve through the recorded data-test attribute, and only
+      // after the element appears — proving the resolver polled rather than
+      // giving up on the first sweep.
+      expect(output).toContain('[Locator] ชื่อผู้ใช้ -> data-test')
     },
     CLI_TEST_TIMEOUT
   )

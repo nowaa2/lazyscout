@@ -1,4 +1,4 @@
-import type { UIElementKind, UIInteraction } from '@lazyscout/core'
+import type { ElementContext, ElementRelation, UIElementKind, UIInteraction } from '@lazyscout/core'
 
 export type RawElement = {
   kind: UIElementKind
@@ -9,7 +9,21 @@ export type RawElement = {
   inputType?: string
   placeholder?: string
   name?: string
+  ariaLabel?: string
+  describedBy?: string
+  visible?: boolean
+  readOnly?: boolean
+  checked?: boolean
+  expanded?: boolean
+  selected?: boolean
+  multiple?: boolean
+  accept?: string
+  hasPopup?: string
+  relation?: ElementRelation
+  context?: ElementContext
   testId?: string
+  /** Attribute the testId came from, e.g. `data-test`. */
+  testIdAttribute?: string
   id?: string
   href?: string
   options?: string[]
@@ -50,6 +64,8 @@ export type RawPageData = {
   inputs: RawElement[]
   textareas: RawElement[]
   selects: RawElement[]
+  /** Interactive elements with no native semantics: ARIA widgets, toggles. */
+  widgets?: RawElement[]
   forms: RawForm[]
   visibleDialogs: string[]
   validationMessages: string[]

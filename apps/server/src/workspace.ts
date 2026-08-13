@@ -417,7 +417,10 @@ function normalizeResult(value: Partial<AnalyzeResponse> | undefined): AnalyzeRe
       blockedActionKeys: Array.isArray(actionGraph?.blockedActionKeys) ? actionGraph.blockedActionKeys : []
     },
     runEvents: Array.isArray(value?.runEvents) ? value.runEvents : [],
-    apiChecks: Array.isArray(value?.apiChecks) ? value.apiChecks : []
+    apiChecks: Array.isArray(value?.apiChecks) ? value.apiChecks : [],
+    // Optional, so a Project saved before pattern coverage existed still loads.
+    ...(value?.coverage ? { coverage: value.coverage } : {}),
+    ...(Array.isArray(value?.transitions) ? { transitions: value.transitions } : {})
   }
 }
 

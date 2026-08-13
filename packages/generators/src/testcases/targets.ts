@@ -16,14 +16,29 @@ export function toTargetRef(element: UIElement): TargetRef {
         contextTestId: element.contextTestId
       }
     : undefined
+  // Every recorded way of addressing the element is carried through, so the
+  // generator can rank them and the runtime resolver can fall back. Picking a
+  // single strategy here is what used to leave one brittle locator.
+  // Undefined keys are dropped so a stored Test Case stays small and diffable.
+  const identity = defined({
+    testId: element.testId,
+    testIdAttribute: element.testIdAttribute,
+    elementId: element.id,
+    attributeName: element.name,
+    tagName: element.tagName,
+    cssSelector: element.cssSelector
+  })
   if (element.accessibleName) {
-    return { role: element.role, name: element.accessibleName, cssSelector: element.cssSelector, ...disambiguation }
+    return { role: element.role, name: element.accessibleName, ...identity, ...disambiguation }
   }
   if (element.placeholder) {
-    return { role: element.role, placeholder: element.placeholder, cssSelector: element.cssSelector, ...disambiguation }
+    return { role: element.role, placeholder: element.placeholder, ...identity, ...disambiguation }
   }
-  if (element.testId) return { testId: element.testId, ...disambiguation }
-  return { role: element.role, cssSelector: element.cssSelector, ...disambiguation }
+  return { role: element.role, ...identity, ...disambiguation }
+}
+
+function defined<T extends Record<string, unknown>>(value: T): Partial<T> {
+  return Object.fromEntries(Object.entries(value).filter(([, item]) => item !== undefined)) as Partial<T>
 }
 
 export function labelOf(element: UIElement): string {
