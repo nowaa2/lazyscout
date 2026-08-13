@@ -13,13 +13,40 @@ export type LaunchedBrowser = {
   close: () => Promise<void>
 }
 
-export async function launchBrowser(
-  options: { userDataDir?: string; headless?: boolean } = {}
-): Promise<LaunchedBrowser> {
+export type LaunchBrowserOptions = {
+  userDataDir?: string
+  headless?: boolean
+  /**
+   * A saved `storageState`. Preferred over `userDataDir` for anything that only
+   * needs to reuse a login: it carries session cookies, which a profile
+   * directory drops when the browser closes, and it takes no directory lock so
+   * several runs can use it without fighting over the profile.
+   */
+  storageState?: unknown
+}
+
+export async function launchBrowser(options: LaunchBrowserOptions = {}): Promise<LaunchedBrowser> {
   const failures: string[] = []
 
   for (const candidate of CANDIDATES) {
     try {
+      // A snapshot wins over the profile directory: it is the only one of the
+      // two that survives a browser restart with the session intact.
+      if (options.storageState) {
+        const browser = await chromium.launch({
+          headless: options.headless ?? true,
+          ...(candidate.channel ? { channel: candidate.channel } : {})
+        })
+        const context = await browser.newContext({
+          viewport: { width: 1366, height: 900 },
+          storageState: options.storageState as Parameters<typeof browser.newContext>[0] extends {
+            storageState?: infer S
+          }
+            ? S
+            : never
+        })
+        return { context, label: candidate.label, close: () => browser.close() }
+      }
       if (options.userDataDir) {
         const context = await chromium.launchPersistentContext(options.userDataDir, {
           headless: options.headless ?? true,

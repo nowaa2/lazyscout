@@ -141,14 +141,23 @@ The server packaged with the CLI binds to `127.0.0.1` and has **no authenticatio
 
 `LAZYSCOUT_MODE=public` changes only the URL policy applied to Scout targets. It does not sandbox the runner and does not make the server safe to expose.
 
-## 5. API checks and Load Test
+## 5. Saved authentication
+
+A recorded sign-in is stored as a Playwright `storageState` at `projects/<id>/auth/storage-state.json`, written with owner-only permissions and covered by `.gitignore`. It contains real cookies, localStorage and — where the installed Playwright supports it — IndexedDB, so **treat the file as credential material**: it is enough to act as the signed-in user until the session expires.
+
+- Only counts and timestamps are written to `auth/meta.json`, which is what the UI and the logs read. No cookie, token or header value is ever logged.
+- The session is locked to one holder at a time. An application that rotates refresh tokens revokes the old one on every use, so two runs sharing a snapshot sign each other out; the second is refused instead.
+- `Clear login session` removes both the snapshot and the browser profile.
+- Delete the Project, or clear the session, when you are done with an environment. Nothing expires the file on its own.
+
+## 6. API checks and Load Test
 
 - API observations record method, redacted URL, status, duration and content type, and never capture request or response bodies
 - API Checks run automatically for GET, HEAD and OPTIONS only
 - POST, PUT, PATCH and DELETE are observation-only and must be verified by the Tester with an appropriate tool
 - Load Test issues GET requests only, applies hard limits, and requires confirmation that the target may be tested
 
-## 6. Credentials and artifacts
+## 7. Credentials and artifacts
 
 - Project Settings credentials stay in memory and are cleared on refresh
 - Environment variables are the recommended way to supply credentials to the runner

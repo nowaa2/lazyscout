@@ -73,14 +73,38 @@ Nothing is blocked as "destructive" until you configure a click filter in Projec
 
 ## Login and continue after authentication
 
-1. Scout the website once.
-2. Open **Project Settings**.
-3. Press **Open login browser**.
-4. Sign in manually and close the browser.
-5. Scout the same Project again.
-6. Set **Start Path** to the page after login, such as `/dashboard`.
+1. Open **Project Settings** and press **Open login browser**.
+2. Sign in manually.
+3. Press **Capture session**. LazyScout waits for the sign-in to stop changing the browser's storage, then saves a snapshot.
+4. Press **Verify** against a protected path such as `/dashboard`. The status becomes **ready** only when that page actually opens.
+5. Scout the Project, or run a Test Case, with **Start Path** set past the sign-in page.
 
-LazyScout reuses the Project browser profile, including cookies and local storage. Keep the host consistent: `localhost` and `127.0.0.1` are different browser origins. Chromium locks the profile directory, so only one LazyScout browser per Project can be open at a time.
+The snapshot is a Playwright `storageState`: every cookie — including the session cookies that have no expiry — plus localStorage, IndexedDB where the installed Playwright supports it, and sessionStorage captured separately. It is stored at `projects/<id>/auth/storage-state.json`, readable only by you, and ignored by Git.
+
+This matters because a Chromium profile directory is not enough on its own. Session cookies live in memory and are gone the moment the browser closes, and most applications keep their refresh token in exactly that kind of cookie — which is why reusing a profile alone would land a run back on the sign-in page.
+
+Keep the host consistent: `localhost` and `127.0.0.1` are different browser origins.
+
+### What the status means
+
+| Status           | Meaning                                                      |
+| ---------------- | ------------------------------------------------------------ |
+| `not-configured` | No session has been recorded                                 |
+| `recorded`       | A snapshot exists but has not been proven to work            |
+| `verifying`      | A sign-in window is open, or a check is running              |
+| `ready`          | A protected page opened with the snapshot restored           |
+| `expired`        | The snapshot no longer authenticates; record the login again |
+| `invalid`        | The snapshot could not be used at all                        |
+
+A directory existing has never meant a working login, and the status no longer implies it.
+
+### One run at a time
+
+An application that rotates refresh tokens issues a new one and revokes the old on every use, so two runs sharing one snapshot sign each other out — and a server that notices the reuse may revoke the whole token family. LazyScout therefore locks the Project's session while a Scout, a recording or a Test run is using it, and refuses the second one with a clear message rather than letting both corrupt the session.
+
+### Browser mode
+
+Signing in, recording, scouting and running all use the same browser mode, because an application that ties a session to the browser it was issued to will reject a session captured in a different one. Set `LAZYSCOUT_HEADED=1` to run everything visibly. When a snapshot was captured in a different mode from the current one, the status reports `browserModeMismatch`.
 
 Use **Scope Path** to keep a large application's crawl inside one section, such as `/admin`.
 
@@ -128,6 +152,14 @@ npx lazyscout scan http://localhost:5500 --csv report.csv --json raw.json
 Raw JSON may contain internal URLs, page labels and observed API metadata. Review it before sharing.
 
 ## Troubleshooting
+
+### A run lands back on the sign-in page
+
+Check **Project Settings → session status**. `expired` means the snapshot no longer authenticates: record the login again. `ready` with the run still failing usually means the application rotates its refresh token — see the limitation below.
+
+### A recorded login Test Case cannot be replayed
+
+A login flow has to start signed out, but a Project with a saved session starts signed in, so the application redirects past the sign-in form and the recorded fill steps find nothing. Clear the session first with **Clear login session**, or keep login Test Cases in a Project that has no saved session.
 
 ### Scout only found one page
 

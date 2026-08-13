@@ -25,6 +25,9 @@ type RunInput = {
   secrets?: ProjectSecrets
   secretValues: string[]
   profileDirectory?: string
+  /** Path to a saved storageState snapshot, preferred over the profile dir. */
+  authStatePath?: string
+  headless?: boolean
   addLog: (level: AutomationLog['level'], message: string, durationMs?: number) => void
   onProcess?: (process: ChildProcess) => void
 }
@@ -32,23 +35,25 @@ type RunInput = {
 export async function runPlaywrightCli(input: RunInput): Promise<PlaywrightCliRun> {
   const started = Date.now()
   const runDirectory = await mkdtemp(join(dirname(CLI_ENTRY), '.lazyscout-run-'))
-  const source = resolveSource(input.source, input.testCase, input.secrets, Boolean(input.profileDirectory))
+  const useContextFixture = Boolean(input.authStatePath || input.profileDirectory)
+  const source = resolveSource(input.source, input.testCase, input.secrets, useContextFixture)
   validateLiteralNavigationUrls(source)
   const specPath = join(runDirectory, `${safeName(input.testCaseId)}.spec.ts`)
   const configPath = join(runDirectory, 'playwright.config.mjs')
   await writeFile(specPath, source, 'utf8')
-  if (input.profileDirectory) {
-    const fixture = createProfileFixture()
+  if (useContextFixture) {
+    const fixture = createProfileFixture(input.headless ?? true)
     await writeFile(join(runDirectory, 'lazyscout-fixture.mjs'), fixture, 'utf8')
   }
-  await writeFile(configPath, createConfig(), 'utf8')
+  await writeFile(configPath, createConfig(input.headless ?? true), 'utf8')
 
   const child = spawn(process.execPath, [CLI_ENTRY, 'test', '--config', configPath], {
     cwd: runDirectory,
     env: {
       ...process.env,
       FORCE_COLOR: '0',
-      ...(input.profileDirectory ? { LAZYSCOUT_PROFILE_DIR: input.profileDirectory } : {})
+      ...(input.profileDirectory ? { LAZYSCOUT_PROFILE_DIR: input.profileDirectory } : {}),
+      ...(input.authStatePath ? { LAZYSCOUT_AUTH_STATE: input.authStatePath } : {})
     },
     windowsHide: true,
     stdio: ['ignore', 'pipe', 'pipe']
@@ -131,13 +136,45 @@ function resolveSource(
     : fullSource
 }
 
-function createProfileFixture(): string {
+/**
+ * Reuses the Project's saved authentication.
+ *
+ * A saved `storageState` is preferred over the profile directory: it carries
+ * session cookies, which a profile drops when its browser closes, and it takes
+ * no directory lock so a run cannot collide with a recorder. sessionStorage is
+ * re-applied through an init script because `storageState` never includes it.
+ */
+function createProfileFixture(headless: boolean): string {
   return `import { test as base, expect } from '@playwright/test'
 import { chromium } from 'playwright-core'
+import { readFileSync } from 'node:fs'
+
+const headless = ${headless ? 'true' : 'false'}
+const snapshotPath = process.env.LAZYSCOUT_AUTH_STATE
+const profileDir = process.env.LAZYSCOUT_PROFILE_DIR
 
 export const test = base.extend({
   context: async ({}, use) => {
-    const context = await chromium.launchPersistentContext(process.env.LAZYSCOUT_PROFILE_DIR, { headless: true })
+    if (snapshotPath) {
+      const snapshot = JSON.parse(readFileSync(snapshotPath, 'utf8'))
+      const browser = await chromium.launch({ headless })
+      const context = await browser.newContext({ storageState: snapshot.storageState })
+      const sessionStorage = snapshot.sessionStorage ?? []
+      if (sessionStorage.length) {
+        await context.addInitScript((origins) => {
+          try {
+            const match = origins.find((entry) => entry.origin === window.location.origin)
+            if (!match) return
+            for (const item of match.items) window.sessionStorage.setItem(item.name, item.value)
+          } catch {}
+        }, sessionStorage)
+      }
+      await use(context)
+      await context.close()
+      await browser.close()
+      return
+    }
+    const context = await chromium.launchPersistentContext(profileDir, { headless })
     await use(context)
     await context.close()
   }
@@ -174,7 +211,7 @@ function validateLiteralNavigationUrls(source: string): void {
   }
 }
 
-function createConfig(): string {
+function createConfig(headless: boolean): string {
   return `import { defineConfig } from '@playwright/test'
 export default defineConfig({
   testDir: '.',
@@ -183,7 +220,7 @@ export default defineConfig({
   workers: 1,
   fullyParallel: false,
   reporter: [['line'], ['json', { outputFile: 'results.json' }]],
-  use: { headless: true, actionTimeout: 20000, navigationTimeout: 20000, screenshot: 'off' }
+  use: { headless: ${headless ? 'true' : 'false'}, actionTimeout: 20000, navigationTimeout: 20000, screenshot: 'off' }
 })
 `
 }

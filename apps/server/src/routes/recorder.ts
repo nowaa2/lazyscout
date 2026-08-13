@@ -3,6 +3,8 @@ import { checkTargetUrl } from '@lazyscout/core'
 import { launchBrowser } from '@lazyscout/explorer'
 import { browserProfileDirectory } from '../workspace.js'
 import { config } from '../config.js'
+import { dirname } from 'node:path'
+import { loadAuthSnapshot, restoreSessionStorage } from '../auth/authState.js'
 import { RecorderSessions, type LaunchRecorderBrowser, type RecorderInteraction } from '../recorderSessions.js'
 
 export type RecorderRouteOptions = {
@@ -14,13 +16,22 @@ export function registerRecorderRoutes(
   workspaceRoot: string,
   options: RecorderRouteOptions = {}
 ): void {
-  // Reuses the Project profile, so a session created by Open login browser is
-  // already signed in. Chromium locks the directory, so only one browser for a
-  // Project can be open at a time.
+  // Reuses whatever the Project has: a saved snapshot first, because it keeps
+  // the session cookies a profile directory drops and takes no directory lock,
+  // and the profile only as a fallback.
   const launch: LaunchRecorderBrowser =
     options.launch ??
-    (async (projectId) =>
-      launchBrowser({ userDataDir: await browserProfileDirectory(workspaceRoot, projectId), headless: true }))
+    (async (projectId) => {
+      const profile = await browserProfileDirectory(workspaceRoot, projectId)
+      const snapshot = await loadAuthSnapshot(dirname(profile)).catch(() => undefined)
+      const launched = await launchBrowser(
+        snapshot
+          ? { storageState: snapshot.storageState, headless: config.headless }
+          : { userDataDir: profile, headless: config.headless }
+      )
+      if (snapshot) await restoreSessionStorage(launched.context, snapshot.sessionStorage).catch(() => undefined)
+      return launched
+    })
 
   const sessions = new RecorderSessions(launch)
 

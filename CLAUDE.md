@@ -2,6 +2,19 @@
 
 Notes for AI coding agents (Claude Code and similar). Human contributors: see [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## Test files are never committed
+
+**No test file goes into Git.** `**/*.test.ts` and `**/*.spec.ts` are gitignored with no exceptions, by the owner's decision.
+
+This does not mean "do not write tests". Write them exactly as you would otherwise — they run from the developer's disk and `npm test` picks them up. They are simply never staged, never pushed, and never restored by re-adding a negation to `.gitignore`.
+
+What follows from it:
+
+- Do not `git add -f` a test file, and do not add a `!` negation to bring one back.
+- A fresh clone has no test suite, which is why `npm test` runs with `--passWithNoTests`. Leave that flag in place or `release:check` fails on a clean checkout.
+- Verification still has to happen before you report work as done. Run `npm test` locally and report the real numbers.
+- Behaviour a test would have protected must instead be described in `CHANGELOG.md`, so the reasoning survives even though the test does not travel with the repository.
+
 ## Scratch and verification artifacts must never be committed
 
 Verifying a change here often means writing a throwaway script — a probe that calls `exploreWithScope` directly, a Fastify snippet that checks an event's timing, a JSON dump of a Scout result. **None of it belongs in the repository or in a commit.**

@@ -3,7 +3,10 @@ import type { ActionGraph, ApiCheck, AnalyzeRequest, AnalyzeResponse, PageState,
 import { checkTargetUrl, redactSensitiveText } from '@lazyscout/core'
 import { ExplorerError, exploreWithScope, normalizeBlockedKeywords } from '@lazyscout/explorer'
 import { generateTestCases, generateTestData, localizeThai } from '@lazyscout/generators'
+import { dirname } from 'node:path'
 import { clamp, config } from '../config.js'
+import { AuthProfileBusyError, acquireAuthLock } from '../auth/authLock.js'
+import { loadAuthSnapshot } from '../auth/authState.js'
 import { toApiError } from '../toApiError.js'
 import { browserProfileDirectory } from '../workspace.js'
 
@@ -22,11 +25,30 @@ export function registerAnalyzeRoute(app: FastifyInstance, workspaceRoot: string
       return reply.status(400).send({ error: { code: check.code, message: check.message } })
     }
 
-    // Without the Project profile the crawl signs out of everything the operator
-    // signed into, and an application behind a login looks like one page.
+    // Without the Project session the crawl signs out of everything the
+    // operator signed into, and an application behind a login looks like one
+    // page. A saved snapshot is preferred over the profile directory because it
+    // carries session cookies, which the profile loses when a browser closes.
     const browserProfileDir = body.projectId
       ? await browserProfileDirectory(workspaceRoot, body.projectId).catch(() => undefined)
       : undefined
+    const projectDirectory = browserProfileDir ? dirname(browserProfileDir) : undefined
+    const authRestore = projectDirectory ? await loadAuthSnapshot(projectDirectory).catch(() => undefined) : undefined
+
+    // One holder at a time: two runs sharing a rotating refresh token sign each
+    // other out, and a server that spots the reuse may revoke the whole family.
+    let releaseAuthLock: (() => Promise<void>) | undefined
+    if (projectDirectory && authRestore) {
+      try {
+        releaseAuthLock = await acquireAuthLock(projectDirectory, 'scout', {
+          log: (message) => request.log.info(message)
+        })
+      } catch (error) {
+        if (error instanceof AuthProfileBusyError)
+          return reply.status(409).send({ error: { code: error.code, message: error.message } })
+        throw error
+      }
+    }
 
     try {
       const abortController = new AbortController()
@@ -58,7 +80,12 @@ export function registerAnalyzeRoute(app: FastifyInstance, workspaceRoot: string
           waitAfterNavigationMs: clamp(body.waitAfterNavigationMs, 0, 5000, 750),
           blockedKeywords: normalizeBlockedKeywords(body.blockedKeywords),
           signal: abortController.signal,
-          ...(browserProfileDir ? { browserProfileDir } : {})
+          headless: config.headless,
+          ...(authRestore
+            ? { authRestore: { storageState: authRestore.storageState, sessionStorage: authRestore.sessionStorage } }
+            : browserProfileDir
+              ? { browserProfileDir }
+              : {})
         }
       )
 
@@ -176,6 +203,8 @@ export function registerAnalyzeRoute(app: FastifyInstance, workspaceRoot: string
       )
       const { status, body: errorBody } = toApiError(error)
       return reply.status(status).send(errorBody)
+    } finally {
+      await releaseAuthLock?.().catch(() => undefined)
     }
   })
 }

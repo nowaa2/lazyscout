@@ -1,6 +1,9 @@
 export { exploreWebsite, DEFAULT_EXPLORE_OPTIONS } from './exploreWebsite.js'
 export { exploreWithScope, exploreWebsiteWithConfig } from './scopedExplorer.js'
 export { launchBrowser } from './launchBrowser.js'
+export type { LaunchedBrowser, LaunchBrowserOptions } from './launchBrowser.js'
+export { readSessionStorage, writeSessionStorage } from './auth/browserStorage.js'
+export type { SessionStorageItem, SessionStorageOrigin } from './auth/browserStorage.js'
 export { ExplorerError, toExploreIssue } from './errors.js'
 export {
   isBlockedLabel,

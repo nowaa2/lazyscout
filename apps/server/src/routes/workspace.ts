@@ -1,6 +1,22 @@
+import { dirname } from 'node:path'
+import type { Page } from 'playwright-core'
 import type { FastifyInstance } from 'fastify'
 import type { AutomationScreenshot } from '@lazyscout/core'
-import { launchBrowser } from '@lazyscout/explorer'
+import { checkTargetUrl } from '@lazyscout/core'
+import { launchBrowser, type LaunchedBrowser } from '@lazyscout/explorer'
+import { config } from '../config.js'
+import { AuthProfileBusyError, acquireAuthLock, currentAuthLock } from '../auth/authLock.js'
+import {
+  captureAuthSnapshot,
+  clearAuthSnapshot,
+  loadAuthSnapshot,
+  readAuthMeta,
+  restoreSessionStorage,
+  saveAuthSnapshot,
+  updateAuthMeta,
+  verifyAuthState,
+  waitForAuthSettle
+} from '../auth/authState.js'
 import {
   deleteBugReport,
   deleteProject,
@@ -29,6 +45,20 @@ type ProjectParams = { projectId: string }
 type ScreenshotParams = ProjectParams & { name: string }
 type BugParams = ProjectParams & { bugId: string }
 
+/** A login window waiting for the operator to finish signing in. */
+type ActiveAuthSession = {
+  launched: LaunchedBrowser
+  release: () => Promise<void>
+  headless: boolean
+  projectDirectory: string
+}
+const authSessions = new Map<string, ActiveAuthSession>()
+
+/** The Project folder, which is where the auth snapshot and lock live. */
+async function projectPath(root: string, projectId: string): Promise<string> {
+  return dirname(await browserProfileDirectory(root, projectId))
+}
+
 export function registerWorkspaceRoutes(app: FastifyInstance, root: string): void {
   app.get('/api/workspace', async () => ({ root, projects: await listProjects(root) }))
 
@@ -54,19 +84,144 @@ export function registerWorkspaceRoutes(app: FastifyInstance, root: string): voi
     const body = request.body as { url?: string }
     if (!body?.url)
       return reply.status(400).send({ error: { code: 'invalid-url', message: 'A login URL is required.' } })
-    const profile = await browserProfileDirectory(root, request.params.projectId)
-    const launched = await launchBrowser({ userDataDir: profile, headless: false })
+
+    const check = checkTargetUrl(body.url, config.urlPolicy)
+    if (!check.ok) return reply.status(400).send({ error: { code: check.code, message: check.message } })
+
+    const { projectId } = request.params
+    const projectDirectory = await projectPath(root, projectId)
+    const log = (message: string) => request.log.info(message)
+
+    let release: (() => Promise<void>) | undefined
+    try {
+      release = await acquireAuthLock(projectDirectory, 'login-browser', { log })
+    } catch (error) {
+      if (error instanceof AuthProfileBusyError)
+        return reply.status(409).send({
+          error: { code: error.code, message: error.message, hint: 'Close the other LazyScout browser and try again.' }
+        })
+      throw error
+    }
+
+    // A human has to type credentials, so this window is visible even when the
+    // rest of the run is headless. The mismatch is recorded on the snapshot so
+    // the status can warn about it rather than leaving it invisible.
+    const headless = config.headless
+    const launched = await launchBrowser({ userDataDir: await browserProfileDirectory(root, projectId), headless })
     const page = launched.context.pages()[0] ?? (await launched.context.newPage())
-    await page.goto(body.url, { waitUntil: 'domcontentloaded' })
-    return reply.send({ opened: true })
+    await page.goto(check.url.toString(), { waitUntil: 'domcontentloaded' })
+    await updateAuthMeta(projectDirectory, { status: 'verifying', detail: 'Waiting for the sign-in window to close' })
+
+    // The snapshot is taken on an explicit capture call rather than on a URL
+    // change: an application that redirects, exchanges a code and only then
+    // sets its real cookie would otherwise be captured half signed-in.
+    authSessions.set(projectId, { launched, release, headless, projectDirectory })
+    log('[Auth] Login browser opened')
+    return reply.send({ opened: true, headless })
   })
 
-  app.get<{ Params: ProjectParams }>('/api/workspace/projects/:projectId/auth-session/status', async (request) =>
-    browserProfileStatus(root, request.params.projectId)
+  /** Called once the operator has signed in; captures and stores the snapshot. */
+  app.post<{ Params: ProjectParams }>(
+    '/api/workspace/projects/:projectId/auth-session/capture',
+    async (request, reply) => {
+      const { projectId } = request.params
+      const active = authSessions.get(projectId)
+      if (!active)
+        return reply.status(409).send({
+          error: { code: 'no-login-browser', message: 'Open the login browser before capturing a session.' }
+        })
+      const log = (message: string) => request.log.info(message)
+      try {
+        log('[Auth] Recorded login completed')
+        const page = active.launched.context.pages().find((candidate: Page) => !candidate.isClosed())
+        await waitForAuthSettle(active.launched.context, page, { log })
+        const { snapshot, indexedDb } = await captureAuthSnapshot(active.launched.context, { log })
+        const meta = await saveAuthSnapshot(active.projectDirectory, snapshot, {
+          indexedDb,
+          capturedHeadless: active.headless,
+          log
+        })
+        return reply.send(meta)
+      } finally {
+        authSessions.delete(projectId)
+        await active.launched.close().catch(() => undefined)
+        await active.release().catch(() => undefined)
+      }
+    }
+  )
+
+  app.get<{ Params: ProjectParams }>('/api/workspace/projects/:projectId/auth-session/status', async (request) => {
+    const { projectId } = request.params
+    const projectDirectory = await projectPath(root, projectId)
+    const meta = await readAuthMeta(projectDirectory)
+    const lock = await currentAuthLock(projectDirectory)
+    return {
+      ...meta,
+      // Kept so existing callers keep working; it describes the directory only
+      // and never means the login still works.
+      profile: await browserProfileStatus(root, projectId),
+      lockedBy: lock?.holder,
+      executionHeadless: config.headless,
+      // A snapshot taken in a different browser mode can be rejected by an app
+      // that binds a session to the browser it was issued to.
+      browserModeMismatch: meta.capturedHeadless !== undefined && meta.capturedHeadless !== config.headless
+    }
+  })
+
+  /** Opens a protected path with the snapshot restored and reports the result. */
+  app.post<{ Params: ProjectParams }>(
+    '/api/workspace/projects/:projectId/auth-session/verify',
+    async (request, reply) => {
+      const { projectId } = request.params
+      const body = (request.body ?? {}) as { url?: string }
+      if (!body.url)
+        return reply.status(400).send({ error: { code: 'invalid-url', message: 'A protected URL is required.' } })
+      const check = checkTargetUrl(body.url, config.urlPolicy)
+      if (!check.ok) return reply.status(400).send({ error: { code: check.code, message: check.message } })
+
+      const projectDirectory = await projectPath(root, projectId)
+      const snapshot = await loadAuthSnapshot(projectDirectory)
+      if (!snapshot)
+        return reply.status(409).send({
+          error: { code: 'no-auth-snapshot', message: 'Record a login before verifying it.' }
+        })
+
+      const log = (message: string) => request.log.info(message)
+      let release: (() => Promise<void>) | undefined
+      try {
+        release = await acquireAuthLock(projectDirectory, 'scout', { log })
+      } catch (error) {
+        if (error instanceof AuthProfileBusyError)
+          return reply.status(409).send({ error: { code: error.code, message: error.message } })
+        throw error
+      }
+
+      await updateAuthMeta(projectDirectory, { status: 'verifying' })
+      const launched = await launchBrowser({ storageState: snapshot.storageState, headless: config.headless })
+      try {
+        await restoreSessionStorage(launched.context, snapshot.sessionStorage)
+        log('[Auth] Restoring authenticated state')
+        const page = launched.context.pages()[0] ?? (await launched.context.newPage())
+        const result = await verifyAuthState(page, check.url.toString(), { log })
+        const meta = await updateAuthMeta(projectDirectory, {
+          status: result.ok ? 'ready' : 'expired',
+          verifiedAt: new Date().toISOString(),
+          verifiedPath: new URL(check.url.toString()).pathname,
+          detail: result.detail
+        })
+        if (result.ok) log('[Auth] READY')
+        return reply.send(meta)
+      } finally {
+        await launched.close().catch(() => undefined)
+        await release().catch(() => undefined)
+      }
+    }
   )
 
   app.delete<{ Params: ProjectParams }>('/api/workspace/projects/:projectId/auth-session', async (request, reply) => {
-    await clearBrowserProfile(root, request.params.projectId)
+    const { projectId } = request.params
+    await clearBrowserProfile(root, projectId)
+    await clearAuthSnapshot(await projectPath(root, projectId))
     return reply.send({ cleared: true })
   })
 

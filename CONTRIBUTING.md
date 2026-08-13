@@ -44,7 +44,7 @@ Use `npm run release:check` when changing package or release behavior.
 
 - Explain the problem and the behavior change.
 - Keep unrelated refactors out of the Pull Request.
-- Add or update tests for behavior changes where practical.
+- Add or update tests for behavior changes where practical, and run them before opening the Pull Request. Test files are deliberately untracked (`**/*.test.ts` and `**/*.spec.ts` are gitignored), so they stay on your machine and never appear in the diff — describe what you verified in the Pull Request and in `CHANGELOG.md` instead.
 - Update user-facing documentation when commands, limits or safety behavior change.
 - Do not weaken URL checks, destructive-action blocking, run limits or log redaction without a documented security review.
 - Keep scratch and verification artifacts out of the Pull Request: throwaway probe scripts, Scout result dumps, exported CSVs, screenshots and Project folders. Stage files by path rather than with `git add -A`, and confirm `git status --untracked-files=all` is clean. AI agents working in this repository follow [CLAUDE.md](CLAUDE.md), which spells this out.

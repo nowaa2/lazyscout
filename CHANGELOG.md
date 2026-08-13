@@ -2,6 +2,38 @@
 
 All notable changes to LazyScout are documented in this file.
 
+## [0.4.5] - 2026-08-13
+
+### Fixed
+
+**A saved login did not survive into a Scout or a Test run.** LazyScout relied on the Chromium profile directory alone and never used Playwright's `storageState` — a search of the whole repository found no use of it. A profile directory keeps cookies that carry a `Max-Age`, but session cookies live in memory and are gone the moment the browser closes, and that is exactly the kind of cookie most applications use to hold a refresh token. A run therefore started signed out and landed back on the sign-in page.
+
+- The sign-in is now captured as a Playwright `storageState`: every cookie including the ones with no expiry, plus localStorage, plus IndexedDB where the installed Playwright supports the option. sessionStorage is captured and restored separately because `storageState` never includes it.
+- Capture happens on an explicit request after the sign-in has settled, not when the URL changes. `waitForAuthSettle` polls for a stable cookie signature so an application that redirects, exchanges a code and only then sets its real cookie is not captured half signed-in. No fixed sleep is used.
+- Scout, the Recorder and the Test runner all restore the snapshot, preferring it over the profile directory. This also removes the profile-directory lock that used to stop two LazyScout browsers from running for one Project.
+- The snapshot lives at `projects/<id>/auth/storage-state.json` with owner-only permissions, and is covered by `.gitignore`. Only counts and timestamps are written to `auth/meta.json`; no cookie, token or header value is ever logged.
+
+**`auth-session/status` reported a directory, not a login.** `profileExists` was true whenever the folder existed, which said nothing about whether the session still worked. Status is now `not-configured`, `recorded`, `verifying`, `ready`, `expired` or `invalid`, and `ready` is only reachable through `POST /auth-session/verify`, which opens a protected path with the snapshot restored and downgrades to `expired` when the application redirects to a sign-in page.
+
+**Signing in and executing used different browsers.** The login window was headed while the Recorder, Scout and the runner were headless, so an application that ties a session to the browser it was issued to would reject the reused one. All four now share one mode from `config.headless`; set `LAZYSCOUT_HEADED=1` to run everything visibly. A snapshot captured in a different mode is reported through `browserModeMismatch` rather than failing silently. No fingerprint is spoofed.
+
+### Added
+
+- An auth-profile lock. An application that rotates refresh tokens revokes the old one on every use, so two runs sharing one snapshot sign each other out and a server that spots the reuse may revoke the whole token family. A Scout, recording or Test run now holds the Project's session exclusively and a second one is refused with an explanation. The lock is a file carrying a pid and a timestamp, so it holds across processes and a crashed holder cannot block the Project.
+- `POST /api/workspace/projects/:id/auth-session/capture` and `.../auth-session/verify`. Clearing the session now removes both the snapshot and the browser profile.
+- `[Auth]` progress logs through capture, restore, verification and ready, carrying no secret values.
+
+### Changed
+
+- **Test files are no longer tracked in Git.** `**/*.test.ts` and `**/*.spec.ts` are gitignored without exception, by the owner's decision, and the 21 previously committed test files have been untracked. They remain on the developer's disk and still run under `npm test`; a fresh clone simply has none, which is why `npm test` now passes with `--passWithNoTests` so `release:check` stays green on a clean checkout. The rule and its consequences are recorded in [CLAUDE.md](CLAUDE.md) and [CONTRIBUTING.md](CONTRIBUTING.md).
+
+### Known limitations
+
+- Refresh-token rotation is not solved by a snapshot. When an application issues a new token on every request and revokes the previous one, any saved state is stale by definition; the lock prevents two runs from accelerating the failure but does not remove the cause. Signing in fresh per run, or obtaining a session through an API login and restoring that, remains the reliable approach.
+- The capture, verify and clear endpoints have no buttons in the web UI yet.
+- A recorded login Test Case still cannot be replayed while a session is saved, because the application skips the sign-in form. Clear the session first.
+- A snapshot never expires on its own.
+
 ## [0.4.4] - 2026-08-13
 
 ### Fixed

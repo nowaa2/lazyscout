@@ -34,6 +34,7 @@ import { collectPageData } from './browser/domCollector.js'
 import { mapToPageModel } from './mapToPageModel.js'
 import { ExplorerError, toExploreIssue } from './errors.js'
 import { launchBrowser } from './launchBrowser.js'
+import { writeSessionStorage, type SessionStorageOrigin } from './auth/browserStorage.js'
 
 // ---------------------------------------------------------------------------
 // Defaults
@@ -837,9 +838,23 @@ export async function exploreWithScope(
   // Main exploration loop
   // ======================================================================
 
-  const launched = await launchBrowser(
-    legacyOptions.browserProfileDir ? { userDataDir: legacyOptions.browserProfileDir } : {}
-  )
+  // A saved authenticated state is preferred over the profile directory: it
+  // carries session cookies, which the profile drops on close, and it takes no
+  // directory lock so it cannot collide with a recorder or another run.
+  const launched = await launchBrowser({
+    headless: legacyOptions.headless ?? true,
+    ...(legacyOptions.authRestore?.storageState
+      ? { storageState: legacyOptions.authRestore.storageState }
+      : legacyOptions.browserProfileDir
+        ? { userDataDir: legacyOptions.browserProfileDir }
+        : {})
+  })
+  if (legacyOptions.authRestore?.sessionStorage) {
+    debug('[Auth] Restoring authenticated state')
+    await launched.context
+      .addInitScript(writeSessionStorage, legacyOptions.authRestore.sessionStorage as SessionStorageOrigin[])
+      .catch(() => undefined)
+  }
   const { context, label: browserLabel } = launched
 
   // Navigate to start URL or start path

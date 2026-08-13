@@ -362,6 +362,10 @@ export type ExploreOptions = {
   maxNavigationProbesPerPage: number
   /** Reuses a signed-in Project browser profile, so exploration starts past the login page. */
   browserProfileDir?: string
+  /** Saved authenticated state, preferred over the profile directory. */
+  authRestore?: AuthRestore
+  /** Run the browser visibly; shared with the rest of the run. */
+  headless?: boolean
 }
 
 export type ExplorationMode = 'current-page' | 'scope' | 'site'
@@ -429,6 +433,12 @@ export type ExplorationConfig = {
   debug: boolean
   limits: ExplorationLimits
   continueAfterLogin: boolean
+}
+
+/** A saved authenticated state handed to the explorer, opaque to it. */
+export type AuthRestore = {
+  storageState: unknown
+  sessionStorage?: unknown
 }
 
 export type SafeActionCandidate = {

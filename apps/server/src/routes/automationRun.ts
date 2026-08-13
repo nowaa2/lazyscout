@@ -2,6 +2,10 @@ import type { FastifyInstance } from 'fastify'
 import type { AutomationRunRequest, AutomationRunResponse } from '@lazyscout/core'
 import { isUnsafeAutoClick, redactSensitiveText } from '@lazyscout/core'
 import { isBlockedLabel, normalizeBlockedKeywords } from '@lazyscout/explorer'
+import { dirname } from 'node:path'
+import { config } from '../config.js'
+import { AuthProfileBusyError, acquireAuthLock } from '../auth/authLock.js'
+import { authStatePath, loadAuthSnapshot } from '../auth/authState.js'
 import { browserProfileDirectory, saveRunLog } from '../workspace.js'
 import { redactCliError, runPlaywrightCli } from './playwrightCliRunner.js'
 
@@ -101,14 +105,41 @@ export function registerAutomationRunRoute(app: FastifyInstance, workspaceRoot: 
 
     const active: ActiveRun = { stopped: false }
     activeRuns.set(runId, active)
+
+    // A saved snapshot carries the session cookies a profile directory drops.
+    const profileDirectory = body.projectId ? await browserProfileDirectory(workspaceRoot, body.projectId) : undefined
+    const projectDirectory = profileDirectory ? dirname(profileDirectory) : undefined
+    const snapshot = projectDirectory ? await loadAuthSnapshot(projectDirectory).catch(() => undefined) : undefined
+
+    // Two runs on one rotating refresh token sign each other out.
+    let releaseAuthLock: (() => Promise<void>) | undefined
+    if (projectDirectory && snapshot) {
+      try {
+        releaseAuthLock = await acquireAuthLock(projectDirectory, 'runner', {
+          log: (message) => addLog('info', message)
+        })
+      } catch (error) {
+        activeRuns.delete(runId)
+        if (error instanceof AuthProfileBusyError) {
+          addLog('warn', error.message)
+          await persistLog('blocked')
+          return reply.status(409).send({ error: { code: error.code, message: error.message } })
+        }
+        throw error
+      }
+    }
+
     try {
+      if (snapshot) addLog('info', '[Auth] Restoring authenticated state')
       const result = await runPlaywrightCli({
         source: body.code,
         testCase,
         testCaseId: testCase.id,
         secrets: body.secrets,
         secretValues,
-        profileDirectory: body.projectId ? await browserProfileDirectory(workspaceRoot, body.projectId) : undefined,
+        headless: config.headless,
+        ...(snapshot && projectDirectory ? { authStatePath: authStatePath(projectDirectory) } : {}),
+        profileDirectory,
         addLog,
         onProcess: (child) => {
           active.close = async () => {
@@ -147,6 +178,7 @@ export function registerAutomationRunRoute(app: FastifyInstance, workspaceRoot: 
       return reply.send({ status: 'failed', framework, logs, error: message })
     } finally {
       activeRuns.delete(runId)
+      await releaseAuthLock?.().catch(() => undefined)
     }
   })
 }
